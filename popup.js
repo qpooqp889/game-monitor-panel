@@ -1,5 +1,6 @@
 // popup.js
 var isInjected = false;
+var panelVisible = false;
 
 function updateStatus(text) {
   document.getElementById('status').textContent = text;
@@ -15,6 +16,27 @@ function updateInjectButton() {
     btn.classList.remove('on');
   }
 }
+
+function updatePanelButton(visible) {
+  var btn = document.getElementById('btnPanel');
+  if (visible) {
+    btn.textContent = 'HIDE PANEL';
+    btn.classList.add('active');
+  } else {
+    btn.textContent = 'SHOW PANEL';
+    btn.classList.remove('active');
+  }
+  panelVisible = visible;
+}
+
+// Listen for messages from content script
+chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+  if (request.action === 'panelToggled') {
+    updatePanelButton(request.visible);
+    sendResponse(true);
+  }
+  return true;
+});
 
 document.getElementById('btnInject').addEventListener('click', function() {
   updateStatus('Injecting...');
@@ -58,16 +80,8 @@ document.getElementById('btnPanel').addEventListener('click', function() {
         return;
       }
       if (response !== undefined) {
-        var btn = document.getElementById('btnPanel');
-        if (response.visible) {
-          btn.textContent = 'HIDE PANEL';
-          btn.classList.add('active');
-          updateStatus('Panel shown');
-        } else {
-          btn.textContent = 'SHOW PANEL';
-          btn.classList.remove('active');
-          updateStatus('Panel hidden');
-        }
+        updatePanelButton(response.visible);
+        updateStatus(response.visible ? 'Panel shown' : 'Panel hidden');
       }
     });
   });
