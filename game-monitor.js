@@ -1,5 +1,5 @@
 (function(){
-var ver='v1.16';
+var ver='v1.17';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -420,23 +420,23 @@ function __gmBuildPanel(){
       '<input type="checkbox" id="__gmp_farm_logic_chk" checked style="width:14px;height:14px;cursor:pointer;">'+
       '<span style="font-size:10px;color:#ffd700;width:50px;">條件</span>'+
       '<select id="__gmp_farm_logic" style="padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;">'+
-        '<option value="AND" selected>AND (且)</option>'+
-        '<option value="OR">OR (或)</option>'+
+        '<option value="AND">AND (且)</option>'+
+        '<option value="OR" selected>OR (或)</option>'+
       '</select>'+
       '<span style="font-size:10px;color:#888;">組合判斷</span>'+
     '</div>'+
     // HP > condition
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
-      '<input type="checkbox" id="__gmp_farm_hp_gt_chk" style="width:14px;height:14px;cursor:pointer;">'+
+      '<input type="checkbox" id="__gmp_farm_hp_gt_chk" checked style="width:14px;height:14px;cursor:pointer;">'+
       '<span style="font-size:10px;color:#4ade80;width:50px;">HP大於</span>'+
-      '<input id="__gmp_farm_hp_gt" type="number" value="80" min="1" max="100" style="width:55px;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;text-align:center;">'+
+      '<input id="__gmp_farm_hp_gt" type="number" value="90" min="1" max="100" style="width:55px;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;text-align:center;">'+
       '<span style="font-size:10px;color:#888;">% 傳送掛機</span>'+
     '</div>'+
     // MP > condition
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
-      '<input type="checkbox" id="__gmp_farm_mp_gt_chk" style="width:14px;height:14px;cursor:pointer;">'+
+      '<input type="checkbox" id="__gmp_farm_mp_gt_chk" checked style="width:14px;height:14px;cursor:pointer;">'+
       '<span style="font-size:10px;color:#7bd14a;width:50px;">MP大於</span>'+
-      '<input id="__gmp_farm_mp_gt" type="number" value="50" min="1" max="100" style="width:55px;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;text-align:center;">'+
+      '<input id="__gmp_farm_mp_gt" type="number" value="90" min="1" max="100" style="width:55px;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;text-align:center;">'+
       '<span style="font-size:10px;color:#888;">% 傳送掛機</span>'+
     '</div>'+
     // Auto attack
