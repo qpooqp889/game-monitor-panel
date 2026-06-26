@@ -241,6 +241,8 @@ function buildSearchableZone(value,onChange){
   ZONES.wild.forEach(function(z){allZones.push({zone:z,type:'野外'})});
   ZONES.dungeon.forEach(function(z){allZones.push({zone:z,type:'地監'})});
   var sel=value||'';
+  var _id=0;
+  var ddId='__gmp_dd_'+(_id++);
   var dd,input,list;
   function render(filter){
     if(!list)return;
@@ -264,7 +266,8 @@ function buildSearchableZone(value,onChange){
         item.textContent=(cur?'  ':'')+x.zone.name+' ('+x.zone.sub+')';
         item.onmouseover=function(){item.style.background='rgba(255,255,255,0.1)'};
         item.onmouseout=function(){item.style.background=sel===x.zone.id?'#c8a800':'transparent'};
-        item.onclick=function(){
+        item.onclick=function(e){
+          e.stopPropagation();
           sel=x.zone.id;input.value=x.zone.name+' ('+x.zone.sub+')';
           input.style.color='#fff';
           if(dd)dd.style.display='none';
@@ -285,6 +288,7 @@ function buildSearchableZone(value,onChange){
     },
     mount:function(container){
       dd=document.createElement('div');
+      dd.id=ddId;
       dd.style.cssText='position:relative;';
       input=document.createElement('input');
       input.type='text';
@@ -296,8 +300,9 @@ function buildSearchableZone(value,onChange){
       arrow.textContent='▼';
       list=document.createElement('div');
       list.style.cssText='position:absolute;top:100%;left:0;right:0;z-index:99999;background:#1a1a2e;border:1px solid #0f3460;border-radius:6px;margin-top:2px;max-height:200px;overflow-y:auto;display:none;box-shadow:0 4px 12px rgba(0,0,0,0.5);';
-      input.onclick=function(){
-        var sh=document.querySelectorAll('.__gmp_dd');
+      input.onclick=function(e){
+        e.stopPropagation();
+        var sh=document.querySelectorAll('[id^=__gmp_dd_]');
         sh.forEach(function(d){if(d!==dd)d.style.display='none'});
         list.style.display=list.style.display==='none'?'block':'none';
         render('');
@@ -433,6 +438,12 @@ function buildSearchableZone(value,onChange){
     document.getElementById('__gmp_farm_zone').dataset.value=val||'';
   });
   farmZoneDropdown.mount(document.getElementById('__gmp_farm_zone'));
+  // Also open dropdown when clicking the wrapper
+  document.getElementById('__gmp_farm_zone').addEventListener('click',function(e){
+    e.stopPropagation();
+    var inp=this.querySelector('input');
+    if(inp)inp.click();
+  });
 
   // === Zone tab functions ===
   function buildZoneItem(z){
