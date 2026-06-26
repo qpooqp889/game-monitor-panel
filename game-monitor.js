@@ -519,6 +519,8 @@ function __gmBuildPanel(){
     '</div>'+
     // Status
     '<div id="__gmp_farm_status" style="font-size:10px;color:#888;margin-bottom:6px;text-align:center;">已停止</div>'+
+    // Test Reconnect button
+    '<button id="__gmp_farm_test_reconnect" style="width:100%;padding:6px;background:#2a2a4a;border:1px solid #ffd700;color:#ffd700;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;margin-bottom:8px;">🧪 測試斷線重連</button>'+
     // Start/Stop button
     '<button id="__gmp_farm_btn" style="width:100%;padding:9px;background:#0f3460;border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:12px;font-weight:bold;">▶ 開啟腳本</button>'+
     '</div>'+
@@ -646,6 +648,60 @@ function __gmBuildPanel(){
       stopFarming();
     } else {
       startFarming();
+    }
+  };
+
+  // === Test Reconnect button ===
+  document.getElementById('__gmp_farm_test_reconnect').onclick=function(){
+    var status=document.getElementById('__gmp_farm_status');
+    var charNameInput=document.getElementById('__gmp_farm_char_name');
+    var charName=charNameInput.value.trim()||'';
+    
+    if(!charName){
+      status.textContent='❌ 請先輸入角色名稱';
+      status.style.color='#e94560';
+      return;
+    }
+    
+    status.textContent='🔍 測試中...';
+    status.style.color='#ffd700';
+    
+    // 檢測頁面是否包含角色名稱
+    var pageHtml=document.body.innerHTML||'';
+    console.log('[GM] 測試斷線重連：角色名稱 "'+charName+'"');
+    console.log('[GM] 頁面 HTML 長度：', pageHtml.length);
+    
+    if(pageHtml.indexOf(charName)===-1){
+      status.textContent='⚠️ 未找到角色名 "'+charName+'"，嘗試點擊...';
+      status.style.color='#fbbf24';
+      
+      // 嘗試找到包含角色名稱的 .char-slot 並點擊
+      var slots=document.querySelectorAll('.char-slot');
+      console.log('[GM] 找到', slots.length, '個角色槽');
+      var clicked=false;
+      slots.forEach(function(slot, index){
+        console.log('[GM] 角色槽', index, 'HTML:', slot.innerHTML.substring(0, 200));
+        if(slot.innerHTML.indexOf(charName)>-1){
+          var emptyDiv=slot.querySelector('.empty');
+          if(!emptyDiv){
+            console.log('[GM] 找到角色槽', index, '，點擊進入...');
+            slot.click();
+            clicked=true;
+            status.textContent='✅ 已點擊角色槽 '+index+'！';
+            status.style.color='#4ade80';
+          }
+        }
+      });
+      
+      if(!clicked){
+        status.textContent='❌ 未找到角色 "'+charName+'" 的槽位';
+        status.style.color='#e94560';
+        console.log('[GM] 未找到角色槽');
+      }
+    } else {
+      status.textContent='✅ 找到角色名 "'+charName+'"，游戲正常中';
+      status.style.color='#4ade80';
+      console.log('[GM] 找到角色名，游戲正常');
     }
   };
 
