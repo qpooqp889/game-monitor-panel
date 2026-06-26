@@ -93,26 +93,40 @@ function updateInjectButton() {
 }
 
 document.getElementById('btnInject').addEventListener('click', function() {
+  updateStatus('Injecting...');
   getCurrentTab(function(tabId, url) {
     if (!tabId) {
       updateStatus('No active tab!');
       return;
     }
     
+    updateStatus('Tab: ' + (url ? url.substring(0,30) : 'none'));
+    
     if (!url || !url.includes('linh5web.win')) {
-      updateStatus('Not on game page!');
+      updateStatus('Not on game page! URL: ' + (url || 'none'));
       return;
     }
     
-    // Inject the code
-    chrome.tabs.executeScript(tabId, {code: INJECT_CODE}, function(results) {
+    updateStatus('Injecting code...');
+    
+    // Test first - just check if we can execute
+    chrome.tabs.executeScript(tabId, {code: 'document.title'}, function(results) {
       if (chrome.runtime.lastError) {
         updateStatus('Error: ' + chrome.runtime.lastError.message);
-      } else {
-        isInjected = true;
-        updateInjectButton();
-        updateStatus('Injected! Monitor active.');
+        return;
       }
+      updateStatus('Can execute! Title: ' + results);
+      
+      // Now inject the actual code
+      chrome.tabs.executeScript(tabId, {code: INJECT_CODE}, function(results2) {
+        if (chrome.runtime.lastError) {
+          updateStatus('Inject Error: ' + chrome.runtime.lastError.message);
+        } else {
+          isInjected = true;
+          updateInjectButton();
+          updateStatus('Injected OK!');
+        }
+      });
     });
   });
 });
