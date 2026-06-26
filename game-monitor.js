@@ -1,5 +1,5 @@
 (function(){
-var ver='v1.21';
+var ver='v1.22';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -241,6 +241,7 @@ function startFarming(){
     if(!sp.length){window.__gmFarming.timer=setTimeout(loop,1000);return;}
     try{
       var d=JSON.parse(sp[sp.length-1].data.substring(2))[1];
+      console.log('[GM] Raw data:',JSON.stringify(d).substring(0,300));
       var c=d.char||{};
       var hp=c.hp||0,maxHp=c.maxHp||1;
       var mp=c.mp||0,maxMp=c.maxMp||1;
