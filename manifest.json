@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Game Monitor Panel",
   "version": "1.0",
-  "description": "遊戲監控面板 - 即時顯示HP/MP/位置/怪物",
+  "description": "Game Monitor Panel",
   "permissions": ["activeTab", "storage"],
   "host_permissions": ["https://linh5web.win/*"],
   "action": {
@@ -21,7 +21,7 @@
     {
       "matches": ["https://linh5web.win/*"],
       "js": ["content.js"],
-      "run_at": "document_end"
+      "run_at": "document_start"
     }
   ]
 }

@@ -1,6 +1,7 @@
 // content.js - Game Monitor Panel
 (function() {
   'use strict';
+  console.log('[Game Monitor] Content script loaded at', document.readyState);
   
   // Monitoring state
   var monitoringActive = false;
