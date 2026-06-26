@@ -1,5 +1,5 @@
 (function(){
-var ver='v1.14';
+var ver='v1.15';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -230,7 +230,7 @@ function startFarming(){
 
   if(!farmZone){alert('請先選擇掛機地圖！');return;}
 
-  window.__gmFarming={running:true,timer:null,returning:false,waitTimer:null};
+  window.__gmFarming={running:true,timer:null,returning:false,waitTimer:null,inTown:false};
   btn.textContent='■ 停止腳本';
   btn.style.background='#e94560';
   status.textContent='傳送至掛機地圖...';
@@ -253,6 +253,9 @@ function startFarming(){
       // Resolve zone ID: try d.zoneId first, then lookup by Chinese name
       var zoneId=d.zoneId||ZONE_NAME_LOOKUP[zoneName]||zoneName||'';
       var isInTown=zoneName.indexOf('大廳')>-1||zoneName.indexOf('村')>-1||zoneName.indexOf('安全')>-1;
+      
+      // Update inTown state
+      window.__gmFarming.inTown=isInTown;
 
       // Auto attack only when in the selected farming zone
       if(autoAtk&&!window.__gmFarming.returning&&!isInTown&&zoneId===farmZone){
@@ -279,11 +282,13 @@ function startFarming(){
         if(mpLow)needReturn=true;
       }
 
+      // Feature 1: Return to lobby when HP/MP low
       if(needReturn&&!window.__gmFarming.returning){
         window.__gmFarming.returning=true;
         if(window.__ws)window.__ws.send('42["toLobby"]');
         status.textContent='HP/MP不足，返回大廳...';
         status.style.color='#fbbf24';
+        // Feature 2: Delay return (independent)
         if(delayEnabled){
           window.__gmFarming.waitTimer=setTimeout(function(){
             window.__gmFarming.returning=false;
@@ -294,14 +299,21 @@ function startFarming(){
         }
       }
 
-      // Check HP/MP greater than thresholds (teleport to farm zone)
-      var hpGtOk=hpGtEnabled&&hpPct>(hpGtThresh/100);
-      var mpGtOk=mpGtEnabled&&mpPct>(mpGtThresh/100);
-      if((hpGtOk||mpGtOk)&&isInTown){
-        if(window.__ws)window.__ws.send('42["setZone","'+farmZone+'"]');
-        status.textContent='HP/MP充足，傳送掛機...';
-        status.style.color='#4ade80';
-        window.__gmFarming.returning=false; // Reset returning state when going back to farm
+      // Feature 3: Auto teleport to farm when HP/MP > threshold (independent)
+      // Only trigger when in town AND not in returning state
+      if(isInTown&&!window.__gmFarming.returning){
+        var hpGtOk=hpGtEnabled&&hpPct>(hpGtThresh/100);
+        var mpGtOk=mpGtEnabled&&mpPct>(mpGtThresh/100);
+        if(hpGtOk||mpGtOk){
+          if(window.__ws)window.__ws.send('42["setZone","'+farmZone+'"]');
+          status.textContent='HP/MP充足，傳送掛機...';
+          status.style.color='#4ade80';
+        }
+      }
+      
+      // Reset returning state when left town (entered farm zone)
+      if(!isInTown&&window.__gmFarming.returning){
+        window.__gmFarming.returning=false;
       }
     }catch(e){}
     window.__gmFarming.timer=setTimeout(loop,1000);
