@@ -1,5 +1,5 @@
 (function(){
-var ver='v1.09';
+var ver='v1.10';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -133,9 +133,6 @@ var ZONES={
   ],
 };
 
-// All farming zones combined
-
-
 function sendZone(zoneId){
   if(window.__ws){
     window.__ws.send('42["setZone","'+zoneId+'"]');
@@ -162,7 +159,7 @@ function startFarming(){
   var btn=document.getElementById('__gmp_farm_btn');
   var status=document.getElementById('__gmp_farm_status');
 
-  var farmZone=zoneSelect.dataset.value||'';
+  var farmZone=zoneSelect.value||'';
   var hpThresh=parseInt(hpInput.value)||0;
   var mpThresh=parseInt(mpInput.value)||0;
   var hpEnabled=hpCheck.checked;
@@ -235,90 +232,6 @@ function stopFarming(){
   if(status){status.textContent='已停止';status.style.color='#888'}
 }
 
-// Searchable zone dropdown
-function buildSearchableZone(value,onChange){
-  var allZones=[];
-  ZONES.wild.forEach(function(z){allZones.push({zone:z,type:'野外'})});
-  ZONES.dungeon.forEach(function(z){allZones.push({zone:z,type:'地監'})});
-  var sel=value||'';
-  var _id=0;
-  var ddId='__gmp_dd_'+(_id++);
-  var dd,input,list;
-  function render(filter){
-    if(!list)return;
-    list.innerHTML='';
-    var cur=filter.toLowerCase();
-    var shown=0;
-    var filtered=cur?allZones.filter(function(x){return x.zone.name.toLowerCase().includes(cur)}):allZones;
-    ['野外','地監'].forEach(function(type){
-      var group=filtered.filter(function(x){return x.type===type});
-      if(!group.length)return;
-      if(!cur){
-        var hdr=document.createElement('div');
-        hdr.style.cssText='padding:3px 8px;font-size:10px;color:#888;font-weight:bold;';
-        hdr.textContent='-- '+type+' --';
-        list.appendChild(hdr);
-      }
-      group.forEach(function(x){
-        shown++;
-        var item=document.createElement('div');
-        item.style.cssText='padding:5px 8px;cursor:pointer;font-size:11px;color:'+(sel===x.zone.id?'#ffd700':'#ccc')+';background:'+(sel===x.zone.id?'#c8a800':'transparent')+';';
-        item.textContent=(cur?'  ':'')+x.zone.name+' ('+x.zone.sub+')';
-        item.onmouseover=function(){item.style.background='rgba(255,255,255,0.1)'};
-        item.onmouseout=function(){item.style.background=sel===x.zone.id?'#c8a800':'transparent'};
-        item.onclick=function(e){
-          e.stopPropagation();
-          sel=x.zone.id;input.value=x.zone.name+' ('+x.zone.sub+')';
-          input.style.color='#fff';
-          if(dd)dd.style.display='none';
-          if(onChange)onChange(x.zone.id);
-        };
-        list.appendChild(item);
-      });
-    });
-    if(!shown){var e=document.createElement('div');e.style.cssText='padding:8px;font-size:11px;color:#666;text-align:center;';e.textContent='無結果';list.appendChild(e)}
-  }
-  function close(e){if(dd&&!dd.contains(e.target)&&e.target!==input)dd.style.display='none'}
-  return {
-    getValue:function(){return sel},
-    setValue:function(v){
-      sel=v||'';
-      var found=allZones.find(function(x){return x.zone.id===v});
-      input.value=found?(found.zone.name+' ('+found.zone.sub+')'):'-- 選擇掛機地圖 --';
-    },
-    mount:function(container){
-      dd=document.createElement('div');
-      dd.id=ddId;
-      dd.style.cssText='position:relative;';
-      input=document.createElement('input');
-      input.type='text';
-      input.readOnly=true;
-      input.value='-- 選擇掛機地圖 --';
-      input.style.cssText='width:100%;padding:6px 28px 6px 8px;background:#2a2a4a;border:1px solid #0f3460;border-radius:6px;color:#888;font-size:11px;outline:none;box-sizing:border-box;cursor:pointer;';
-      var arrow=document.createElement('span');
-      arrow.style.cssText='position:absolute;right:8px;top:50%;transform:translateY(-50%);color:#888;font-size:10px;pointer-events:none;';
-      arrow.textContent='▼';
-      list=document.createElement('div');
-      list.style.cssText='position:absolute;top:100%;left:0;right:0;z-index:99999;background:#1a1a2e;border:1px solid #0f3460;border-radius:6px;margin-top:2px;max-height:200px;overflow-y:auto;display:none;box-shadow:0 4px 12px rgba(0,0,0,0.5);';
-      input.onclick=function(e){
-        e.stopPropagation();
-        var sh=document.querySelectorAll('[id^=__gmp_dd_]');
-        sh.forEach(function(d){if(d!==dd)d.style.display='none'});
-        list.style.display=list.style.display==='none'?'block':'none';
-        render('');
-      };
-      input.oninput=function(){render(input.value)};
-      dd.appendChild(input);dd.appendChild(arrow);dd.appendChild(list);
-      container.innerHTML='';container.appendChild(dd);
-      document.addEventListener('click',close);
-      if(sel){
-        var f=allZones.find(function(x){return x.zone.id===sel});
-        if(f)input.value=f.zone.name+' ('+f.zone.sub+')';
-      }
-    }
-  };
-}
-
 // Main panel build
 (function(){
   var old=document.getElementById('__gmp');if(old)old.remove();
@@ -327,7 +240,7 @@ function buildSearchableZone(value,onChange){
   var activeZoneTab='town';
   var p=document.createElement('div');p.id='__gmp';
   Object.assign(p.style,{position:'fixed',top:'10px',right:'10px',width:'300px',background:'linear-gradient(135deg,#1a1a2e,#16213e)',border:'2px solid #0f3460',borderRadius:'12px',padding:'12px',fontFamily:'Segoe UI',color:'#fff',zIndex:'999999',boxShadow:'0 4px 20px rgba(0,0,0,0.5)',cursor:'move'});
-  
+
   p.innerHTML=
   '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #0f3460;">'+
   '<div style="display:flex;align-items:center;gap:6px;">'+
@@ -393,10 +306,15 @@ function buildSearchableZone(value,onChange){
     '</div>'+
     // === FARM TAB ===
     '<div id="__gmp_tab_content_farm" style="display:none;">'+
-    // Zone select - searchable
     '<div style="margin-bottom:8px;">'+
       '<div style="font-size:10px;color:#888;margin-bottom:3px;">掛機地圖</div>'+
-      '<div id="__gmp_farm_zone"></div>'+
+      '<input id="__gmp_farm_search" placeholder="搜尋野外/地監名稱..." '+
+        'style="width:100%;padding:5px 8px;background:#2a2a4a;border:1px solid #0f3460;border-radius:6px;'+
+        'color:#aaa;font-size:11px;outline:none;box-sizing:border-box;margin-bottom:4px;display:block;">'+
+      '<select id="__gmp_farm_zone" size="6" '+
+        'style="width:100%;background:#1a1a2e;border:1px solid #0f3460;border-radius:6px;'+
+        'color:#fff;font-size:11px;outline:none;box-sizing:border-box;cursor:pointer;padding:2px 4px;">'+
+      '</select>'+
     '</div>'+
     // HP row
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
@@ -433,17 +351,34 @@ function buildSearchableZone(value,onChange){
   '</div>';
   document.body.appendChild(p);
 
-  // === Mount searchable zone dropdown ===
-  var farmZoneDropdown=buildSearchableZone('',function(val){
-    document.getElementById('__gmp_farm_zone').dataset.value=val||'';
-  });
-  farmZoneDropdown.mount(document.getElementById('__gmp_farm_zone'));
-  // Also open dropdown when clicking the wrapper
-  document.getElementById('__gmp_farm_zone').addEventListener('click',function(e){
-    e.stopPropagation();
-    var inp=this.querySelector('input');
-    if(inp)inp.click();
-  });
+  // === Populate farm zone select ===
+  var farmSel=document.getElementById('__gmp_farm_zone');
+  var farmSearch=document.getElementById('__gmp_farm_search');
+  function populateFarmZones(filter){
+    var f=(filter||'').toLowerCase();
+    farmSel.innerHTML='';
+    var allZones=[
+      {list:ZONES.wild,label:'-- 野外 --'},
+      {list:ZONES.dungeon,label:'-- 地監 --'}
+    ];
+    allZones.forEach(function(g){
+      var opts=g.list.filter(function(z){
+        return !f||z.name.toLowerCase().indexOf(f)>-1||(z.sub||'').toLowerCase().indexOf(f)>-1;
+      });
+      if(!opts.length)return;
+      var og=document.createElement('optgroup');
+      og.label=g.label;
+      opts.forEach(function(z){
+        var o=document.createElement('option');
+        o.value=z.id;
+        o.textContent=z.name+' ('+z.sub+')';
+        og.appendChild(o);
+      });
+      farmSel.appendChild(og);
+    });
+  }
+  populateFarmZones('');
+  farmSearch.addEventListener('input',function(){populateFarmZones(this.value)});
 
   // === Zone tab functions ===
   function buildZoneItem(z){
@@ -485,10 +420,10 @@ function buildSearchableZone(value,onChange){
     if(tab==='special'){
       bossList.style.display='block';
       bossList.innerHTML='';
-      ZONES.WORLDBOSS.forEach(function(b){if(!search||b.name.toLowerCase().includes(search))bossList.appendChild(buildBossItem(b))});
-      (ZONES.special||[]).forEach(function(z){if(!search||z.name.toLowerCase().includes(search))list.appendChild(buildZoneItem(z))});
+      ZONES.WORLDBOSS.forEach(function(b){if(!search||b.name.toLowerCase().indexOf(search)>-1)bossList.appendChild(buildBossItem(b))});
+      (ZONES.special||[]).forEach(function(z){if(!search||z.name.toLowerCase().indexOf(search)>-1)list.appendChild(buildZoneItem(z))});
     } else {
-      (ZONES[tab]||[]).forEach(function(z){if(!search||z.name.toLowerCase().includes(search))list.appendChild(buildZoneItem(z))});
+      (ZONES[tab]||[]).forEach(function(z){if(!search||z.name.toLowerCase().indexOf(search)>-1)list.appendChild(buildZoneItem(z))});
     }
     document.querySelectorAll('.__gmp_st').forEach(function(b){
       b.style.background=b.dataset.t===tab?'#0f3460':'#333';
