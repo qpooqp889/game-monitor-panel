@@ -1,5 +1,5 @@
 (function(){
-var ver='v1.24';
+var ver='v1.25';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -206,6 +206,8 @@ function startFarming(){
   var logicSelect=document.getElementById('__gmp_farm_logic');
   var logicCheck=document.getElementById('__gmp_farm_logic_chk');
   var atkCheck=document.getElementById('__gmp_farm_atk');
+  var atkDelayInput=document.getElementById('__gmp_farm_atk_delay');
+  var atkDelayVal=document.getElementById('__gmp_farm_atk_delay_val');
   var btn=document.getElementById('__gmp_farm_btn');
   var status=document.getElementById('__gmp_farm_status');
 
@@ -221,6 +223,7 @@ function startFarming(){
   var logicOp=logicSelect.value;
   var logicEnabled=logicCheck.checked;
   var autoAtk=atkCheck.checked;
+  var atkDelay=parseInt(atkDelayInput.value)||3;
 
   if(!farmZone){alert('請先選擇掛機地圖！');return;}
 
@@ -257,9 +260,14 @@ function startFarming(){
 
       // Auto attack only when in the selected farming zone
       if(autoAtk&&!window.__gmFarming.returning&&!isInTown&&zoneId===farmZone){
-        if(window.__ws){
-          window.__ws.send('42["attack"]');
-          status.textContent='攻擊中...';
+        // Random delay between atkDelay and atkDelay*2 seconds
+        var now=Date.now();
+        if(!window.__gmFarming.lastAtkTime||(now-window.__gmFarming.lastAtkTime)>=(atkDelay*1000+Math.random()*atkDelay*1000)){
+          if(window.__ws){
+            window.__ws.send('42["attack"]');
+            status.textContent='攻擊中...';
+            window.__gmFarming.lastAtkTime=now;
+          }
         }
       }
 
@@ -448,6 +456,10 @@ function __gmBuildPanel(){
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">'+
       '<input type="checkbox" id="__gmp_farm_atk" checked style="width:14px;height:14px;cursor:pointer;">'+
       '<span style="font-size:11px;color:#7bd14a;font-weight:bold;">⚔️ 自動攻擊</span>'+
+      '<span style="font-size:10px;color:#888;margin-left:8px;">延遲</span>'+
+      '<input id="__gmp_farm_atk_delay" type="range" min="1" max="10" value="3" style="width:80px;cursor:pointer;">'+
+      '<span id="__gmp_farm_atk_delay_val" style="font-size:10px;color:#ffd700;min-width:20px;">3</span>'+
+      '<span style="font-size:10px;color:#888;">秒</span>'+
     '</div>'+
     // Status
     '<div id="__gmp_farm_status" style="font-size:10px;color:#888;margin-bottom:6px;text-align:center;">已停止</div>'+
@@ -643,7 +655,7 @@ function __gmBuildPanel(){
   // === Auto-save on change ===
   var farmInputs=['__gmp_farm_zone','__gmp_farm_hp','__gmp_farm_mp','__gmp_farm_hp_chk','__gmp_farm_mp_chk',
     '__gmp_farm_hp_gt','__gmp_farm_mp_gt','__gmp_farm_hp_gt_chk','__gmp_farm_mp_gt_chk',
-    '__gmp_farm_logic','__gmp_farm_logic_chk','__gmp_farm_atk'];
+    '__gmp_farm_logic','__gmp_farm_logic_chk','__gmp_farm_atk','__gmp_farm_atk_delay'];
   farmInputs.forEach(function(id){
     var el=document.getElementById(id);
     if(el){
@@ -651,6 +663,15 @@ function __gmBuildPanel(){
       el.addEventListener('input',saveFarmSettings);
     }
   });
+
+  // === Attack delay slider ===
+  var atkDelaySlider=document.getElementById('__gmp_farm_atk_delay');
+  var atkDelayVal=document.getElementById('__gmp_farm_atk_delay_val');
+  if(atkDelaySlider&&atkDelayVal){
+    atkDelaySlider.addEventListener('input',function(){
+      atkDelayVal.textContent=this.value;
+    });
+  }
 }
 __gmBuildPanel();
 document.addEventListener('__gm_show_panel',function(){__gmBuildPanel()});
