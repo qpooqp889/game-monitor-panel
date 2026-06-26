@@ -93,27 +93,24 @@ function updateInjectButton() {
 }
 
 document.getElementById('btnInject').addEventListener('click', function() {
-  updateStatus('Step 1: query tab...');
+  updateStatus('Injecting...');
   
   chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-    updateStatus('Step 2: got tabs: ' + (tabs ? tabs.length : 'null'));
-    
     if (!tabs || !tabs[0]) {
-      updateStatus('No tab found!');
+      updateStatus('No tab!');
       return;
     }
-    
     var tab = tabs[0];
-    updateStatus('Step 3: tab url = ' + (tab.url || 'no url'));
-    
     if (!tab.url || !tab.url.includes('linh5web.win')) {
       updateStatus('Not on game page!');
       return;
     }
     
-    updateStatus('Step 4: executeScript...');
-    chrome.tabs.executeScript(tab.id, {file: 'game-monitor.js'}, function(results) {
-      updateStatus('Step 5: result = ' + JSON.stringify(results));
+    // Use chrome.scripting.executeScript (MV3 way)
+    chrome.scripting.executeScript({
+      target: {tabId: tab.id},
+      files: ['game-monitor.js']
+    }, function(results) {
       if (chrome.runtime.lastError) {
         updateStatus('Error: ' + chrome.runtime.lastError.message.substring(0,60));
       } else {
@@ -126,19 +123,25 @@ document.getElementById('btnInject').addEventListener('click', function() {
 });
 
 document.getElementById('btnHp').addEventListener('click', function() {
-  getCurrentTab(function(tabId) {
-    if (tabId) {
-      chrome.tabs.executeScript(tabId, {code: 'window.gmHp && window.gmHp();'}, function() {
-        updateStatus('HP potion used!');
+  chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+    if (tabs && tabs[0]) {
+      chrome.scripting.executeScript({
+        target: {tabId: tabs[0].id},
+        code: 'window.gmHp && window.gmHp();'
+      }, function() {
+        updateStatus('HP used!');
       });
     }
   });
 });
 
 document.getElementById('btnAtk').addEventListener('click', function() {
-  getCurrentTab(function(tabId) {
-    if (tabId) {
-      chrome.tabs.executeScript(tabId, {code: 'window.gmAtk && window.gmAtk();'}, function() {
+  chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+    if (tabs && tabs[0]) {
+      chrome.scripting.executeScript({
+        target: {tabId: tabs[0].id},
+        code: 'window.gmAtk && window.gmAtk();'
+      }, function() {
         updateStatus('Attack sent!');
       });
     }
@@ -146,9 +149,12 @@ document.getElementById('btnAtk').addEventListener('click', function() {
 });
 
 document.getElementById('btnStop').addEventListener('click', function() {
-  getCurrentTab(function(tabId) {
-    if (tabId) {
-      chrome.tabs.executeScript(tabId, {code: 'window.gmStop && window.gmStop();'}, function() {
+  chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+    if (tabs && tabs[0]) {
+      chrome.scripting.executeScript({
+        target: {tabId: tabs[0].id},
+        code: 'window.gmStop && window.gmStop();'
+      }, function() {
         updateStatus('Stopped!');
       });
     }
