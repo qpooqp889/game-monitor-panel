@@ -15,26 +15,37 @@ function updateUI(running) {
   }
 }
 
-document.getElementById('btnStart').addEventListener('click', function() {
+function sendToTab(action, callback) {
   chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-    chrome.tabs.sendMessage(tabs[0].id, {action: 'startMonitoring'}, function(response) {
-      if (response) {
-        updateUI(true);
-        document.getElementById('status').textContent = 'Monitor started!';
-      } else {
-        updateUI(false);
-        document.getElementById('status').textContent = 'Start failed!';
+    if (!tabs || !tabs[0] || !tabs[0].id) {
+      document.getElementById('status').textContent = 'No active tab!';
+      return;
+    }
+    chrome.tabs.sendMessage(tabs[0].id, action, function(response) {
+      if (chrome.runtime.lastError) {
+        document.getElementById('status').textContent = 'Not on game page!';
+        return;
       }
+      if (callback) callback(response);
     });
+  });
+}
+
+document.getElementById('btnStart').addEventListener('click', function() {
+  sendToTab({action: 'startMonitoring'}, function(response) {
+    if (response) {
+      updateUI(true);
+      document.getElementById('status').textContent = 'Monitor started!';
+    }
   });
 });
 
 document.getElementById('btnToggle').addEventListener('click', function() {
-  chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-    chrome.tabs.sendMessage(tabs[0].id, {action: 'togglePanel'}, function(response) {
+  sendToTab({action: 'togglePanel'}, function(response) {
+    if (response !== undefined) {
       document.getElementById('status').textContent = response ? 'Panel ON' : 'Panel OFF';
       document.getElementById('btnToggle').classList.toggle('active', response);
-    });
+    }
   });
 });
 
@@ -45,14 +56,12 @@ document.getElementById('btnReload').addEventListener('click', function() {
 });
 
 // Check current status
-chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-  chrome.tabs.sendMessage(tabs[0].id, {action: 'checkStatus'}, function(response) {
-    if (response) {
-      if (response.monitoring) updateUI(true);
-      if (response.panelExists) {
-        document.getElementById('status').textContent = 'Ready!';
-        document.getElementById('btnToggle').classList.add('active');
-      }
+sendToTab({action: 'checkStatus'}, function(response) {
+  if (response) {
+    if (response.monitoring) updateUI(true);
+    if (response.panelExists) {
+      document.getElementById('status').textContent = 'Ready!';
+      document.getElementById('btnToggle').classList.add('active');
     }
-  });
+  }
 });
