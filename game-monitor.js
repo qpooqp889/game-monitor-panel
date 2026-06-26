@@ -1,5 +1,5 @@
 (function(){
-var ver='v1.03';
+var ver='v1.04';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -74,9 +74,46 @@ var ZONES={
     {id:'dream_island',name:'夢幻之島',sub:'建議 Lv.39'},
   ],
   dungeon:[
-    {id:'dungeon_01',name:'地監1層',sub:''},
-    {id:'dungeon_02',name:'地監2層',sub:''},
-    {id:'dungeon_03',name:'地監3層',sub:''},
+    {id:'zone_06',name:'古魯丁地監1樓',sub:'建議 Lv.9'},
+    {id:'zone_07',name:'古魯丁地監2樓',sub:'建議 Lv.14'},
+    {id:'zone_08',name:'古魯丁地監3樓',sub:'建議 Lv.14'},
+    {id:'zone_09',name:'古魯丁地監4樓',sub:'建議 Lv.15'},
+    {id:'zone_10',name:'古魯丁地監5樓',sub:'建議 Lv.16'},
+    {id:'zone_11',name:'古魯丁地監6樓',sub:'建議 Lv.20'},
+    {id:'zone_12',name:'古魯丁地監7樓',sub:'建議 Lv.18'},
+    {id:'zone_13',name:'說話之島地監1樓',sub:'建議 Lv.10'},
+    {id:'zone_14',name:'說話之島地監2樓',sub:'建議 Lv.11'},
+    {id:'zone_15',name:'眠龍洞穴1樓',sub:'建議 Lv.6'},
+    {id:'zone_16',name:'眠龍洞穴2樓',sub:'建議 Lv.9'},
+    {id:'zone_17',name:'眠龍洞穴3樓',sub:'建議 Lv.13'},
+    {id:'crystal_cave1',name:'水晶洞穴1樓',sub:'建議 Lv.28'},
+    {id:'crystal_cave2',name:'水晶洞穴2樓',sub:'建議 Lv.28'},
+    {id:'crystal_cave3',name:'水晶洞穴3樓',sub:'建議 Lv.28'},
+    {id:'zone_18',name:'奇岩地監1樓',sub:'建議 Lv.14'},
+    {id:'zone_19',name:'奇岩地監2樓',sub:'建議 Lv.15'},
+    {id:'zone_20',name:'奇岩地監3樓',sub:'建議 Lv.15'},
+    {id:'zone_21',name:'奇岩地監4樓',sub:'建議 Lv.22'},
+    {id:'zone_22',name:'沙漠地監1樓',sub:'建議 Lv.9'},
+    {id:'zone_23',name:'沙漠地監2樓',sub:'建議 Lv.15'},
+    {id:'zone_24',name:'沙漠地監3樓',sub:'建議 Lv.15'},
+    {id:'zone_25',name:'沙漠地監4樓',sub:'建議 Lv.25'},
+    {id:'zone_26',name:'龍之谷地監1樓',sub:'建議 Lv.24'},
+    {id:'zone_27',name:'龍之谷地監2樓',sub:'建議 Lv.28'},
+    {id:'zone_28',name:'龍之谷地監3樓',sub:'建議 Lv.29'},
+    {id:'zone_29',name:'龍之谷地監4樓',sub:'建議 Lv.30'},
+    {id:'zone_30',name:'龍之谷地監5樓',sub:'建議 Lv.36'},
+    {id:'zone_31',name:'龍之谷地監6樓',sub:'建議 Lv.38'},
+    {id:'zone_32',name:'螞蟻洞窟1樓',sub:'建議 Lv.16'},
+    {id:'zone_33',name:'螞蟻洞窟2樓',sub:'建議 Lv.16'},
+    {id:'zone_34',name:'地下通道1樓',sub:'建議 Lv.16'},
+    {id:'zone_35',name:'地下通道2樓',sub:'建議 Lv.19'},
+    {id:'zone_36',name:'地下通道3樓',sub:'建議 Lv.21'},
+    {id:'eva_kingdom',name:'伊娃王國',sub:'建議 Lv.22'},
+    {id:'zone_37',name:'象牙塔4樓',sub:'建議 Lv.32'},
+    {id:'zone_38',name:'象牙塔5樓',sub:'建議 Lv.32'},
+    {id:'zone_39',name:'象牙塔6樓',sub:'建議 Lv.43'},
+    {id:'zone_40',name:'象牙塔7樓',sub:'建議 Lv.43'},
+    {id:'zone_41',name:'象牙塔8樓',sub:'建議 Lv.43'},
   ],
 };
 
