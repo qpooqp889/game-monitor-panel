@@ -2,9 +2,12 @@
   "manifest_version": 3,
   "name": "Game Monitor Panel",
   "version": "1.0",
-  "description": "Game Monitor Panel",
-  "permissions": ["activeTab", "storage"],
+  "description": "Game Monitor Panel with Network Debugging",
+  "permissions": ["activeTab", "storage", "debugger"],
   "host_permissions": ["https://linh5web.win/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -16,12 +19,5 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
-  },
-  "content_scripts": [
-    {
-      "matches": ["https://linh5web.win/*"],
-      "js": ["content.js"],
-      "run_at": "document_start"
-    }
-  ]
+  }
 }

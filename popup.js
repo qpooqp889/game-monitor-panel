@@ -1,5 +1,6 @@
 // popup.js
 var isMonitoring = false;
+var currentTabId = null;
 
 function updateUI(running) {
   isMonitoring = running;
@@ -15,58 +16,70 @@ function updateUI(running) {
   }
 }
 
-function sendToTab(action, callback) {
+function getCurrentTab(callback) {
   chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-    if (!tabs || tabs.length === 0) {
-      document.getElementById('status').textContent = 'No tabs!';
-      return;
+    if (tabs && tabs[0]) {
+      callback(tabs[0].id);
+    } else {
+      callback(null);
     }
-    var tab = tabs[0];
-    document.getElementById('status').textContent = 'Tab: ' + tab.url.substring(0, 30) + '...';
-    
-    chrome.tabs.sendMessage(tab.id, action, function(response) {
-      if (chrome.runtime.lastError) {
-        document.getElementById('status').textContent = 'Error: ' + chrome.runtime.lastError.message.substring(0, 40);
-        return;
-      }
-      if (callback) callback(response);
-    });
   });
 }
 
 document.getElementById('btnStart').addEventListener('click', function() {
-  sendToTab({action: 'startMonitoring'}, function(response) {
-    if (response) {
-      updateUI(true);
-      document.getElementById('status').textContent = 'Monitor started!';
+  getCurrentTab(function(tabId) {
+    if (!tabId) {
+      document.getElementById('status').textContent = 'No active tab!';
+      return;
     }
+    currentTabId = tabId;
+    
+    chrome.runtime.sendMessage({action: 'startMonitoring', tabId: tabId}, function(response) {
+      if (response) {
+        updateUI(true);
+        document.getElementById('status').textContent = 'Monitor started!';
+        
+        // Start panel
+        chrome.runtime.sendMessage({action: 'startPanel', tabId: tabId});
+      } else {
+        document.getElementById('status').textContent = 'Start failed!';
+      }
+    });
   });
 });
 
 document.getElementById('btnToggle').addEventListener('click', function() {
-  sendToTab({action: 'togglePanel'}, function(response) {
-    if (response !== undefined) {
-      document.getElementById('status').textContent = response ? 'Panel ON' : 'Panel OFF';
-      document.getElementById('btnToggle').classList.toggle('active', response);
-    }
+  getCurrentTab(function(tabId) {
+    if (!tabId) return;
+    chrome.tabs.sendMessage(tabId, {action: 'togglePanel'}, function(response) {
+      if (response !== undefined) {
+        document.getElementById('status').textContent = response ? 'Panel ON' : 'Panel OFF';
+        document.getElementById('btnToggle').classList.toggle('active', response);
+      }
+    });
   });
 });
 
 document.getElementById('btnReload').addEventListener('click', function() {
-  chrome.tabs.reload();
-  updateUI(false);
-  document.getElementById('status').textContent = 'Reloading...';
-});
-
-// Check current status on load
-setTimeout(function() {
-  sendToTab({action: 'checkStatus'}, function(response) {
-    if (response) {
-      if (response.monitoring) updateUI(true);
-      if (response.panelExists) {
-        document.getElementById('status').textContent = 'Ready!';
-        document.getElementById('btnToggle').classList.add('active');
-      }
+  getCurrentTab(function(tabId) {
+    if (tabId) {
+      chrome.tabs.reload(tabId);
+      updateUI(false);
+      document.getElementById('status').textContent = 'Reloading...';
     }
   });
-}, 500);
+});
+
+// Poll for packet updates when monitoring
+setInterval(function() {
+  if (isMonitoring && currentTabId) {
+    chrome.runtime.sendMessage({action: 'getPackets'}, function(response) {
+      if (response && response.packets) {
+        var total = response.packets.send.length + response.packets.receive.length;
+        if (total > 0) {
+          document.getElementById('status').textContent = 'RX:' + response.packets.receive.length + ' TX:' + response.packets.send.length;
+        }
+      }
+    });
+  }
+}, 1000);
