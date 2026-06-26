@@ -1,6 +1,9 @@
-// content.js - 遊戲監控面板
+// content.js - Game Monitor Panel
 (function() {
   'use strict';
+  
+  // Monitoring state
+  var monitoringActive = false;
   
   // 封包監控
   if (!window.__battleStatus) {
@@ -13,9 +16,23 @@
     };
   }
   
+  // Hook existing WebSocket
+  function hookWebSocket() {
+    if (window.__ws && !window.__ws.__hooked) {
+      window.__ws.__hooked = true;
+      window.__ws.addEventListener('message', function(e) {
+        window.__battleStatus.packets.push({ type: 'receive', data: e.data });
+      });
+    }
+  }
+  
   // 監聽來自 popup 的訊息
   chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-    if (request.action === 'togglePanel') {
+    if (request.action === 'startMonitoring') {
+      hookWebSocket();
+      monitoringActive = true;
+      sendResponse(true);
+    } else if (request.action === 'togglePanel') {
       var existing = document.getElementById('__gmp');
       if (existing) {
         existing.remove();
@@ -25,20 +42,13 @@
         sendResponse(true);
       }
     } else if (request.action === 'checkStatus') {
-      sendResponse({ panelExists: !!document.getElementById('__gmp') });
+      sendResponse({ 
+        panelExists: !!document.getElementById('__gmp'),
+        monitoring: monitoringActive 
+      });
     }
     return true;
   });
-  
-  // 監聽 WebSocket message
-  function hookWebSocket() {
-    if (window.__ws && !window.__ws.__hooked) {
-      window.__ws.__hooked = true;
-      window.__ws.addEventListener('message', function(e) {
-        window.__battleStatus.packets.push({ type: 'receive', data: e.data });
-      });
-    }
-  }
   
   // 創建面板
   function createPanel() {
