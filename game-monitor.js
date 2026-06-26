@@ -1,5 +1,5 @@
 (function(){
-var ver='v1.22';
+var ver='v1.23';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -241,21 +241,19 @@ function startFarming(){
     if(!sp.length){window.__gmFarming.timer=setTimeout(loop,1000);return;}
     try{
       var d=JSON.parse(sp[sp.length-1].data.substring(2))[1];
-      console.log('[GM] Raw data:',JSON.stringify(d).substring(0,300));
       var c=d.char||{};
       var hp=c.hp||0,maxHp=c.maxHp||1;
       var mp=c.mp||0,maxMp=c.maxMp||1;
       var zoneName=d.zoneName||d.zone||'';
+      var mode=d.mode||'';
       // Resolve zone ID: try d.zoneId first, then lookup by Chinese name
       var zoneId=d.zoneId||ZONE_NAME_LOOKUP[zoneName]||zoneName||'';
-      // Check if in town (lobby/village/safe zone)
-      var zLower=zoneName.toLowerCase();
-      var isInTown=zLower.indexOf('大廳')>-1||zLower.indexOf('大厅')>-1||
-                   zLower.indexOf('村')>-1||zLower.indexOf('安全')>-1||
-                   zLower.indexOf('lobby')>-1||zLower.indexOf('town')>-1||
-                   zLower.indexOf('village')>-1||zLower.indexOf('safe')>-1;
+      // Check if in town: by mode='lobby' or zone name contains town keywords
+      var isInTown=mode==='lobby'||
+                   zoneName.indexOf('大廳')>-1||zoneName.indexOf('大厅')>-1||
+                   zoneName.indexOf('村')>-1||zoneName.indexOf('安全')>-1;
       
-      console.log('[GM] zoneName:',zoneName,'isInTown:',isInTown,'HP:',Math.round(hpPct*100)+'%','MP:',Math.round(mpPct*100)+'%');
+      console.log('[GM] mode:',mode,'zoneName:',zoneName,'isInTown:',isInTown,'HP:',Math.round(hp/maxHp*100)+'%','MP:',Math.round(mp/maxMp*100)+'%');
       
       // Update inTown state
       window.__gmFarming.inTown=isInTown;
