@@ -1,5 +1,5 @@
 (function(){
-var ver='v1.25';
+var ver='v1.23';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -10,6 +10,41 @@ window.__gmInjected=true;
 window.__gmVer=ver;
 window.__battleStatus={packets:[]};window.__gmOnlineCount=null;
 window.__gmFarming={running:false,timer:null,returning:false,waitTimer:null};
+
+// ========== Storage Functions ==========
+function saveFarmSettings(){
+  var data={
+    farmZone: document.getElementById('__gmp_farm_zone').value||'',
+    hpThresh: parseInt(document.getElementById('__gmp_farm_hp').value)||20,
+    mpThresh: parseInt(document.getElementById('__gmp_farm_mp').value)||10,
+    hpEnabled: document.getElementById('__gmp_farm_hp_chk').checked,
+    mpEnabled: document.getElementById('__gmp_farm_mp_chk').checked,
+    hpGtThresh: parseInt(document.getElementById('__gmp_farm_hp_gt').value)||80,
+    mpGtThresh: parseInt(document.getElementById('__gmp_farm_mp_gt').value)||50,
+    hpGtEnabled: document.getElementById('__gmp_farm_hp_gt_chk').checked,
+    mpGtEnabled: document.getElementById('__gmp_farm_mp_gt_chk').checked,
+    logicOp: document.getElementById('__gmp_farm_logic').value||'AND',
+    logicEnabled: document.getElementById('__gmp_farm_logic_chk').checked,
+    autoAtk: document.getElementById('__gmp_farm_atk').checked
+  };
+  // Send to content script to save via chrome.storage
+  window.postMessage({type:'GM_SAVE_SETTINGS',data:data},'*');
+}
+
+function loadFarmSettings(callback){
+  window.postMessage({type:'GM_LOAD_SETTINGS'},'*');
+  window.__gmLoadCallback=callback;
+}
+
+// Listen for load response from content script
+window.addEventListener('message',function(e){
+  if(e.data&&e.data.type==='GM_LOAD_RESPONSE'&&window.__gmLoadCallback){
+    window.__gmLoadCallback(e.data.data);
+    window.__gmLoadCallback=null;
+  }
+});
+
+// ========== End Storage Functions ==========
 
 // Hook WebSocket send
 var origSend=WebSocket.prototype.send;
@@ -170,10 +205,7 @@ function startFarming(){
   var mpGtCheck=document.getElementById('__gmp_farm_mp_gt_chk');
   var logicSelect=document.getElementById('__gmp_farm_logic');
   var logicCheck=document.getElementById('__gmp_farm_logic_chk');
-  var delaySelect=document.getElementById('__gmp_farm_delay');
-  var delayCheck=document.getElementById('__gmp_farm_delay_chk');
   var atkCheck=document.getElementById('__gmp_farm_atk');
-  var atkDelaySlider=document.getElementById('__gmp_farm_atk_delay');
   var btn=document.getElementById('__gmp_farm_btn');
   var status=document.getElementById('__gmp_farm_status');
 
@@ -188,14 +220,11 @@ function startFarming(){
   var mpGtEnabled=mpGtCheck.checked;
   var logicOp=logicSelect.value;
   var logicEnabled=logicCheck.checked;
-  var delaySec=parseInt(delaySelect.value)||3;
-  var delayEnabled=delayCheck.checked;
   var autoAtk=atkCheck.checked;
-  var atkDelay=parseInt(atkDelaySlider.value)||3;
 
   if(!farmZone){alert('請先選擇掛機地圖！');return;}
 
-  window.__gmFarming={running:true,timer:null,returning:false,waitTimer:null,lastAtkTime:null};
+  window.__gmFarming={running:true,timer:null,returning:false,inTown:false};
   btn.textContent='■ 停止腳本';
   btn.style.background='#e94560';
   status.textContent='傳送至掛機地圖...';
@@ -208,6 +237,7 @@ function startFarming(){
     if(!window.__gmFarming.running)return;
     var pkts=(window.__battleStatus||{packets:[]}).packets;
     var sp=pkts.filter(function(x){return x.type==='receive'&&x.data&&x.data.indexOf('"state"')>-1});
+    console.log('[GM] loop running, packets:',pkts.length,'state packets:',sp.length);
     if(!sp.length){window.__gmFarming.timer=setTimeout(loop,1000);return;}
     try{
       var d=JSON.parse(sp[sp.length-1].data.substring(2))[1];
@@ -215,22 +245,24 @@ function startFarming(){
       var hp=c.hp||0,maxHp=c.maxHp||1;
       var mp=c.mp||0,maxMp=c.maxMp||1;
       var zoneName=d.zoneName||d.zone||'';
+      var mode=d.mode||'';
       // Resolve zone ID: try d.zoneId first, then lookup by Chinese name
       var zoneId=d.zoneId||ZONE_NAME_LOOKUP[zoneName]||zoneName||'';
-      var isInTown=zoneName.indexOf('大廳')>-1||zoneName.indexOf('村')>-1||zoneName.indexOf('安全')>-1;
+      // Check if in town: by mode='lobby' or zone name contains town keywords
+      var isInTown=mode==='lobby'||
+                   zoneName.indexOf('大廳')>-1||zoneName.indexOf('大厅')>-1||
+                   zoneName.indexOf('村')>-1||zoneName.indexOf('安全')>-1;
+      
+      console.log('[GM] mode:',mode,'zoneName:',zoneName,'isInTown:',isInTown,'HP:',Math.round(hp/maxHp*100)+'%','MP:',Math.round(mp/maxMp*100)+'%');
+      
+      // Update inTown state
+      window.__gmFarming.inTown=isInTown;
 
       // Auto attack only when in the selected farming zone
       if(autoAtk&&!window.__gmFarming.returning&&!isInTown&&zoneId===farmZone){
-        var now=Date.now();
-        var minDelay=atkDelay*1000;
-        var maxDelay=atkDelay*2000;
-        var randomDelay=minDelay+Math.random()*(maxDelay-minDelay);
-        if(!window.__gmFarming.lastAtkTime||(now-window.__gmFarming.lastAtkTime)>=randomDelay){
-          if(window.__ws){
-            window.__ws.send('42["attack"]');
-            status.textContent='攻擊中...';
-            window.__gmFarming.lastAtkTime=now;
-          }
+        if(window.__ws){
+          window.__ws.send('42["attack"]');
+          status.textContent='攻擊中...';
         }
       }
 
@@ -251,28 +283,32 @@ function startFarming(){
         if(mpLow)needReturn=true;
       }
 
+      // Feature 1: Return to lobby when HP/MP low
       if(needReturn&&!window.__gmFarming.returning){
         window.__gmFarming.returning=true;
         if(window.__ws)window.__ws.send('42["toLobby"]');
         status.textContent='HP/MP不足，返回大廳...';
         status.style.color='#fbbf24';
-        if(delayEnabled){
-          window.__gmFarming.waitTimer=setTimeout(function(){
-            window.__gmFarming.returning=false;
-            if(window.__ws)window.__ws.send('42["setZone","'+farmZone+'"]');
-            status.textContent='掛機中...';
-            status.style.color='#4ade80';
-          },delaySec*1000);
-        }
       }
 
-      // Check HP/MP greater than thresholds (teleport to farm zone)
-      var hpGtOk=hpGtEnabled&&hpPct>(hpGtThresh/100);
-      var mpGtOk=mpGtEnabled&&mpPct>(mpGtThresh/100);
-      if((hpGtOk||mpGtOk)&&isInTown&&!window.__gmFarming.returning){
-        if(window.__ws)window.__ws.send('42["setZone","'+farmZone+'"]');
-        status.textContent='HP/MP充足，傳送掛機...';
-        status.style.color='#4ade80';
+      // Feature 2: Auto teleport to farm when HP/MP > threshold (in town)
+      // Triggered when in town AND HP/MP above thresholds
+      if(isInTown){
+        var hpGtOk=hpGtEnabled&&hpPct>(hpGtThresh/100);
+        var mpGtOk=mpGtEnabled&&mpPct>(mpGtThresh/100);
+        console.log('[GM] In town, HP:',Math.round(hpPct*100)+'%, MP:',Math.round(mpPct*100)+'%, hpGtOk:',hpGtOk,'mpGtOk:',mpGtOk);
+        if(hpGtOk||mpGtOk){
+          console.log('[GM] Teleporting to farm zone:',farmZone);
+          if(window.__ws)window.__ws.send('42["setZone","'+farmZone+'"]');
+          status.textContent='HP/MP充足，傳送掛機...';
+          status.style.color='#4ade80';
+          window.__gmFarming.returning=false;
+        }
+      }
+      
+      // Reset returning state when left town (entered farm zone)
+      if(!isInTown&&window.__gmFarming.returning){
+        window.__gmFarming.returning=false;
       }
     }catch(e){}
     window.__gmFarming.timer=setTimeout(loop,1000);
@@ -283,7 +319,6 @@ function startFarming(){
 function stopFarming(){
   window.__gmFarming.running=false;
   if(window.__gmFarming.timer){clearTimeout(window.__gmFarming.timer);window.__gmFarming.timer=null;}
-  if(window.__gmFarming.waitTimer){clearTimeout(window.__gmFarming.waitTimer);window.__gmFarming.waitTimer=null;}
   window.__gmFarming.returning=false;
   var btn=document.getElementById('__gmp_farm_btn');
   var status=document.getElementById('__gmp_farm_status');
@@ -394,42 +429,29 @@ function __gmBuildPanel(){
       '<input type="checkbox" id="__gmp_farm_logic_chk" checked style="width:14px;height:14px;cursor:pointer;">'+
       '<span style="font-size:10px;color:#ffd700;width:50px;">條件</span>'+
       '<select id="__gmp_farm_logic" style="padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;">'+
-        '<option value="AND" selected>AND (且)</option>'+
-        '<option value="OR">OR (或)</option>'+
+        '<option value="AND">AND (且)</option>'+
+        '<option value="OR" selected>OR (或)</option>'+
       '</select>'+
       '<span style="font-size:10px;color:#888;">組合判斷</span>'+
     '</div>'+
     // HP > condition
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
-      '<input type="checkbox" id="__gmp_farm_hp_gt_chk" style="width:14px;height:14px;cursor:pointer;">'+
+      '<input type="checkbox" id="__gmp_farm_hp_gt_chk" checked style="width:14px;height:14px;cursor:pointer;">'+
       '<span style="font-size:10px;color:#4ade80;width:50px;">HP大於</span>'+
-      '<input id="__gmp_farm_hp_gt" type="number" value="80" min="1" max="100" style="width:55px;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;text-align:center;">'+
+      '<input id="__gmp_farm_hp_gt" type="number" value="90" min="1" max="100" style="width:55px;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;text-align:center;">'+
       '<span style="font-size:10px;color:#888;">% 傳送掛機</span>'+
     '</div>'+
     // MP > condition
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
-      '<input type="checkbox" id="__gmp_farm_mp_gt_chk" style="width:14px;height:14px;cursor:pointer;">'+
+      '<input type="checkbox" id="__gmp_farm_mp_gt_chk" checked style="width:14px;height:14px;cursor:pointer;">'+
       '<span style="font-size:10px;color:#7bd14a;width:50px;">MP大於</span>'+
-      '<input id="__gmp_farm_mp_gt" type="number" value="50" min="1" max="100" style="width:55px;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;text-align:center;">'+
+      '<input id="__gmp_farm_mp_gt" type="number" value="90" min="1" max="100" style="width:55px;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;text-align:center;">'+
       '<span style="font-size:10px;color:#888;">% 傳送掛機</span>'+
-    '</div>'+
-    // Delay row
-    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">'+
-      '<input type="checkbox" id="__gmp_farm_delay_chk" style="width:14px;height:14px;cursor:pointer;">'+
-      '<span style="font-size:10px;color:#888;width:80px;">返回大廳後</span>'+
-      '<select id="__gmp_farm_delay" style="padding:4px 8px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;">'+
-        [1,2,3,4,5,6,7,8,9,10,12,15,20,25,30].map(function(n){return '<option value="'+n+'"'+(n===3?' selected':'')+'>'+n+'</option>'}).join('')+
-      '</select>'+
-      '<span style="font-size:10px;color:#888;">秒返回掛機地圖</span>'+
     '</div>'+
     // Auto attack
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">'+
       '<input type="checkbox" id="__gmp_farm_atk" checked style="width:14px;height:14px;cursor:pointer;">'+
       '<span style="font-size:11px;color:#7bd14a;font-weight:bold;">⚔️ 自動攻擊</span>'+
-      '<span style="font-size:10px;color:#888;margin-left:8px;">延遲</span>'+
-      '<input id="__gmp_farm_atk_delay" type="range" min="1" max="10" value="3" oninput="document.getElementById(\'__gmp_farm_atk_delay_val\').textContent=this.value" style="width:80px;cursor:pointer;">'+
-      '<span id="__gmp_farm_atk_delay_val" style="font-size:10px;color:#ffd700;min-width:20px;">3</span>'+
-      '<span style="font-size:10px;color:#888;">秒</span>'+
     '</div>'+
     // Status
     '<div id="__gmp_farm_status" style="font-size:10px;color:#888;margin-bottom:6px;text-align:center;">已停止</div>'+
@@ -601,6 +623,38 @@ function __gmBuildPanel(){
   }
   setInterval(upd,500);
   upd();
+
+  // === Load saved settings ===
+  loadFarmSettings(function(data){
+    if(!data)return;
+    if(data.farmZone){
+      var opt=document.querySelector('#__gmp_farm_zone option[value="'+data.farmZone+'"]');
+      if(opt)document.getElementById('__gmp_farm_zone').value=data.farmZone;
+    }
+    if(data.hpThresh)document.getElementById('__gmp_farm_hp').value=data.hpThresh;
+    if(data.mpThresh)document.getElementById('__gmp_farm_mp').value=data.mpThresh;
+    document.getElementById('__gmp_farm_hp_chk').checked=data.hpEnabled!==false;
+    document.getElementById('__gmp_farm_mp_chk').checked=data.mpEnabled!==false;
+    if(data.hpGtThresh)document.getElementById('__gmp_farm_hp_gt').value=data.hpGtThresh;
+    if(data.mpGtThresh)document.getElementById('__gmp_farm_mp_gt').value=data.mpGtThresh;
+    document.getElementById('__gmp_farm_hp_gt_chk').checked=data.hpGtEnabled||false;
+    document.getElementById('__gmp_farm_mp_gt_chk').checked=data.mpGtEnabled||false;
+    if(data.logicOp)document.getElementById('__gmp_farm_logic').value=data.logicOp;
+    document.getElementById('__gmp_farm_logic_chk').checked=data.logicEnabled!==false;
+    document.getElementById('__gmp_farm_atk').checked=data.autoAtk!==false;
+  });
+
+  // === Auto-save on change ===
+  var farmInputs=['__gmp_farm_zone','__gmp_farm_hp','__gmp_farm_mp','__gmp_farm_hp_chk','__gmp_farm_mp_chk',
+    '__gmp_farm_hp_gt','__gmp_farm_mp_gt','__gmp_farm_hp_gt_chk','__gmp_farm_mp_gt_chk',
+    '__gmp_farm_logic','__gmp_farm_logic_chk','__gmp_farm_atk'];
+  farmInputs.forEach(function(id){
+    var el=document.getElementById(id);
+    if(el){
+      el.addEventListener('change',saveFarmSettings);
+      el.addEventListener('input',saveFarmSettings);
+    }
+  });
 }
 __gmBuildPanel();
 document.addEventListener('__gm_show_panel',function(){__gmBuildPanel()});
