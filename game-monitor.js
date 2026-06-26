@@ -1,5 +1,5 @@
 (function(){
-var ver='v1.05';
+var ver='v1.06';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -178,7 +178,7 @@ function sendCmd(cmd){
   '</div>'+
   '<div id="__gmp_content">'+
     '<div id="__gmp_tab_content_game" style="display:block;">'+
-    '<div style="background:rgba(255,255,255,0.05);padding:8px;border-radius:6px;margin-bottom:8px;"><div id="__gmp_name" style="font-weight:bold;color:#ffd700;font-size:14px;">Loading...</div><div id="__gmp_info" style="font-size:11px;color:#aaa;">Lv.?</div></div>'+
+    '<div style="display:flex;gap:6px;margin-bottom:8px;"><button id="__gmp_lobby" style="flex:1;padding:6px 0;background:#e94560;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">🏠 返回大廳</button><button id="__gmp_zone_town" style="flex:1;padding:6px 0;background:#0f3460;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:11px;">⚔️ 銀騎士村</button></div><div style="background:rgba(255,255,255,0.05);padding:8px;border-radius:6px;margin-bottom:8px;"><div id="__gmp_name" style="font-weight:bold;color:#ffd700;font-size:14px;">Loading...</div><div id="__gmp_info" style="font-size:11px;color:#aaa;">Lv.?</div></div>'+
     '<div style="margin-bottom:5px;"><div style="display:flex;justify-content:space-between;"><span style="color:#e94560;">HP</span><span id="__gmp_hp_text" style="color:#e94560;">--/--</span></div><div style="background:#3a1a1a;border-radius:4px;height:14px;"><div id="__gmp_hp_bar" style="width:0%;background:#e94560;height:100%;border-radius:4px;"></div></div></div>'+
     '<div style="margin-bottom:5px;"><div style="display:flex;justify-content:space-between;"><span style="color:#00d9ff;">MP</span><span id="__gmp_mp_text" style="color:#00d9ff;">--/--</span></div><div style="background:#1a2a3a;border-radius:4px;height:10px;"><div id="__gmp_mp_bar" style="width:0%;background:#00d9ff;height:100%;border-radius:4px;"></div></div></div>'+
     '<div style="margin-bottom:6px;"><div style="display:flex;justify-content:space-between;"><span style="color:#ffd700;">EXP</span><span id="__gmp_exp_text" style="color:#ffd700;">--%</span></div><div style="background:#3a3a1a;border-radius:4px;height:8px;"><div id="__gmp_exp_bar" style="width:0%;background:#ffd700;height:100%;border-radius:4px;"></div></div></div>'+
@@ -285,7 +285,7 @@ function sendCmd(cmd){
   document.getElementById('__gmp_tab_game').onclick=function(){switchTab('game')};
   document.getElementById('__gmp_tab_zone').onclick=function(){switchTab('zone')};
   
-  document.getElementById('__gmp_close').onclick=function(){document.getElementById('__gmp').remove()};
+  document.getElementById('__gmp_lobby').onclick=function(){sendCmd('toLobby')};document.getElementById('__gmp_zone_town').onclick=function(){sendZone('town_silver_knight')};document.getElementById('__gmp_close').onclick=function(){document.getElementById('__gmp').remove()};
   document.getElementById('__gmp_expand').onclick=function(){
     isExpanded=!isExpanded;
     document.getElementById('__gmp_content').style.display=isExpanded?'block':'none';
