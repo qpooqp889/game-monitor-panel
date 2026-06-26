@@ -1,7 +1,12 @@
 (function(){
+console.log('[GM] Script starting...');
+console.log('[GM] __gmInjected before:', window.__gmInjected);
 if(window.__gmInjected){console.log('[GM] Already injected');return;}
 window.__gmInjected=true;
+console.log('[GM] __gmInjected after:', window.__gmInjected);
+
 window.__battleStatus={packets:[]};
+console.log('[GM] __battleStatus created:', typeof window.__battleStatus);
 
 // Hook WebSocket send
 var origSend=WebSocket.prototype.send;
@@ -11,22 +16,21 @@ window.__ws=this;
 return origSend.call(this,data);
 };
 
-// Hook existing WebSocket if any
+// Hook existing WebSocket
 if(window.__ws){
 window.__ws.addEventListener('message',function(e){
 window.__battleStatus.packets.push({type:'receive',data:e.data});
 });
 }
 
-// Poll to hook new WebSocket
-var hookInterval=setInterval(function(){
+// Poll to hook WebSocket
+setInterval(function(){
 if(window.__ws&&!window.__ws.__hooked){
 window.__ws.__hooked=true;
 window.__ws.addEventListener('message',function(e){
 window.__battleStatus.packets.push({type:'receive',data:e.data});
+console.log('[GM] WS MSG:', e.data.substring(0,50));
 });
-console.log('[GM] WebSocket hooked!');
-clearInterval(hookInterval);
 }
 },100);
 
@@ -73,7 +77,7 @@ document.addEventListener('mouseup',function(){drag=false;});
 
 // Update function
 function upd(){
-var pkts=(window.__battleStatus||{}).packets||[];
+var pkts=(window.__battleStatus||{packets:[]}).packets;
 var sp=pkts.filter(function(x){return x.type==='receive'&&x.data&&x.data.indexOf('"state"')>-1;});
 if(!sp.length)return;
 try{
@@ -96,5 +100,5 @@ document.getElementById('__gmp_mobs').innerHTML=h||'<span style="color:#888;">no
 }
 setInterval(upd,500);
 upd();
-console.log('[GM] Monitor injected! BookMarket style!');
+console.log('[GM] Monitor injected!');
 })();
