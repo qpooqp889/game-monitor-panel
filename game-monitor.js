@@ -1,6 +1,14 @@
 (function(){
-if(window.__gmInjected){console.log('[GM] Already injected');return;}
+var ver='v1.01';
+if(window.__gmInjected){
+  console.log('[GM] Already injected ('+ver+')');
+  // Update panel version
+  var el=document.getElementById('__gmp_ver');
+  if(el)el.textContent=ver;
+  return;
+}
 window.__gmInjected=true;
+window.__gmVer=ver;
 window.__battleStatus={packets:[]};
 
 // Hook WebSocket send
@@ -76,9 +84,12 @@ function sendCmd(cmd){
   
   p.innerHTML=
   '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #0f3460;">'+
-  '<div style="display:flex;gap:4px;">'+
-    '<button id="__gmp_tab_game" style="padding:6px 12px;background:#0f3460;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">狀態</button>'+
-    '<button id="__gmp_tab_zone" style="padding:6px 12px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:12px;">地圖</button>'+
+  '<div style="display:flex;align-items:center;gap:8px;">'+
+    '<div style="display:flex;gap:4px;">'+
+      '<button id="__gmp_tab_game" style="padding:6px 12px;background:#0f3460;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">狀態</button>'+
+      '<button id="__gmp_tab_zone" style="padding:6px 12px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:12px;">地圖</button>'+
+    '</div>'+
+    '<span id="__gmp_ver" style="font-size:10px;color:#4ade80;font-weight:bold;">'+ver+'</span>'+
   '</div>'+
   '<div style="display:flex;gap:4px;">'+
     '<button id="__gmp_expand" style="background:#0f3460;border:none;color:#fff;width:24px;height:24px;border-radius:4px;cursor:pointer;font-size:14px;">▼</button>'+
@@ -88,8 +99,7 @@ function sendCmd(cmd){
   '</div>'+
   '</div>'+
   '<div id="__gmp_content">'+
-    // GAME TAB
-    '<div id="__gmp_tab_content_game">'+
+    '<div id="__gmp_tab_content_game" style="display:block;">'+
     '<div style="background:rgba(255,255,255,0.05);padding:10px;border-radius:8px;margin-bottom:10px;"><div id="__gmp_name" style="font-weight:bold;color:#ffd700;font-size:16px;">Loading...</div><div id="__gmp_info" style="font-size:12px;color:#aaa;">Lv.?</div></div>'+
     '<div style="margin-bottom:6px;"><div style="display:flex;justify-content:space-between;"><span style="color:#e94560;">HP</span><span id="__gmp_hp_text" style="color:#e94560;">--/--</span></div><div style="background:#3a1a1a;border-radius:6px;height:16px;"><div id="__gmp_hp_bar" style="width:0%;background:#e94560;height:100%;border-radius:6px;"></div></div></div>'+
     '<div style="margin-bottom:6px;"><div style="display:flex;justify-content:space-between;"><span style="color:#00d9ff;">MP</span><span id="__gmp_mp_text" style="color:#00d9ff;">--/--</span></div><div style="background:#1a2a3a;border-radius:6px;height:12px;"><div id="__gmp_mp_bar" style="width:0%;background:#00d9ff;height:100%;border-radius:6px;"></div></div></div>'+
@@ -97,7 +107,6 @@ function sendCmd(cmd){
     '<div style="background:rgba(255,255,255,0.05);padding:6px 8px;border-radius:6px;margin-bottom:8px;"><span style="color:#888;">GOLD: </span><span id="__gmp_gold" style="color:#ffd700;font-weight:bold;">--</span></div>'+
     '<div style="background:rgba(255,255,255,0.05);padding:8px;border-radius:6px;margin-bottom:8px;"><div style="font-weight:bold;margin-bottom:4px;font-size:12px;">👾 MONSTERS</div><div id="__gmp_mobs" style="font-size:12px;color:#aaa;">...</div></div>'+
     '</div>'+
-    // ZONE TAB
     '<div id="__gmp_tab_content_zone" style="display:none;">'+
     '<div style="display:flex;gap:6px;margin-bottom:8px;">'+
       '<button id="__gmp_cmd_lobby" style="flex:1;padding:8px;background:#0f3460;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">🏠 大廳</button>'+
@@ -192,5 +201,5 @@ function sendCmd(cmd){
   setInterval(upd,500);
   upd();
 })();
-console.log('[GM] Monitor injected with Zone Tab!');
+console.log('[GM] Monitor injected '+ver);
 })();
