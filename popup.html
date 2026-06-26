@@ -7,15 +7,17 @@
 body {width:320px;background:#1a1a2e;color:#fff;font-family:Segoe UI;padding:15px;}
 .header {display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;padding-bottom:10px;border-bottom:1px solid #0f3460;}
 .header h1 {color:#00d9ff;font-size:16px;}
-.btn-start {width:100%;padding:15px;border:none;border-radius:8px;cursor:pointer;font-weight:bold;font-size:14px;margin-bottom:15px;transition:all 0.3s;}
-.btn-start.off {background:#e94560;color:#fff;}
-.btn-start.on {background:#4ade80;color:#000;}
-.btn-group {display:flex;gap:8px;margin-bottom:15px;}
-.btn {flex:1;padding:10px;border:none;border-radius:8px;cursor:pointer;font-weight:bold;color:#fff;font-size:12px;}
-.btn-toggle {background:#0f3460;}
-.btn-toggle.active {background:#4ade80;color:#000;}
-.btn-reload {background:#333;}
-.status {font-size:12px;color:#888;margin-top:10px;padding:8px;background:rgba(255,255,255,0.05);border-radius:6px;}
+.btn {width:100%;padding:12px;border:none;border-radius:8px;cursor:pointer;font-weight:bold;color:#fff;font-size:13px;margin-bottom:10px;transition:all 0.3s;}
+.btn:active {transform:scale(0.98);}
+.btn-inject {background:#e94560;}
+.btn-inject.on {background:#4ade80;color:#000;}
+.btn-panel {background:#0f3460;}
+.btn-panel.active {background:#4ade80;color:#000;}
+.btn-atk {background:#333;}
+.btn-hp {background:#e94560;}
+.btn-stop {background:#555;}
+.status {font-size:11px;color:#888;margin-top:10px;padding:8px;background:rgba(255,255,255,0.05);border-radius:6px;min-height:40px;}
+.divider {border-top:1px solid #0f3460;margin:10px 0;}
 </style>
 </head>
 <body>
@@ -24,14 +26,21 @@ body {width:320px;background:#1a1a2e;color:#fff;font-family:Segoe UI;padding:15p
   <span style="color:#4ade80;font-size:12px;">v1.0</span>
 </div>
 
-<button class="btn-start off" id="btnStart">START MONITOR</button>
+<button class="btn btn-inject" id="btnInject">INJECT MONITOR</button>
 
-<div class="btn-group">
-  <button class="btn btn-toggle" id="btnToggle">PANEL</button>
-  <button class="btn btn-reload" id="btnReload">RELOAD</button>
+<div class="divider"></div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+  <button class="btn btn-hp" id="btnHp">HP</button>
+  <button class="btn btn-atk" id="btnAtk">ATK</button>
+  <button class="btn btn-stop" id="btnStop">STOP</button>
 </div>
 
-<div id="status" class="status">Waiting for game...</div>
+<div class="divider"></div>
+
+<button class="btn btn-panel" id="btnPanel">SHOW PANEL</button>
+
+<div id="status" class="status">Ready. Click INJECT first!</div>
 
 <script src="popup.js"></script>
 </body>

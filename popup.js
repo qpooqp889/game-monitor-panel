@@ -1,85 +1,180 @@
 // popup.js
-var isMonitoring = false;
+var isInjected = false;
 var currentTabId = null;
 
-function updateUI(running) {
-  isMonitoring = running;
-  var btn = document.getElementById('btnStart');
-  if (running) {
-    btn.textContent = 'MONITORING';
-    btn.classList.remove('off');
-    btn.classList.add('on');
-  } else {
-    btn.textContent = 'START MONITOR';
-    btn.classList.remove('on');
-    btn.classList.add('off');
-  }
+// The injection code (bookmarklet style)
+var INJECT_CODE = `
+javascript:(function(){
+if(window.__gmInjected){console.log('[GM] Already injected');return;}
+window.__gmInjected=true;
+window.__gmPackets=[];
+
+(function(){
+var _send=WebSocket.prototype.send;
+WebSocket.prototype.send=function(d){
+if(!this.__hooked){this.__hooked=true;var s=this;
+this.addEventListener('message',function(e){
+console.log('[GM-RX]',e.data.substring(0,100));
+window.__gmPackets.push({t:'rx',d:e.data});
+try{
+var j=JSON.parse(e.data.substring(2));
+if(j[0]==='state'){window.__gmState=j[1];}
+}catch(err){}
+});
+}
+console.log('[GM-TX]',d.substring(0,100));
+window.__gmPackets.push({t:'tx',d:d});
+window.__gmWS=this;
+return _send.call(this,d);
+};
+})();
+
+window.gmAtk=function(){window.__gmWS&&window.__gmWS.send('42["attack"]');};
+window.gmHp=function(){window.__gmWS&&window.__gmWS.send('42["useItem","potion_heal"]');};
+window.gmStop=function(){window.__gmWS&&window.__gmWS.send('42["stop"]');};
+
+setInterval(function(){
+if(!window.__gmState||!window.__gmState.char)return;
+var c=window.__gmState.char;
+var m=window.__gmState.monsters||[];
+var el=document.getElementById('__gm_display');
+if(!el){
+el=document.createElement('div');
+el.id='__gm_display';
+Object.assign(el.style,{position:'fixed',top:'10px',left:'10px',background:'rgba(0,0,0,0.85)',color:'#fff',padding:'12px',borderRadius:'8px',fontFamily:'monospace',fontSize:'12px',zIndex:99999,minWidth:'200px',border:'1px solid #0f3460'});
+document.body.appendChild(el);
+}
+var tx=window.__gmPackets.filter(function(p){return p.t==='tx';}).length;
+var rx=window.__gmPackets.filter(function(p){return p.t==='rx';}).length;
+var hpPct=Math.round(c.hp/c.maxHp*100);
+var hpCol=hpPct>50?'#4ade80':hpPct>25?'#fbbf24':'#e94560';
+var mpPct=Math.round(c.mp/c.maxMp*100);
+var mobInfo=m.map(function(x,i){if(x)return'['+i+']'+x.n+' '+x.hp+'/'+x.maxHp;}).filter(Boolean).join('\\n');
+el.innerHTML=
+'<div style="color:#00d9ff;font-weight:bold;margin-bottom:8px;">GAME MONITOR</div>'+
+'<div>'+c.name+' Lv.'+c.level+'</div>'+
+'<div style="color:'+hpCol+';">HP: '+c.hp+'/'+c.maxHp+' ('+hpPct+'%)</div>'+
+'<div style="color:#00d9ff;">MP: '+c.mp+'/'+c.maxMp+' ('+mpPct+'%)</div>'+
+'<div>EXP: '+Math.round(c.exp/c.expToNext*100)+'%</div>'+
+'<div>Gold: '+c.gold+'</div>'+
+'<div style="color:#ffd700;">'+(window.__gmState.zone||'---')+'</div>'+
+'<div style="margin-top:8px;color:#ff6b6b;">MONSTERS:</div>'+
+'<div style="color:#888;">'+(mobInfo||'None')+'</div>'+
+'<div style="margin-top:8px;color:#888;font-size:10px;">TX:'+tx+' RX:'+rx+'</div>';
+},500);
+
+console.log('[GM] Monitor injected! Commands: gmAtk(), gmHp(), gmStop()');
+})();
+`;
+
+function updateStatus(text) {
+  document.getElementById('status').textContent = text;
 }
 
 function getCurrentTab(callback) {
   chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
     if (tabs && tabs[0]) {
-      callback(tabs[0].id);
+      callback(tabs[0].id, tabs[0].url);
     } else {
-      callback(null);
+      callback(null, null);
     }
   });
 }
 
-document.getElementById('btnStart').addEventListener('click', function() {
-  getCurrentTab(function(tabId) {
+function updateInjectButton() {
+  var btn = document.getElementById('btnInject');
+  if (isInjected) {
+    btn.textContent = 'INJECTED ✓';
+    btn.classList.add('on');
+  } else {
+    btn.textContent = 'INJECT MONITOR';
+    btn.classList.remove('on');
+  }
+}
+
+document.getElementById('btnInject').addEventListener('click', function() {
+  getCurrentTab(function(tabId, url) {
     if (!tabId) {
-      document.getElementById('status').textContent = 'No active tab!';
+      updateStatus('No active tab!');
       return;
     }
-    currentTabId = tabId;
     
-    chrome.runtime.sendMessage({action: 'startMonitoring', tabId: tabId}, function(response) {
-      if (response) {
-        updateUI(true);
-        document.getElementById('status').textContent = 'Monitor started!';
-        
-        // Start panel
-        chrome.runtime.sendMessage({action: 'startPanel', tabId: tabId});
+    if (!url || !url.includes('linh5web.win')) {
+      updateStatus('Not on game page!');
+      return;
+    }
+    
+    // Inject the code
+    chrome.tabs.executeScript(tabId, {code: INJECT_CODE}, function(results) {
+      if (chrome.runtime.lastError) {
+        updateStatus('Error: ' + chrome.runtime.lastError.message);
       } else {
-        document.getElementById('status').textContent = 'Start failed!';
+        isInjected = true;
+        updateInjectButton();
+        updateStatus('Injected! Monitor active.');
       }
     });
   });
 });
 
-document.getElementById('btnToggle').addEventListener('click', function() {
-  getCurrentTab(function(tabId) {
-    if (!tabId) return;
-    chrome.tabs.sendMessage(tabId, {action: 'togglePanel'}, function(response) {
-      if (response !== undefined) {
-        document.getElementById('status').textContent = response ? 'Panel ON' : 'Panel OFF';
-        document.getElementById('btnToggle').classList.toggle('active', response);
-      }
-    });
-  });
-});
-
-document.getElementById('btnReload').addEventListener('click', function() {
+document.getElementById('btnHp').addEventListener('click', function() {
   getCurrentTab(function(tabId) {
     if (tabId) {
-      chrome.tabs.reload(tabId);
-      updateUI(false);
-      document.getElementById('status').textContent = 'Reloading...';
+      chrome.tabs.executeScript(tabId, {code: 'window.gmHp && window.gmHp();'}, function() {
+        updateStatus('HP potion used!');
+      });
     }
   });
 });
 
-// Poll for packet updates when monitoring
-setInterval(function() {
-  if (isMonitoring && currentTabId) {
-    chrome.runtime.sendMessage({action: 'getPackets'}, function(response) {
-      if (response && response.packets) {
-        var total = response.packets.send.length + response.packets.receive.length;
-        if (total > 0) {
-          document.getElementById('status').textContent = 'RX:' + response.packets.receive.length + ' TX:' + response.packets.send.length;
+document.getElementById('btnAtk').addEventListener('click', function() {
+  getCurrentTab(function(tabId) {
+    if (tabId) {
+      chrome.tabs.executeScript(tabId, {code: 'window.gmAtk && window.gmAtk();'}, function() {
+        updateStatus('Attack sent!');
+      });
+    }
+  });
+});
+
+document.getElementById('btnStop').addEventListener('click', function() {
+  getCurrentTab(function(tabId) {
+    if (tabId) {
+      chrome.tabs.executeScript(tabId, {code: 'window.gmStop && window.gmStop();'}, function() {
+        updateStatus('Stopped!');
+      });
+    }
+  });
+});
+
+document.getElementById('btnPanel').addEventListener('click', function() {
+  getCurrentTab(function(tabId) {
+    if (tabId) {
+      chrome.tabs.sendMessage(tabId, {action: 'togglePanel'}, function(response) {
+        if (response !== undefined) {
+          var btn = document.getElementById('btnPanel');
+          if (response) {
+            btn.textContent = 'HIDE PANEL';
+            btn.classList.add('active');
+          } else {
+            btn.textContent = 'SHOW PANEL';
+            btn.classList.remove('active');
+          }
         }
+      });
+    }
+  });
+});
+
+// Check if already injected
+getCurrentTab(function(tabId) {
+  if (tabId) {
+    chrome.tabs.sendMessage(tabId, {action: 'checkInjected'}, function(response) {
+      if (response && response.injected) {
+        isInjected = true;
+        updateInjectButton();
+        updateStatus('Already injected!');
       }
     });
   }
-}, 1000);
+});
