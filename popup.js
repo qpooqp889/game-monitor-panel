@@ -100,33 +100,20 @@ document.getElementById('btnInject').addEventListener('click', function() {
       return;
     }
     
-    updateStatus('Tab: ' + (url ? url.substring(0,30) : 'none'));
-    
     if (!url || !url.includes('linh5web.win')) {
-      updateStatus('Not on game page! URL: ' + (url || 'none'));
+      updateStatus('Not on game page!');
       return;
     }
     
-    updateStatus('Injecting code...');
-    
-    // Test first - just check if we can execute
-    chrome.tabs.executeScript(tabId, {code: 'document.title'}, function(results) {
+    // Inject from file (no length limit)
+    chrome.tabs.executeScript(tabId, {file: 'game-monitor.js'}, function(results) {
       if (chrome.runtime.lastError) {
-        updateStatus('Error: ' + chrome.runtime.lastError.message);
-        return;
+        updateStatus('Error: ' + chrome.runtime.lastError.message.substring(0,50));
+      } else {
+        isInjected = true;
+        updateInjectButton();
+        updateStatus('Injected OK!');
       }
-      updateStatus('Can execute! Title: ' + results);
-      
-      // Now inject the actual code
-      chrome.tabs.executeScript(tabId, {code: INJECT_CODE}, function(results2) {
-        if (chrome.runtime.lastError) {
-          updateStatus('Inject Error: ' + chrome.runtime.lastError.message);
-        } else {
-          isInjected = true;
-          updateInjectButton();
-          updateStatus('Injected OK!');
-        }
-      });
     });
   });
 });

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Game Monitor Panel",
   "version": "1.0",
-  "description": "Game Monitor Panel - Inject and monitor game packets",
+  "description": "Game Monitor Panel",
   "permissions": ["activeTab", "scripting"],
   "host_permissions": ["https://linh5web.win/*"],
   "action": {
