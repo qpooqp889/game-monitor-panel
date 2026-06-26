@@ -1,54 +1,64 @@
 // content.js - Game Monitor Panel
 (function() {
   'use strict';
-  console.log('[Game Monitor] Content script loaded at', document.readyState);
+  
+  console.log('[Game Monitor] Content script starting...');
   
   // Monitoring state
   var monitoringActive = false;
   var panelUpdateInterval = null;
   
-  // 封包監控 - Hook 所有 WebSocket
-  if (!window.__battleStatus) {
-    window.__battleStatus = { packets: [], wsInstances: [] };
+  // 初始化封包監控
+  function initMonitoring() {
+    console.log('[Game Monitor] initMonitoring called');
     
-    // Hook WebSocket constructor
-    var OriginalWebSocket = window.WebSocket;
-    var self = this;
-    
-    // Wrap existing WebSockets
-    function hookExistingWebSockets() {
-      // Hook WebSocket.prototype.send for ALL instances
-      if (!WebSocket.prototype.__hooked) {
-        WebSocket.prototype.__hooked = true;
-        var origSend = WebSocket.prototype.send;
-        WebSocket.prototype.send = function(data) {
-          if (monitoringActive) {
-            window.__battleStatus.packets.push({ type: 'send', data: data, time: Date.now() });
-          }
-          window.__ws = this;
-          return origSend.call(this, data);
-        };
-      }
+    if (!window.__battleStatus) {
+      console.log('[Game Monitor] Creating __battleStatus');
+      window.__battleStatus = { packets: [], wsInstances: [] };
     }
     
-    hookExistingWebSockets();
-    
-    // Monitor for new WebSocket connections
-    setInterval(function() {
-      hookExistingWebSockets();
-      if (window.__ws && !window.__ws.__listening) {
-        window.__ws.__listening = true;
-        window.__ws.addEventListener('message', function(e) {
-          if (monitoringActive) {
-            window.__battleStatus.packets.push({ type: 'receive', data: e.data, time: Date.now() });
-          }
-        });
-      }
-    }, 1000);
+    // Hook WebSocket.prototype.send
+    if (!WebSocket.prototype.__hooked) {
+      console.log('[Game Monitor] Hooking WebSocket.prototype.send');
+      WebSocket.prototype.__hooked = true;
+      var origSend = WebSocket.prototype.send;
+      WebSocket.prototype.send = function(data) {
+        console.log('[Game Monitor] WS SEND:', data);
+        if (window.__battleStatus) {
+          window.__battleStatus.packets.push({ type: 'send', data: data, time: Date.now() });
+        }
+        window.__ws = this;
+        return origSend.call(this, data);
+      };
+    }
   }
+  
+  // Hook existing WebSocket
+  function hookWebSocket() {
+    if (window.__ws && !window.__ws.__listening) {
+      console.log('[Game Monitor] Hooking existing WebSocket');
+      window.__ws.__listening = true;
+      window.__ws.addEventListener('message', function(e) {
+        console.log('[Game Monitor] WS RECEIVE:', e.data.substring(0, 100));
+        if (window.__battleStatus) {
+          window.__battleStatus.packets.push({ type: 'receive', data: e.data, time: Date.now() });
+        }
+      });
+    }
+  }
+  
+  // 初始化
+  initMonitoring();
+  
+  // 持續嘗試 hook WebSocket
+  setInterval(function() {
+    hookWebSocket();
+  }, 500);
   
   // 監聽來自 popup 的訊息
   chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+    console.log('[Game Monitor] Message received:', request.action);
+    
     if (request.action === 'startMonitoring') {
       monitoringActive = true;
       sendResponse(true);
@@ -65,7 +75,9 @@
     } else if (request.action === 'checkStatus') {
       sendResponse({ 
         panelExists: !!document.getElementById('__gmp'),
-        monitoring: monitoringActive 
+        monitoring: monitoringActive,
+        hasBattleStatus: !!window.__battleStatus,
+        packetCount: window.__battleStatus ? window.__battleStatus.packets.length : 0
       });
     }
     return true;
@@ -73,7 +85,7 @@
   
   // 創建面板
   function createPanel() {
-    monitoringActive = true; // Auto-start monitoring
+    monitoringActive = true;
     
     var old = document.getElementById('__gmp');
     if (old) old.remove();
@@ -152,21 +164,20 @@
     // 更新函數
     function upd() {
       var pkts = (window.__battleStatus || {}).packets || [];
+      var recvPackets = pkts.filter(function(x) { return x.type === 'receive'; });
+      var sendPackets = pkts.filter(function(x) { return x.type === 'send'; });
+      
+      document.getElementById('__gmp_mobs').innerHTML = 
+        '<span style="color:#888;font-size:10px;">RX:' + recvPackets.length + ' TX:' + sendPackets.length + '</span>';
       
       // 找 state 封包
       var sp = pkts.filter(function(x) { return x.type === 'receive' && x.data && x.data.indexOf('"state"') > -1; });
-      
-      // Debug: 顯示封包數量
-      var recvCount = pkts.filter(function(x) { return x.type === 'receive'; }).length;
-      document.getElementById('__gmp_mobs').innerHTML = '<span style="color:#888;font-size:10px;">Packets: ' + recvCount + '</span>';
-      
       if (!sp.length) return;
       
       try {
         var raw = sp[sp.length - 1].data;
-        var data = raw.substring(2); // Remove "42"
-        var d = JSON.parse(data)[1];
-        var c = d.char;
+        var data = JSON.parse(raw.substring(2))[1];
+        var c = data.char;
         
         document.getElementById('__gmp_name').textContent = c.name || '---';
         document.getElementById('__gmp_info').textContent = 'Lv.' + (c.level || '?');
@@ -179,14 +190,14 @@
         document.getElementById('__gmp_gold').textContent = (c.gold || 0).toLocaleString();
         
         // 位置
-        var loc = d.zone || d.map || d.location || d.area || d.currentZone || '---';
+        var loc = data.zone || data.map || data.location || data.area || data.currentZone || '---';
         if (typeof loc === 'object') loc = loc.name || loc.id || '---';
         document.getElementById('__gmp_location').textContent = loc;
         
         // 怪物
         var h = '';
-        if (d.monsters && d.monsters.length) {
-          d.monsters.forEach(function(m, i) {
+        if (data.monsters && data.monsters.length) {
+          data.monsters.forEach(function(m, i) {
             if (m) {
               var pct = Math.round((m.hp / m.maxHp) * 100);
               var col = pct > 50 ? '#4ade80' : pct > 25 ? '#fbbf24' : '#e94560';
@@ -201,6 +212,8 @@
     panelUpdateInterval = setInterval(upd, 500);
     upd();
     
-    console.log('[Game Monitor] Panel started! Monitoring: ' + monitoringActive);
+    console.log('[Game Monitor] Panel created!');
   }
+  
+  console.log('[Game Monitor] Content script initialized');
 })();
