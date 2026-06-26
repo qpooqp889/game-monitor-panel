@@ -1,5 +1,5 @@
 (function(){
-var ver='v1.17';
+var ver='v1.18';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -289,7 +289,9 @@ function startFarming(){
       if(isInTown){
         var hpGtOk=hpGtEnabled&&hpPct>(hpGtThresh/100);
         var mpGtOk=mpGtEnabled&&mpPct>(mpGtThresh/100);
+        console.log('[GM] In town, HP:',Math.round(hpPct*100)+'%, MP:',Math.round(mpPct*100)+'%, hpGtOk:',hpGtOk,'mpGtOk:',mpGtOk);
         if(hpGtOk||mpGtOk){
+          console.log('[GM] Teleporting to farm zone:',farmZone);
           if(window.__ws)window.__ws.send('42["setZone","'+farmZone+'"]');
           status.textContent='HP/MP充足，傳送掛機...';
           status.style.color='#4ade80';
