@@ -1,5 +1,5 @@
 (function(){
-var ver='v1.02';
+var ver='v1.03';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -8,7 +8,7 @@ if(window.__gmInjected){
 }
 window.__gmInjected=true;
 window.__gmVer=ver;
-window.__battleStatus={packets:[]};
+window.__battleStatus={packets:[]};window.__gmOnlineCount=null;
 
 // Hook WebSocket send
 var origSend=WebSocket.prototype.send;
@@ -29,6 +29,10 @@ setInterval(function(){
     window.__ws.__hooked=true;
     window.__ws.addEventListener('message',function(e){
       window.__battleStatus.packets.push({type:'receive',data:e.data});
+      try{
+        var d=JSON.parse(e.data.substring(2));
+        if(d[0]==='onlineCount'){window.__gmOnlineCount=d[1];}
+      }catch(err){}
     });
   }
 },100);
@@ -119,7 +123,7 @@ function sendCmd(cmd){
     '<div style="margin-bottom:5px;"><div style="display:flex;justify-content:space-between;"><span style="color:#e94560;">HP</span><span id="__gmp_hp_text" style="color:#e94560;">--/--</span></div><div style="background:#3a1a1a;border-radius:4px;height:14px;"><div id="__gmp_hp_bar" style="width:0%;background:#e94560;height:100%;border-radius:4px;"></div></div></div>'+
     '<div style="margin-bottom:5px;"><div style="display:flex;justify-content:space-between;"><span style="color:#00d9ff;">MP</span><span id="__gmp_mp_text" style="color:#00d9ff;">--/--</span></div><div style="background:#1a2a3a;border-radius:4px;height:10px;"><div id="__gmp_mp_bar" style="width:0%;background:#00d9ff;height:100%;border-radius:4px;"></div></div></div>'+
     '<div style="margin-bottom:6px;"><div style="display:flex;justify-content:space-between;"><span style="color:#ffd700;">EXP</span><span id="__gmp_exp_text" style="color:#ffd700;">--%</span></div><div style="background:#3a3a1a;border-radius:4px;height:8px;"><div id="__gmp_exp_bar" style="width:0%;background:#ffd700;height:100%;border-radius:4px;"></div></div></div>'+
-    '<div style="background:rgba(255,255,255,0.05);padding:5px 8px;border-radius:4px;margin-bottom:6px;"><span style="color:#888;">GOLD: </span><span id="__gmp_gold" style="color:#ffd700;font-weight:bold;">--</span></div>'+
+    '<div style="display:flex;gap:6px;margin-bottom:6px;"><div style="flex:1;background:rgba(255,255,255,0.05);padding:5px 8px;border-radius:4px;"><span style="color:#888;font-size:11px;">GOLD </span><span id="__gmp_gold" style="color:#ffd700;font-weight:bold;">--</span></div><div style="flex:1;background:rgba(255,255,255,0.05);padding:5px 8px;border-radius:4px;text-align:center;"><span style="color:#888;font-size:11px;">👥 </span><span id="__gmp_online" style="color:#7bd14a;font-weight:bold;">--</span></div></div>'+
     '<div style="background:rgba(255,255,255,0.05);padding:6px;border-radius:4px;margin-bottom:6px;"><div style="font-weight:bold;margin-bottom:3px;font-size:11px;">👾 MONSTERS</div><div id="__gmp_mobs" style="font-size:11px;color:#aaa;">...</div></div>'+
     '</div>'+
     // ZONE TAB
@@ -239,6 +243,7 @@ function sendCmd(cmd){
         document.getElementById('__gmp_exp_text').textContent=Math.round((c.exp||0)/(c.expToNext||1)*100)+'%';
         document.getElementById('__gmp_exp_bar').style.width=Math.round((c.exp||0)/(c.expToNext||1)*100)+'%';
         document.getElementById('__gmp_gold').textContent=(c.gold||0).toLocaleString();
+        document.getElementById('__gmp_online').textContent=window.__gmOnlineCount?(window.__gmOnlineCount+'人'):'--';
         var h='';
         if(d.monsters)d.monsters.forEach(function(m,i){if(m){var pct=Math.round(m.hp/m.maxHp*100);var col=pct>50?'#4ade80':pct>25?'#fbbf24':'#e94560';h+='<div>['+i+'] '+(m.n||'?')+' <span style="color:'+col+';">'+(m.hp||0)+'/'+(m.maxHp||0)+'</span></div>'}});
         document.getElementById('__gmp_mobs').innerHTML=h||'<span style="color:#888;">none</span>';
