@@ -1,5 +1,5 @@
 (function(){
-var ver='v1.20';
+var ver='v1.21';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -247,7 +247,12 @@ function startFarming(){
       var zoneName=d.zoneName||d.zone||'';
       // Resolve zone ID: try d.zoneId first, then lookup by Chinese name
       var zoneId=d.zoneId||ZONE_NAME_LOOKUP[zoneName]||zoneName||'';
-      var isInTown=zoneName.indexOf('大廳')>-1||zoneName.indexOf('村')>-1||zoneName.indexOf('安全')>-1;
+      // Check if in town (lobby/village/safe zone)
+      var zLower=zoneName.toLowerCase();
+      var isInTown=zLower.indexOf('大廳')>-1||zLower.indexOf('大厅')>-1||
+                   zLower.indexOf('村')>-1||zLower.indexOf('安全')>-1||
+                   zLower.indexOf('lobby')>-1||zLower.indexOf('town')>-1||
+                   zLower.indexOf('village')>-1||zLower.indexOf('safe')>-1;
       
       console.log('[GM] zoneName:',zoneName,'isInTown:',isInTown,'HP:',Math.round(hpPct*100)+'%','MP:',Math.round(mpPct*100)+'%');
       
