@@ -1,5 +1,5 @@
 (function(){
-var ver='v1.04';
+var ver='v1.05';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -115,6 +115,29 @@ var ZONES={
     {id:'zone_40',name:'象牙塔7樓',sub:'建議 Lv.43'},
     {id:'zone_41',name:'象牙塔8樓',sub:'建議 Lv.43'},
   ],
+  special:[
+    {id:'antaras_lair',name:'安塔瑞斯棲息地',sub:'建議 Lv.93'},
+    {id:'fafurion_lair',name:'法利昂洞穴',sub:'建議 Lv.93'},
+    {id:'valakas_lair',name:'巴拉卡斯巢穴',sub:'建議 Lv.95'},
+  ],
+  // World bosses
+  WORLDBOSS:[
+    {id:'wb_sema',name:'西瑪',lv:42},
+    {id:'wb_batus',name:'巴土瑟',lv:43},
+    {id:'wb_casper',name:'卡士柏',lv:44},
+    {id:'wb_marcus',name:'馬庫爾',lv:45},
+    {id:'wb_ifrit',name:'伊弗利特',lv:45},
+    {id:'wb_wyvern',name:'飛龍',lv:48},
+    {id:'wb_blackelder',name:'黑長者',lv:50},
+    {id:'wb_doppel',name:'變形怪首領',lv:50},
+    {id:'wb_baphomet',name:'巴風特',lv:50},
+    {id:'wb_kurt',name:'克特',lv:51},
+    {id:'wb_dk',name:'死亡騎士',lv:52},
+    {id:'wb_ice',name:'冰之女王',lv:56},
+    {id:'wb_antqueen',name:'巨蟻女皇',lv:57},
+    {id:'wb_phoenix',name:'不死鳥',lv:59},
+    {id:'wb_demon',name:'惡魔',lv:61},
+  ],
 };
 
 function sendZone(zoneId){
@@ -154,7 +177,6 @@ function sendCmd(cmd){
   '</div>'+
   '</div>'+
   '<div id="__gmp_content">'+
-    // GAME TAB
     '<div id="__gmp_tab_content_game" style="display:block;">'+
     '<div style="background:rgba(255,255,255,0.05);padding:8px;border-radius:6px;margin-bottom:8px;"><div id="__gmp_name" style="font-weight:bold;color:#ffd700;font-size:14px;">Loading...</div><div id="__gmp_info" style="font-size:11px;color:#aaa;">Lv.?</div></div>'+
     '<div style="margin-bottom:5px;"><div style="display:flex;justify-content:space-between;"><span style="color:#e94560;">HP</span><span id="__gmp_hp_text" style="color:#e94560;">--/--</span></div><div style="background:#3a1a1a;border-radius:4px;height:14px;"><div id="__gmp_hp_bar" style="width:0%;background:#e94560;height:100%;border-radius:4px;"></div></div></div>'+
@@ -163,18 +185,16 @@ function sendCmd(cmd){
     '<div style="display:flex;gap:6px;margin-bottom:6px;"><div style="flex:1;background:rgba(255,255,255,0.05);padding:5px 8px;border-radius:4px;"><span style="color:#888;font-size:11px;">GOLD </span><span id="__gmp_gold" style="color:#ffd700;font-weight:bold;">--</span></div><div style="flex:1;background:rgba(255,255,255,0.05);padding:5px 8px;border-radius:4px;text-align:center;"><span style="color:#888;font-size:11px;">👥 </span><span id="__gmp_online" style="color:#7bd14a;font-weight:bold;">--</span></div></div>'+
     '<div style="background:rgba(255,255,255,0.05);padding:6px;border-radius:4px;margin-bottom:6px;"><div style="font-weight:bold;margin-bottom:3px;font-size:11px;">👾 MONSTERS</div><div id="__gmp_mobs" style="font-size:11px;color:#aaa;">...</div></div>'+
     '</div>'+
-    // ZONE TAB
     '<div id="__gmp_tab_content_zone" style="display:none;">'+
-    // Search
-    '<input id="__gmp_search" placeholder="🔍 搜尋地圖名稱..." style="width:100%;padding:7px 10px;background:rgba(255,255,255,0.08);border:1px solid #0f3460;border-radius:6px;color:#fff;font-size:12px;margin-bottom:8px;outline:none;box-sizing:border-box;">'+
-    // Sub tabs
-    '<div class="subtabs" style="display:flex;gap:4px;margin-bottom:8px;">'+
-      '<button class="__gmp_st active" data-t="town" style="flex:1;padding:6px;background:#0f3460;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">村莊</button>'+
-      '<button class="__gmp_st" data-t="wild" style="flex:1;padding:6px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">野外</button>'+
-      '<button class="__gmp_st" data-t="dungeon" style="flex:1;padding:6px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">地監</button>'+
+    '<input id="__gmp_search" placeholder="🔍 搜尋..." style="width:100%;padding:7px 10px;background:rgba(255,255,255,0.08);border:1px solid #0f3460;border-radius:6px;color:#fff;font-size:12px;margin-bottom:8px;outline:none;box-sizing:border-box;">'+
+    '<div style="display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap;">'+
+      '<button class="__gmp_st active" data-t="town" style="padding:5px 8px;background:#0f3460;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:10px;font-weight:bold;">村莊</button>'+
+      '<button class="__gmp_st" data-t="wild" style="padding:5px 8px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:10px;">野外</button>'+
+      '<button class="__gmp_st" data-t="dungeon" style="padding:5px 8px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:10px;">地監</button>'+
+      '<button class="__gmp_st" data-t="special" style="padding:5px 8px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:10px;">王/特</button>'+
     '</div>'+
-    // Zone list
-    '<div id="__gmp_zone_list" style="max-height:220px;overflow-y:auto;"></div>'+
+    '<div id="__gmp_boss_list" style="max-height:200px;overflow-y:auto;margin-bottom:6px;display:none;"></div>'+
+    '<div id="__gmp_zone_list" style="max-height:200px;overflow-y:auto;"></div>'+
     '</div>'+
   '</div>';
   document.body.appendChild(p);
@@ -183,16 +203,30 @@ function sendCmd(cmd){
   function buildZoneItem(z){
     var div=document.createElement('div');
     div.className='__gmp_zi';
-    div.dataset.name=z.name;
-    div.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:rgba(255,255,255,0.04);border-radius:6px;margin-bottom:4px;cursor:pointer;border:1px solid transparent;transition:all 0.2s;';
-    div.innerHTML='<span style="font-size:12px;">'+z.name+'</span><span style="font-size:10px;color:#888;">'+(z.sub||'')+'</span>';
+    div.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:6px 8px;background:rgba(255,255,255,0.04);border-radius:6px;margin-bottom:3px;cursor:pointer;border:1px solid transparent;transition:all 0.2s;';
+    div.innerHTML='<span style="font-size:11px;">'+z.name+'</span><span style="font-size:10px;color:#888;">'+(z.sub||'')+'</span>';
     div.onmouseover=function(){this.style.background='rgba(255,255,255,0.1)';this.style.borderColor='#0f3460'};
     div.onmouseout=function(){this.style.background='rgba(255,255,255,0.04)';this.style.borderColor='transparent'};
     div.onclick=function(){
       sendZone(z.id);
-      // Flash effect
       this.style.background='#0f3460';
       setTimeout(function(){div.style.background='rgba(255,255,255,0.04)'},300);
+    };
+    return div;
+  }
+  
+  // Build boss item
+  function buildBossItem(b){
+    var div=document.createElement('div');
+    div.style.cssText='display:flex;align-items:center;padding:5px 8px;background:rgba(233,69,96,0.08);border-radius:6px;margin-bottom:3px;cursor:pointer;border:1px solid rgba(233,69,96,0.3);transition:all 0.2s;';
+    div.innerHTML='<span style="font-size:11px;color:#e94560;">👑 '+b.name+'</span><span style="font-size:10px;color:#888;margin-left:auto;">Lv.'+b.lv+'</span>';
+    div.onmouseover=function(){this.style.background='rgba(233,69,96,0.2)'};
+    div.onmouseout=function(){this.style.background='rgba(233,69,96,0.08)'};
+    div.onclick=function(){
+      if(window.__ws)window.__ws.send('42["gotoWorldBoss","'+b.id+'"]');
+      console.log('[GM] WorldBoss:',b.id);
+      this.style.background='rgba(233,69,96,0.4)';
+      setTimeout(function(){div.style.background='rgba(233,69,96,0.08)'},300);
     };
     return div;
   }
@@ -201,14 +235,31 @@ function sendCmd(cmd){
   function renderZones(tab){
     activeZoneTab=tab;
     var list=document.getElementById('__gmp_zone_list');
+    var bossList=document.getElementById('__gmp_boss_list');
     list.innerHTML='';
+    bossList.style.display='none';
+    list.style.display='block';
     var search=document.getElementById('__gmp_search').value.trim().toLowerCase();
-    var data=ZONES[tab]||[];
-    data.forEach(function(z){
-      if(search&&!z.name.toLowerCase().includes(search))return;
-      list.appendChild(buildZoneItem(z));
-    });
-    // Update subtab styles
+    
+    if(tab==='special'){
+      bossList.style.display='block';
+      bossList.innerHTML='';
+      ZONES.WORLDBOSS.forEach(function(b){
+        if(search&&!b.name.toLowerCase().includes(search))return;
+        bossList.appendChild(buildBossItem(b));
+      });
+      var sz=ZONES.special||[];
+      sz.forEach(function(z){
+        if(search&&!z.name.toLowerCase().includes(search))return;
+        list.appendChild(buildZoneItem(z));
+      });
+    } else {
+      var data=ZONES[tab]||[];
+      data.forEach(function(z){
+        if(search&&!z.name.toLowerCase().includes(search))return;
+        list.appendChild(buildZoneItem(z));
+      });
+    }
     document.querySelectorAll('.__gmp_st').forEach(function(b){
       b.style.background=b.dataset.t===tab?'#0f3460':'#333';
       b.style.color=b.dataset.t===tab?'#fff':'#aaa';
@@ -216,15 +267,9 @@ function sendCmd(cmd){
     });
   }
   
-  // Search input
   document.getElementById('__gmp_search').oninput=function(){renderZones(activeZoneTab)};
+  document.querySelectorAll('.__gmp_st').forEach(function(b){b.onclick=function(){renderZones(this.dataset.t)}});
   
-  // Sub tab clicks
-  document.querySelectorAll('.__gmp_st').forEach(function(b){
-    b.onclick=function(){renderZones(this.dataset.t)};
-  });
-  
-  // Tab switching
   function switchTab(tab){
     activeTab=tab;
     document.getElementById('__gmp_tab_content_game').style.display=tab==='game'?'block':'none';
@@ -240,7 +285,6 @@ function sendCmd(cmd){
   document.getElementById('__gmp_tab_game').onclick=function(){switchTab('game')};
   document.getElementById('__gmp_tab_zone').onclick=function(){switchTab('zone')};
   
-  // Controls
   document.getElementById('__gmp_close').onclick=function(){document.getElementById('__gmp').remove()};
   document.getElementById('__gmp_expand').onclick=function(){
     isExpanded=!isExpanded;
@@ -250,7 +294,6 @@ function sendCmd(cmd){
   document.getElementById('__gmp_zoom_in').onclick=function(){zoom=Math.min(zoom+0.1,2);p.style.transform='scale('+zoom+')'};
   document.getElementById('__gmp_zoom_out').onclick=function(){zoom=Math.max(zoom-0.1,0.5);p.style.transform='scale('+zoom+')'};
   
-  // Drag
   var drag=false,ox,oy;
   p.addEventListener('mousedown',function(e){
     if(e.target.tagName==='INPUT'||e.target.tagName==='BUTTON')return;
@@ -261,7 +304,6 @@ function sendCmd(cmd){
   });
   document.addEventListener('mouseup',function(){drag=false});
   
-  // Update
   function upd(){
     var pkts=(window.__battleStatus||{packets:[]}).packets;
     var sp=pkts.filter(function(x){return x.type==='receive'&&x.data&&x.data.indexOf('"state"')>-1});
