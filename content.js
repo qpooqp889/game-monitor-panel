@@ -4,18 +4,18 @@
   
   console.log('[Game Monitor] Content script starting...');
   
+  // Storage key
+  var STORAGE_KEY = 'gm_packets';
+  var MONITOR_KEY = 'gm_ws';
+  
   // Monitoring state
   var monitoringActive = false;
   var panelUpdateInterval = null;
+  var currentWS = null;
   
   // 初始化封包監控
   function initMonitoring() {
     console.log('[Game Monitor] initMonitoring called');
-    
-    if (!window.__battleStatus) {
-      console.log('[Game Monitor] Creating __battleStatus');
-      window.__battleStatus = { packets: [], wsInstances: [] };
-    }
     
     // Hook WebSocket.prototype.send
     if (!WebSocket.prototype.__hooked) {
@@ -23,37 +23,86 @@
       WebSocket.prototype.__hooked = true;
       var origSend = WebSocket.prototype.send;
       WebSocket.prototype.send = function(data) {
-        console.log('[Game Monitor] WS SEND:', data);
-        if (window.__battleStatus) {
-          window.__battleStatus.packets.push({ type: 'send', data: data, time: Date.now() });
-        }
-        window.__ws = this;
+        console.log('[GM] WS SEND:', data.substring(0, 80));
+        currentWS = this;
+        savePacket({ type: 'send', data: data, time: Date.now() });
         return origSend.call(this, data);
       };
     }
+    
+    // Hook existing WebSocket instances
+    try {
+      if (window.WebSocket && window.WebSocket.CONNECTING !== undefined) {
+        // WebSocket exists, hook it
+        console.log('[GM] WebSocket available');
+      }
+    } catch(e) {
+      console.log('[GM] WebSocket hook error:', e);
+    }
   }
   
-  // Hook existing WebSocket
+  // Save packet to sessionStorage
+  function savePacket(packet) {
+    try {
+      var packets = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || '[]');
+      packets.push(packet);
+      // Keep last 100 packets
+      if (packets.length > 100) packets = packets.slice(-100);
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(packets));
+      sessionStorage.setItem(MONITOR_KEY, 'true');
+    } catch(e) {}
+  }
+  
+  // Hook WebSocket message
   function hookWebSocket() {
-    if (window.__ws && !window.__ws.__listening) {
-      console.log('[Game Monitor] Hooking existing WebSocket');
-      window.__ws.__listening = true;
-      window.__ws.addEventListener('message', function(e) {
-        console.log('[Game Monitor] WS RECEIVE:', e.data.substring(0, 100));
-        if (window.__battleStatus) {
-          window.__battleStatus.packets.push({ type: 'receive', data: e.data, time: Date.now() });
-        }
+    try {
+      // Find existing WebSocket
+      var sockets = [];
+      // Try to hook via original WebSocket pattern
+      var OrigWS = window.WebSocket;
+      
+      // Hook all existing WebSocket instances
+      document.querySelectorAll('iframe').forEach(function(iframe) {
+        try {
+          if (iframe.contentWindow && iframe.contentWindow.WebSocket) {
+            // Don't hook cross-origin
+          }
+        } catch(e) {}
       });
+      
+      // For Socket.IO games, the WebSocket is usually created after page load
+      // We'll poll for it
+    } catch(e) {
+      console.log('[GM] hookWebSocket error:', e);
     }
+  }
+  
+  // Check for WebSocket periodically
+  function checkForWebSocket() {
+    try {
+      // Socket.IO games create WebSocket connections
+      // We need to find the actual WebSocket used by Socket.IO
+      if (window.io && window.io.Manager) {
+        console.log('[GM] Socket.IO detected!');
+      }
+      
+      // Try to find WebSocket in global scope
+      if (window.__ws && !window.__ws.__hooked_msg) {
+        window.__ws.__hooked_msg = true;
+        window.__ws.addEventListener('message', function(e) {
+          console.log('[GM] WS MSG:', e.data.substring(0, 80));
+          savePacket({ type: 'receive', data: e.data, time: Date.now() });
+        });
+        console.log('[GM] Hooked window.__ws message');
+      }
+    } catch(e) {}
   }
   
   // 初始化
   initMonitoring();
   
-  // 持續嘗試 hook WebSocket
-  setInterval(function() {
-    hookWebSocket();
-  }, 500);
+  // 持續檢查 WebSocket
+  setInterval(checkForWebSocket, 1000);
   
   // 監聽來自 popup 的訊息
   chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
@@ -73,11 +122,14 @@
         sendResponse(true);
       }
     } else if (request.action === 'checkStatus') {
+      var packets = [];
+      try {
+        packets = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || '[]');
+      } catch(e) {}
       sendResponse({ 
         panelExists: !!document.getElementById('__gmp'),
         monitoring: monitoringActive,
-        hasBattleStatus: !!window.__battleStatus,
-        packetCount: window.__battleStatus ? window.__battleStatus.packets.length : 0
+        packetCount: packets.length
       });
     }
     return true;
@@ -86,6 +138,7 @@
   // 創建面板
   function createPanel() {
     monitoringActive = true;
+    sessionStorage.setItem(MONITOR_KEY, 'true');
     
     var old = document.getElementById('__gmp');
     if (old) old.remove();
@@ -138,11 +191,23 @@
     document.body.appendChild(p);
     
     // 按鈕功能
-    document.getElementById('__gmp_btn_hp').onclick = function() { window.__ws && window.__ws.send('42["useItem","potion_heal"]'); };
-    document.getElementById('__gmp_btn_atk').onclick = function() { window.__ws && window.__ws.send('42["attack"]'); };
-    document.getElementById('__gmp_btn_stop').onclick = function() { window.__ws && window.__ws.send('42["stop"]'); };
-    document.getElementById('__gmp_btn_home').onclick = function() { window.__ws && window.__ws.send('42["returnLobby"]'); };
-    document.getElementById('__gmp_close').onclick = function() { var panel = document.getElementById('__gmp'); if (panel) panel.remove(); if (panelUpdateInterval) clearInterval(panelUpdateInterval); };
+    document.getElementById('__gmp_btn_hp').onclick = function() { 
+      if (currentWS) currentWS.send('42["useItem","potion_heal"]'); 
+    };
+    document.getElementById('__gmp_btn_atk').onclick = function() { 
+      if (currentWS) currentWS.send('42["attack"]'); 
+    };
+    document.getElementById('__gmp_btn_stop').onclick = function() { 
+      if (currentWS) currentWS.send('42["stop"]'); 
+    };
+    document.getElementById('__gmp_btn_home').onclick = function() { 
+      if (currentWS) currentWS.send('42["returnLobby"]'); 
+    };
+    document.getElementById('__gmp_close').onclick = function() { 
+      var panel = document.getElementById('__gmp'); 
+      if (panel) panel.remove(); 
+      if (panelUpdateInterval) clearInterval(panelUpdateInterval); 
+    };
     
     // 展開/收縮
     document.getElementById('__gmp_expand').onclick = function() {
@@ -163,15 +228,19 @@
     
     // 更新函數
     function upd() {
-      var pkts = (window.__battleStatus || {}).packets || [];
-      var recvPackets = pkts.filter(function(x) { return x.type === 'receive'; });
-      var sendPackets = pkts.filter(function(x) { return x.type === 'send'; });
+      var packets = [];
+      try {
+        packets = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || '[]');
+      } catch(e) {}
+      
+      var recvPackets = packets.filter(function(x) { return x.type === 'receive'; });
+      var sendPackets = packets.filter(function(x) { return x.type === 'send'; });
       
       document.getElementById('__gmp_mobs').innerHTML = 
         '<span style="color:#888;font-size:10px;">RX:' + recvPackets.length + ' TX:' + sendPackets.length + '</span>';
       
       // 找 state 封包
-      var sp = pkts.filter(function(x) { return x.type === 'receive' && x.data && x.data.indexOf('"state"') > -1; });
+      var sp = packets.filter(function(x) { return x.type === 'receive' && x.data && x.data.indexOf('"state"') > -1; });
       if (!sp.length) return;
       
       try {
