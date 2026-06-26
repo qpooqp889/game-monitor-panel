@@ -1,5 +1,5 @@
 (function(){
-var ver='v1.18';
+var ver='v1.19';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -237,6 +237,7 @@ function startFarming(){
     if(!window.__gmFarming.running)return;
     var pkts=(window.__battleStatus||{packets:[]}).packets;
     var sp=pkts.filter(function(x){return x.type==='receive'&&x.data&&x.data.indexOf('"state"')>-1});
+    console.log('[GM] loop running, packets:',pkts.length,'state packets:',sp.length);
     if(!sp.length){window.__gmFarming.timer=setTimeout(loop,1000);return;}
     try{
       var d=JSON.parse(sp[sp.length-1].data.substring(2))[1];
