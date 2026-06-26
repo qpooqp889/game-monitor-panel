@@ -13,6 +13,26 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   return true;
 });
 
+// Listen for messages from game-monitor.js (MAIN world)
+window.addEventListener('message',function(e){
+  if(!e.data||!e.data.type)return;
+  
+  // Save settings
+  if(e.data.type==='GM_SAVE_SETTINGS'&&e.data.data){
+    chrome.storage.local.set({gmFarmSettings:e.data.data},function(){
+      console.log('[GM] Settings saved');
+    });
+  }
+  
+  // Load settings
+  if(e.data.type==='GM_LOAD_SETTINGS'){
+    chrome.storage.local.get(['gmFarmSettings'],function(result){
+      var data=result.gmFarmSettings||{};
+      window.postMessage({type:'GM_LOAD_RESPONSE',data:data},'*');
+    });
+  }
+});
+
 function togglePanel(){
   var el=document.getElementById('__gmp');
   if(el){

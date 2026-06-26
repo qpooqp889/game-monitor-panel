@@ -3,7 +3,7 @@
   "name": "Game Monitor Panel",
   "version": "1.0",
   "description": "Game Monitor Panel",
-  "permissions": ["activeTab", "scripting", "tabs"],
+  "permissions": ["activeTab", "scripting", "tabs", "storage"],
   "host_permissions": ["https://linh5web.win/*"],
   "action": {
     "default_popup": "popup.html",

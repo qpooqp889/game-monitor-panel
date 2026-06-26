@@ -1,5 +1,5 @@
 (function(){
-var ver='v1.12';
+var ver='v1.13';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -10,6 +10,43 @@ window.__gmInjected=true;
 window.__gmVer=ver;
 window.__battleStatus={packets:[]};window.__gmOnlineCount=null;
 window.__gmFarming={running:false,timer:null,returning:false,waitTimer:null};
+
+// ========== Storage Functions ==========
+function saveFarmSettings(){
+  var data={
+    farmZone: document.getElementById('__gmp_farm_zone').value||'',
+    hpThresh: parseInt(document.getElementById('__gmp_farm_hp').value)||20,
+    mpThresh: parseInt(document.getElementById('__gmp_farm_mp').value)||10,
+    hpEnabled: document.getElementById('__gmp_farm_hp_chk').checked,
+    mpEnabled: document.getElementById('__gmp_farm_mp_chk').checked,
+    hpGtThresh: parseInt(document.getElementById('__gmp_farm_hp_gt').value)||80,
+    mpGtThresh: parseInt(document.getElementById('__gmp_farm_mp_gt').value)||50,
+    hpGtEnabled: document.getElementById('__gmp_farm_hp_gt_chk').checked,
+    mpGtEnabled: document.getElementById('__gmp_farm_mp_gt_chk').checked,
+    logicOp: document.getElementById('__gmp_farm_logic').value||'AND',
+    logicEnabled: document.getElementById('__gmp_farm_logic_chk').checked,
+    delaySec: parseInt(document.getElementById('__gmp_farm_delay').value)||3,
+    delayEnabled: document.getElementById('__gmp_farm_delay_chk').checked,
+    autoAtk: document.getElementById('__gmp_farm_atk').checked
+  };
+  // Send to content script to save via chrome.storage
+  window.postMessage({type:'GM_SAVE_SETTINGS',data:data},'*');
+}
+
+function loadFarmSettings(callback){
+  window.postMessage({type:'GM_LOAD_SETTINGS'},'*');
+  window.__gmLoadCallback=callback;
+}
+
+// Listen for load response from content script
+window.addEventListener('message',function(e){
+  if(e.data&&e.data.type==='GM_LOAD_RESPONSE'&&window.__gmLoadCallback){
+    window.__gmLoadCallback(e.data.data);
+    window.__gmLoadCallback=null;
+  }
+});
+
+// ========== End Storage Functions ==========
 
 // Hook WebSocket send
 var origSend=WebSocket.prototype.send;
@@ -588,6 +625,40 @@ function __gmBuildPanel(){
   }
   setInterval(upd,500);
   upd();
+
+  // === Load saved settings ===
+  loadFarmSettings(function(data){
+    if(!data)return;
+    if(data.farmZone){
+      var opt=document.querySelector('#__gmp_farm_zone option[value="'+data.farmZone+'"]');
+      if(opt)document.getElementById('__gmp_farm_zone').value=data.farmZone;
+    }
+    if(data.hpThresh)document.getElementById('__gmp_farm_hp').value=data.hpThresh;
+    if(data.mpThresh)document.getElementById('__gmp_farm_mp').value=data.mpThresh;
+    document.getElementById('__gmp_farm_hp_chk').checked=data.hpEnabled!==false;
+    document.getElementById('__gmp_farm_mp_chk').checked=data.mpEnabled!==false;
+    if(data.hpGtThresh)document.getElementById('__gmp_farm_hp_gt').value=data.hpGtThresh;
+    if(data.mpGtThresh)document.getElementById('__gmp_farm_mp_gt').value=data.mpGtThresh;
+    document.getElementById('__gmp_farm_hp_gt_chk').checked=data.hpGtEnabled||false;
+    document.getElementById('__gmp_farm_mp_gt_chk').checked=data.mpGtEnabled||false;
+    if(data.logicOp)document.getElementById('__gmp_farm_logic').value=data.logicOp;
+    document.getElementById('__gmp_farm_logic_chk').checked=data.logicEnabled!==false;
+    if(data.delaySec)document.getElementById('__gmp_farm_delay').value=data.delaySec;
+    document.getElementById('__gmp_farm_delay_chk').checked=data.delayEnabled||false;
+    document.getElementById('__gmp_farm_atk').checked=data.autoAtk!==false;
+  });
+
+  // === Auto-save on change ===
+  var farmInputs=['__gmp_farm_zone','__gmp_farm_hp','__gmp_farm_mp','__gmp_farm_hp_chk','__gmp_farm_mp_chk',
+    '__gmp_farm_hp_gt','__gmp_farm_mp_gt','__gmp_farm_hp_gt_chk','__gmp_farm_mp_gt_chk',
+    '__gmp_farm_logic','__gmp_farm_logic_chk','__gmp_farm_delay','__gmp_farm_delay_chk','__gmp_farm_atk'];
+  farmInputs.forEach(function(id){
+    var el=document.getElementById(id);
+    if(el){
+      el.addEventListener('change',saveFarmSettings);
+      el.addEventListener('input',saveFarmSettings);
+    }
+  });
 }
 __gmBuildPanel();
 document.addEventListener('__gm_show_panel',function(){__gmBuildPanel()});
