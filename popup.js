@@ -17,13 +17,16 @@ function updateUI(running) {
 
 function sendToTab(action, callback) {
   chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-    if (!tabs || !tabs[0] || !tabs[0].id) {
-      document.getElementById('status').textContent = 'No active tab!';
+    if (!tabs || tabs.length === 0) {
+      document.getElementById('status').textContent = 'No tabs!';
       return;
     }
-    chrome.tabs.sendMessage(tabs[0].id, action, function(response) {
+    var tab = tabs[0];
+    document.getElementById('status').textContent = 'Tab: ' + tab.url.substring(0, 30) + '...';
+    
+    chrome.tabs.sendMessage(tab.id, action, function(response) {
       if (chrome.runtime.lastError) {
-        document.getElementById('status').textContent = 'Not on game page!';
+        document.getElementById('status').textContent = 'Error: ' + chrome.runtime.lastError.message.substring(0, 40);
         return;
       }
       if (callback) callback(response);
@@ -55,13 +58,15 @@ document.getElementById('btnReload').addEventListener('click', function() {
   document.getElementById('status').textContent = 'Reloading...';
 });
 
-// Check current status
-sendToTab({action: 'checkStatus'}, function(response) {
-  if (response) {
-    if (response.monitoring) updateUI(true);
-    if (response.panelExists) {
-      document.getElementById('status').textContent = 'Ready!';
-      document.getElementById('btnToggle').classList.add('active');
+// Check current status on load
+setTimeout(function() {
+  sendToTab({action: 'checkStatus'}, function(response) {
+    if (response) {
+      if (response.monitoring) updateUI(true);
+      if (response.panelExists) {
+        document.getElementById('status').textContent = 'Ready!';
+        document.getElementById('btnToggle').classList.add('active');
+      }
     }
-  }
-});
+  });
+}, 500);
