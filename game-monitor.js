@@ -1,5 +1,5 @@
 (function(){
-var ver='v1.13';
+var ver='v1.14';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -297,10 +297,11 @@ function startFarming(){
       // Check HP/MP greater than thresholds (teleport to farm zone)
       var hpGtOk=hpGtEnabled&&hpPct>(hpGtThresh/100);
       var mpGtOk=mpGtEnabled&&mpPct>(mpGtThresh/100);
-      if((hpGtOk||mpGtOk)&&isInTown&&!window.__gmFarming.returning){
+      if((hpGtOk||mpGtOk)&&isInTown){
         if(window.__ws)window.__ws.send('42["setZone","'+farmZone+'"]');
         status.textContent='HP/MP充足，傳送掛機...';
         status.style.color='#4ade80';
+        window.__gmFarming.returning=false; // Reset returning state when going back to farm
       }
     }catch(e){}
     window.__gmFarming.timer=setTimeout(loop,1000);
