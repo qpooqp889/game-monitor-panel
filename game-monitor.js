@@ -260,10 +260,10 @@ function buildSearchableZone(value,onChange){
       group.forEach(function(x){
         shown++;
         var item=document.createElement('div');
-        item.style.cssText='padding:5px 8px;cursor:pointer;font-size:11px;color:'+(sel===x.zone.id?'#ffd700':'#ccc')+';background:'+(sel===x.zone.id?'rgba(255,215,0,0.1)':'transparent')+';
+        item.style.cssText='padding:5px 8px;cursor:pointer;font-size:11px;color:'+(sel===x.zone.id?'#ffd700':'#ccc')+';background:'+(sel===x.zone.id?'#c8a800':'transparent')+';';
         item.textContent=(cur?'  ':'')+x.zone.name+' ('+x.zone.sub+')';
         item.onmouseover=function(){item.style.background='rgba(255,255,255,0.1)'};
-        item.onmouseout=function(){item.style.background=sel===x.zone.id?'rgba(255,215,0,0.1)':'transparent'};
+        item.onmouseout=function(){item.style.background=sel===x.zone.id?'#c8a800':'transparent'};
         item.onclick=function(){
           sel=x.zone.id;input.value=x.zone.name+' ('+x.zone.sub+')';
           input.style.color='#fff';
