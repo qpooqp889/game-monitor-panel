@@ -25,7 +25,11 @@ function saveFarmSettings(){
     mpGtEnabled: document.getElementById('__gmp_farm_mp_gt_chk').checked,
     logicOp: document.getElementById('__gmp_farm_logic').value||'AND',
     logicEnabled: document.getElementById('__gmp_farm_logic_chk').checked,
-    autoAtk: document.getElementById('__gmp_farm_atk').checked
+    autoAtk: document.getElementById('__gmp_farm_atk').checked,
+    // 新增：斷線重連設定
+    charName: document.getElementById('__gmp_farm_char_name').value||'',
+    reconnectEnabled: document.getElementById('__gmp_farm_reconnect').checked,
+    reconnectInterval: parseInt(document.getElementById('__gmp_farm_reconnect_interval').value)||60
   };
   // Send to content script to save via chrome.storage
   window.postMessage({type:'GM_SAVE_SETTINGS',data:data},'*');
@@ -772,12 +776,17 @@ function __gmBuildPanel(){
     if(data.logicOp)document.getElementById('__gmp_farm_logic').value=data.logicOp;
     document.getElementById('__gmp_farm_logic_chk').checked=data.logicEnabled!==false;
     document.getElementById('__gmp_farm_atk').checked=data.autoAtk!==false;
+    // 新增：載入斷線重連設定
+    if(data.charName)document.getElementById('__gmp_farm_char_name').value=data.charName;
+    document.getElementById('__gmp_farm_reconnect').checked=data.reconnectEnabled!==false;
+    if(data.reconnectInterval)document.getElementById('__gmp_farm_reconnect_interval').value=data.reconnectInterval;
   });
 
   // === Auto-save on change ===
   var farmInputs=['__gmp_farm_zone','__gmp_farm_hp','__gmp_farm_mp','__gmp_farm_hp_chk','__gmp_farm_mp_chk',
     '__gmp_farm_hp_gt','__gmp_farm_mp_gt','__gmp_farm_hp_gt_chk','__gmp_farm_mp_gt_chk',
-    '__gmp_farm_logic','__gmp_farm_logic_chk','__gmp_farm_atk'];
+    '__gmp_farm_logic','__gmp_farm_logic_chk','__gmp_farm_atk',
+    '__gmp_farm_char_name','__gmp_farm_reconnect','__gmp_farm_reconnect_interval'];
   farmInputs.forEach(function(id){
     var el=document.getElementById(id);
     if(el){
