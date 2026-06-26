@@ -1,8 +1,36 @@
 (function(){
 if(window.__gmInjected){console.log('[GM] Already injected');return;}
 window.__gmInjected=true;
+window.__battleStatus={packets:[]};
 
-// Create panel immediately
+// Hook WebSocket send
+var origSend=WebSocket.prototype.send;
+WebSocket.prototype.send=function(data){
+window.__battleStatus.packets.push({type:'send',data:data});
+window.__ws=this;
+return origSend.call(this,data);
+};
+
+// Hook existing WebSocket if any
+if(window.__ws){
+window.__ws.addEventListener('message',function(e){
+window.__battleStatus.packets.push({type:'receive',data:e.data});
+});
+}
+
+// Poll to hook new WebSocket
+var hookInterval=setInterval(function(){
+if(window.__ws&&!window.__ws.__hooked){
+window.__ws.__hooked=true;
+window.__ws.addEventListener('message',function(e){
+window.__battleStatus.packets.push({type:'receive',data:e.data});
+});
+console.log('[GM] WebSocket hooked!');
+clearInterval(hookInterval);
+}
+},100);
+
+// Create panel
 (function(){
 var old=document.getElementById('__gmp');if(old)old.remove();
 var isExpanded=true;var zoom=1;
@@ -43,73 +71,16 @@ document.addEventListener('mousemove',function(e){if(drag){p.style.left=(e.clien
 document.addEventListener('mouseup',function(){drag=false;});
 })();
 
-// Try to find existing Socket.IO / WebSocket
-function tryHook(){
-// Socket.IO stores its socket in various places
-if(window.io&&window.io.managers){
-Object.values(window.io.managers).forEach(function(m){
-if(m&&m.socket){
-hookWS(m.socket);
-}
-});
-}
-// Check common global names
-['socket','io','gameSocket','ws','sock'].forEach(function(name){
-if(window[name]&&window[name].on){
-hookWS(window[name]);
-}
-});
-// Socket.IO 4.x
-if(window.io&&window.io._connect&&!window.__ioHooked){
-window.__ioHooked=true;
-var origOn=window.io.prototype.on||function(){};
-window.io.prototype.on=function(ev,cb){
-if(ev==='message'||ev===4){
-var orig=cb;
-cb=function(data){
-try{var d=JSON.parse(data);if(d[0]==='state'){window.__gmState=d[1];}}catch(e){}
-orig.call(this,data);
-};
-}
-return origOn.call(this,ev,cb);
-};
-}
-}
-function hookWS(ws){
-if(!ws||ws.__hooked)return;
-ws.__hooked=true;
-ws.on('packet',function(packet){
-if(packet.type===2&&packet.data){// Socket.IO binary packet
-try{var d=JSON.parse(packet.data);if(d[0]==='state'){window.__gmState=d[1];}}catch(e){}
-}
-});
-ws.on('message',function(data){
+// Update function
+function upd(){
+var pkts=(window.__battleStatus||{}).packets||[];
+var sp=pkts.filter(function(x){return x.type==='receive'&&x.data&&x.data.indexOf('"state"')>-1;});
+if(!sp.length)return;
 try{
-var d=JSON.parse(data);
-if(d[0]==='state'){window.__gmState=d[1];}
-}catch(e){}
-});
-}
-tryHook();
-
-// Hook WebSocket prototype
-var _send=WebSocket.prototype.send;
-WebSocket.prototype.send=function(data){
-window.__ws=this;
-if(!this.__listening){
-this.__listening=true;
-this.addEventListener('message',function(e){
-try{var d=JSON.parse(e.data.substring(2));if(d[0]==='state'){window.__gmState=d[1];}}catch(err){}
-});
-}
-return _send.call(this,data);
-};
-
-// Poll for state updates
-setInterval(function(){
-var c=(window.__gmState||{}).char;
+var d=JSON.parse(sp[sp.length-1].data.substring(2))[1];
+var c=d.char;
 if(!c)return;
-document.getElementById('__gmp_name').textContent=c.name||'---';
+document.getElementById('__gmp_name').textContent=c.name||'?';
 document.getElementById('__gmp_info').textContent='Lv.'+(c.level||'?');
 document.getElementById('__gmp_hp_text').textContent=(c.hp||0)+'/'+(c.maxHp||0);
 document.getElementById('__gmp_hp_bar').style.width=Math.round((c.hp||0)/(c.maxHp||1)*100)+'%';
@@ -119,10 +90,11 @@ document.getElementById('__gmp_exp_text').textContent=Math.round((c.exp||0)/(c.e
 document.getElementById('__gmp_exp_bar').style.width=Math.round((c.exp||0)/(c.expToNext||1)*100)+'%';
 document.getElementById('__gmp_gold').textContent=(c.gold||0).toLocaleString();
 var h='';
-var d=window.__gmState;
-if(d&&d.monsters)d.monsters.forEach(function(m,i){if(m){var pct=Math.round(m.hp/m.maxHp*100);var col=pct>50?'#4ade80':pct>25?'#fbbf24':'#e94560';h+='<div>['+i+'] '+(m.n||'?')+' <span style="color:'+col+';">'+(m.hp||0)+'/'+(m.maxHp||0)+'</span></div>';}});
+if(d.monsters)d.monsters.forEach(function(m,i){if(m){var pct=Math.round(m.hp/m.maxHp*100);var col=pct>50?'#4ade80':pct>25?'#fbbf24':'#e94560';h+='<div>['+i+'] '+(m.n||'?')+' <span style="color:'+col+';">'+(m.hp||0)+'/'+(m.maxHp||0)+'</span></div>';}});
 document.getElementById('__gmp_mobs').innerHTML=h||'<span style="color:#888;">none</span>';
-},500);
-
-console.log('[GM] Monitor injected!');
+}catch(e){console.error('[GM] Parse error:',e);}
+}
+setInterval(upd,500);
+upd();
+console.log('[GM] Monitor injected! BookMarket style!');
 })();
