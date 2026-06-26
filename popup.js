@@ -93,22 +93,29 @@ function updateInjectButton() {
 }
 
 document.getElementById('btnInject').addEventListener('click', function() {
-  updateStatus('Injecting...');
-  getCurrentTab(function(tabId, url) {
-    if (!tabId) {
-      updateStatus('No active tab!');
+  updateStatus('Step 1: query tab...');
+  
+  chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+    updateStatus('Step 2: got tabs: ' + (tabs ? tabs.length : 'null'));
+    
+    if (!tabs || !tabs[0]) {
+      updateStatus('No tab found!');
       return;
     }
     
-    if (!url || !url.includes('linh5web.win')) {
+    var tab = tabs[0];
+    updateStatus('Step 3: tab url = ' + (tab.url || 'no url'));
+    
+    if (!tab.url || !tab.url.includes('linh5web.win')) {
       updateStatus('Not on game page!');
       return;
     }
     
-    // Inject from file (no length limit)
-    chrome.tabs.executeScript(tabId, {file: 'game-monitor.js'}, function(results) {
+    updateStatus('Step 4: executeScript...');
+    chrome.tabs.executeScript(tab.id, {file: 'game-monitor.js'}, function(results) {
+      updateStatus('Step 5: result = ' + JSON.stringify(results));
       if (chrome.runtime.lastError) {
-        updateStatus('Error: ' + chrome.runtime.lastError.message.substring(0,50));
+        updateStatus('Error: ' + chrome.runtime.lastError.message.substring(0,60));
       } else {
         isInjected = true;
         updateInjectButton();
