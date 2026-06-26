@@ -1,9 +1,8 @@
-// game-monitor.js - The actual injection code
+(function(){
 if(window.__gmInjected){console.log('[GM] Already injected');return;}
 window.__gmInjected=true;
 window.__gmPackets=[];
 
-(function(){
 var _send=WebSocket.prototype.send;
 WebSocket.prototype.send=function(d){
 if(!this.__hooked){this.__hooked=true;
@@ -21,7 +20,6 @@ window.__gmPackets.push({t:'tx',d:d});
 window.__gmWS=this;
 return _send.call(this,d);
 };
-})();
 
 window.gmAtk=function(){window.__gmWS&&window.__gmWS.send('42["attack"]');};
 window.gmHp=function(){window.__gmWS&&window.__gmWS.send('42["useItem","potion_heal"]');};
@@ -58,3 +56,4 @@ el.innerHTML=
 },500);
 
 console.log('[GM] Monitor injected! Commands: gmAtk(), gmHp(), gmStop()');
+})();
