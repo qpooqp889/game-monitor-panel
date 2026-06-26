@@ -1,5 +1,5 @@
 (function(){
-var ver='v1.07';
+var ver='v1.08';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -134,9 +134,7 @@ var ZONES={
 };
 
 // All farming zones combined
-var FARM_ZONES=[];
-ZONES.wild.forEach(function(z){FARM_ZONES.push(z)});
-ZONES.dungeon.forEach(function(z){FARM_ZONES.push(z)});
+
 
 function sendZone(zoneId){
   if(window.__ws){
@@ -174,7 +172,7 @@ function startFarming(){
 
   if(!farmZone){alert('請先選擇掛機地圖！');return;}
 
-  window.__gmFarming.running=true;
+  window.__gmFarming={running:true,timer:null,returning:false,waitTimer:null};
   btn.textContent='■ 停止腳本';
   btn.style.background='#e94560';
   status.textContent='掛機中...';
@@ -191,14 +189,14 @@ function startFarming(){
       var hp=c.hp||0,maxHp=c.maxHp||1;
       var mp=c.mp||0,maxMp=c.maxMp||1;
       var zoneName=d.zone||'';
-      var isInTown=zoneName.indexOf('大廳')>-1||zoneName.indexOf('村')>-1||zoneName.indexOf('安全')>-1||!d.inBattle;
+      var isInTown=zoneName.indexOf('大廳')>-1||zoneName.indexOf('村')>-1||zoneName.indexOf('安全')>-1;
 
-      // Auto attack while in farming zone and not in town
-      if(autoAtk&&!window.__gmFarming.returning&&!isInTown){
+      // Auto attack only when in the selected farming zone
+      if(autoAtk&&!window.__gmFarming.returning&&!isInTown&&zoneName===farmZone){
         if(window.__ws)window.__ws.send('42["attack"]');
       }
 
-      // Check HP
+      // Check HP/MP
       var hpPct=hp/maxHp;
       var mpPct=mp/maxMp;
       var needReturn=false;
