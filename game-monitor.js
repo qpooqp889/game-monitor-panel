@@ -1,5 +1,5 @@
 (function(){
-var ver='v1.23';
+var ver='v1.26';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -206,6 +206,9 @@ function startFarming(){
   var logicSelect=document.getElementById('__gmp_farm_logic');
   var logicCheck=document.getElementById('__gmp_farm_logic_chk');
   var atkCheck=document.getElementById('__gmp_farm_atk');
+  var reconnectCheck=document.getElementById('__gmp_farm_reconnect');
+  var charNameInput=document.getElementById('__gmp_farm_char_name');
+  var reconnectIntervalInput=document.getElementById('__gmp_farm_reconnect_interval');
   var btn=document.getElementById('__gmp_farm_btn');
   var status=document.getElementById('__gmp_farm_status');
 
@@ -221,10 +224,17 @@ function startFarming(){
   var logicOp=logicSelect.value;
   var logicEnabled=logicCheck.checked;
   var autoAtk=atkCheck.checked;
+  var reconnectEnabled=reconnectCheck.checked;
+  var charName=charNameInput.value.trim()||'';
+  var reconnectInterval=parseInt(reconnectIntervalInput.value)||60;
 
   if(!farmZone){alert('請先選擇掛機地圖！');return;}
 
-  window.__gmFarming={running:true,timer:null,returning:false,inTown:false};
+  window.__gmFarming={running:true,timer:null,returning:false,inTown:false,reconnectTimer:null};
+  window.__gmFarming.reconnectEnabled=reconnectEnabled;
+  window.__gmFarming.charName=charName;
+  window.__gmFarming.reconnectInterval=reconnectInterval*1000;
+  window.__gmFarming.lastReconnectCheck=Date.now();
   btn.textContent='■ 停止腳本';
   btn.style.background='#e94560';
   status.textContent='傳送至掛機地圖...';
@@ -314,11 +324,56 @@ function startFarming(){
     window.__gmFarming.timer=setTimeout(loop,1000);
   }
   loop();
+
+  // === 斷線重連檢測 ===
+  function checkReconnect(){
+    if(!window.__gmFarming.running)return;
+    if(!window.__gmFarming.reconnectEnabled||!window.__gmFarming.charName){
+      window.__gmFarming.reconnectTimer=setTimeout(checkReconnect,window.__gmFarming.reconnectInterval);
+      return;
+    }
+    var charName=window.__gmFarming.charName;
+    var pageHtml=document.body.innerHTML||'';
+    if(pageHtml.indexOf(charName)===-1){
+      console.log('[GM] 斷線檢測：未找到角色名 "'+charName+'"，嘗試點擊角色槽...');
+      status.textContent='⚠️ 斷線檢測中，嘗試重連...';
+      status.style.color='#fbbf24';
+      // 嘗試找到包含角色名稱的 .char-slot 並點擊
+      var slots=document.querySelectorAll('.char-slot');
+      var clicked=false;
+      slots.forEach(function(slot){
+        if(slot.innerHTML.indexOf(charName)>-1){
+          var emptyDiv=slot.querySelector('.empty');
+          if(!emptyDiv){
+            console.log('[GM] 找到角色槽，點擊進入...');
+            slot.click();
+            clicked=true;
+            status.textContent='🔄 點擊角色進入遊戲...';
+            status.style.color='#4ade80';
+          }
+        }
+      });
+      if(!clicked){
+        console.log('[GM] 未找到角色槽，嘗試點擊任何有效角色...');
+        // 備用：點擊第一個有角色名的槽
+        var firstChar=document.querySelector('.char-slot:not(:has(.empty))');
+        if(firstChar){
+          firstChar.click();
+          clicked=true;
+          console.log('[GM] 點擊第一個角色槽...');
+        }
+      }
+    }
+    window.__gmFarming.reconnectTimer=setTimeout(checkReconnect,window.__gmFarming.reconnectInterval);
+  }
+  // 延遲啟動檢測
+  window.__gmFarming.reconnectTimer=setTimeout(checkReconnect,window.__gmFarming.reconnectInterval);
 }
 
 function stopFarming(){
   window.__gmFarming.running=false;
   if(window.__gmFarming.timer){clearTimeout(window.__gmFarming.timer);window.__gmFarming.timer=null;}
+  if(window.__gmFarming.reconnectTimer){clearTimeout(window.__gmFarming.reconnectTimer);window.__gmFarming.reconnectTimer=null;}
   window.__gmFarming.returning=false;
   var btn=document.getElementById('__gmp_farm_btn');
   var status=document.getElementById('__gmp_farm_status');
@@ -447,6 +502,15 @@ function __gmBuildPanel(){
       '<span style="font-size:10px;color:#7bd14a;width:50px;">MP大於</span>'+
       '<input id="__gmp_farm_mp_gt" type="number" value="90" min="1" max="100" style="width:55px;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;text-align:center;">'+
       '<span style="font-size:10px;color:#888;">% 傳送掛機</span>'+
+    '</div>'+
+    // Auto reconnect (斷線重連)
+    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
+      '<input type="checkbox" id="__gmp_farm_reconnect" checked style="width:14px;height:14px;cursor:pointer;">'+
+      '<span style="font-size:10px;color:#ffd700;">🔄 斷線重連</span>'+
+      '<input id="__gmp_farm_char_name" type="text" placeholder="角色名稱" style="flex:1;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;">'+
+    '</div>'+
+    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:10px;color:#888;">'+
+      '檢測間隔 <input id="__gmp_farm_reconnect_interval" type="number" value="60" min="10" max="300" style="width:50px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;outline:none;text-align:center;"> 秒'+
     '</div>'+
     // Auto attack
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">'+
