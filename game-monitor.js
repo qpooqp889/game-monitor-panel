@@ -1,5 +1,5 @@
 (function(){
-var ver='v1.23';
+var ver='v1.24';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -237,7 +237,6 @@ function startFarming(){
     if(!window.__gmFarming.running)return;
     var pkts=(window.__battleStatus||{packets:[]}).packets;
     var sp=pkts.filter(function(x){return x.type==='receive'&&x.data&&x.data.indexOf('"state"')>-1});
-    console.log('[GM] loop running, packets:',pkts.length,'state packets:',sp.length);
     if(!sp.length){window.__gmFarming.timer=setTimeout(loop,1000);return;}
     try{
       var d=JSON.parse(sp[sp.length-1].data.substring(2))[1];
@@ -252,8 +251,6 @@ function startFarming(){
       var isInTown=mode==='lobby'||
                    zoneName.indexOf('大廳')>-1||zoneName.indexOf('大厅')>-1||
                    zoneName.indexOf('村')>-1||zoneName.indexOf('安全')>-1;
-      
-      console.log('[GM] mode:',mode,'zoneName:',zoneName,'isInTown:',isInTown,'HP:',Math.round(hp/maxHp*100)+'%','MP:',Math.round(mp/maxMp*100)+'%');
       
       // Update inTown state
       window.__gmFarming.inTown=isInTown;
@@ -292,17 +289,16 @@ function startFarming(){
       }
 
       // Feature 2: Auto teleport to farm when HP/MP > threshold (in town)
-      // Triggered when in town AND HP/MP above thresholds
       if(isInTown){
         var hpGtOk=hpGtEnabled&&hpPct>(hpGtThresh/100);
         var mpGtOk=mpGtEnabled&&mpPct>(mpGtThresh/100);
-        console.log('[GM] In town, HP:',Math.round(hpPct*100)+'%, MP:',Math.round(mpPct*100)+'%, hpGtOk:',hpGtOk,'mpGtOk:',mpGtOk);
         if(hpGtOk||mpGtOk){
-          console.log('[GM] Teleporting to farm zone:',farmZone);
           if(window.__ws)window.__ws.send('42["setZone","'+farmZone+'"]');
           status.textContent='HP/MP充足，傳送掛機...';
           status.style.color='#4ade80';
           window.__gmFarming.returning=false;
+        }
+      }
         }
       }
       
