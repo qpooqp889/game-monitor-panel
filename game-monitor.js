@@ -332,16 +332,22 @@ function startFarming(){
       window.__gmFarming.reconnectTimer=setTimeout(checkReconnect,window.__gmFarming.reconnectInterval);
       return;
     }
+    
     var charName=window.__gmFarming.charName;
-    var pageHtml=document.body.innerHTML||'';
-    if(pageHtml.indexOf(charName)===-1){
-      console.log('[GM] 斷線檢測：未找到角色名 "'+charName+'"，嘗試點擊角色槽...');
+    
+    // 檢測是否在角色選擇畫面（檢測 #slots 或 .char-slot 是否存在）
+    var slotsDiv=document.getElementById('slots');
+    var charSlots=document.querySelectorAll('.char-slot');
+    var isOnCharSelect=slotsDiv!==null||charSlots.length>0;
+    
+    if(isOnCharSelect){
+      console.log('[GM] 斷線檢測：在角色選擇畫面，嘗試點擊角色槽...');
       status.textContent='⚠️ 斷線檢測中，嘗試重連...';
       status.style.color='#fbbf24';
+      
       // 嘗試找到包含角色名稱的 .char-slot 並點擊
-      var slots=document.querySelectorAll('.char-slot');
       var clicked=false;
-      slots.forEach(function(slot){
+      charSlots.forEach(function(slot){
         if(slot.innerHTML.indexOf(charName)>-1){
           var emptyDiv=slot.querySelector('.empty');
           if(!emptyDiv){
@@ -353,10 +359,11 @@ function startFarming(){
           }
         }
       });
+      
       if(!clicked){
         console.log('[GM] 未找到角色槽，嘗試點擊任何有效角色...');
         // 備用：點擊第一個有角色名的槽
-        var firstChar=document.querySelector('.char-slot:not(:has(.empty))');
+        var firstChar=document.querySelector('.char-slot:not(.empty)');
         if(firstChar){
           firstChar.click();
           clicked=true;
@@ -364,6 +371,7 @@ function startFarming(){
         }
       }
     }
+    
     window.__gmFarming.reconnectTimer=setTimeout(checkReconnect,window.__gmFarming.reconnectInterval);
   }
   // 延遲啟動檢測
@@ -666,20 +674,22 @@ function __gmBuildPanel(){
     status.textContent='🔍 測試中...';
     status.style.color='#ffd700';
     
-    // 檢測頁面是否包含角色名稱
-    var pageHtml=document.body.innerHTML||'';
-    console.log('[GM] 測試斷線重連：角色名稱 "'+charName+'"');
-    console.log('[GM] 頁面 HTML 長度：', pageHtml.length);
+    // 檢測是否在角色選擇畫面（檢測 #slots 或 .char-slot 是否存在）
+    var slotsDiv=document.getElementById('slots');
+    var charSlots=document.querySelectorAll('.char-slot');
+    var isOnCharSelect=slotsDiv!==null||charSlots.length>0;
     
-    if(pageHtml.indexOf(charName)===-1){
-      status.textContent='⚠️ 未找到角色名 "'+charName+'"，嘗試點擊...';
+    console.log('[GM] 測試斷線重連：角色名稱 "'+charName+'"');
+    console.log('[GM] 是否在角色選擇畫面：', isOnCharSelect);
+    console.log('[GM] 找到', charSlots.length, '個角色槽');
+    
+    if(isOnCharSelect){
+      status.textContent='⚠️ 檢測到角色選擇畫面，嘗試點擊...';
       status.style.color='#fbbf24';
       
       // 嘗試找到包含角色名稱的 .char-slot 並點擊
-      var slots=document.querySelectorAll('.char-slot');
-      console.log('[GM] 找到', slots.length, '個角色槽');
       var clicked=false;
-      slots.forEach(function(slot, index){
+      charSlots.forEach(function(slot, index){
         console.log('[GM] 角色槽', index, 'HTML:', slot.innerHTML.substring(0, 200));
         if(slot.innerHTML.indexOf(charName)>-1){
           var emptyDiv=slot.querySelector('.empty');
@@ -699,9 +709,9 @@ function __gmBuildPanel(){
         console.log('[GM] 未找到角色槽');
       }
     } else {
-      status.textContent='✅ 找到角色名 "'+charName+'"，游戲正常中';
+      status.textContent='✅ 不在角色選擇畫面，游戲正常中';
       status.style.color='#4ade80';
-      console.log('[GM] 找到角色名，游戲正常');
+      console.log('[GM] 不在角色選擇畫面，游戲正常');
     }
   };
 
