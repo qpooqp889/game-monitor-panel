@@ -1,5 +1,5 @@
 (function(){
-var ver='v1.10';
+var ver='v1.11';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -133,6 +133,16 @@ var ZONES={
   ],
 };
 
+// Build zone ID lookup (Chinese name -> zone ID)
+function buildZoneNameLookup(){
+  var m={};
+  [ZONES.town,ZONES.wild,ZONES.dungeon,ZONES.special].forEach(function(arr){
+    (arr||[]).forEach(function(z){if(z.id&&z.name)m[z.name]=z.id});
+  });
+  return m;
+}
+var ZONE_NAME_LOOKUP=buildZoneNameLookup();
+
 function sendZone(zoneId){
   if(window.__ws){
     window.__ws.send('42["setZone","'+zoneId+'"]');
@@ -188,12 +198,17 @@ function startFarming(){
       var c=d.char||{};
       var hp=c.hp||0,maxHp=c.maxHp||1;
       var mp=c.mp||0,maxMp=c.maxMp||1;
-      var zoneName=d.zone||'';
+      var zoneName=d.zoneName||d.zone||'';
+      // Resolve zone ID: try d.zoneId first, then lookup by Chinese name
+      var zoneId=d.zoneId||ZONE_NAME_LOOKUP[zoneName]||zoneName||'';
       var isInTown=zoneName.indexOf('大廳')>-1||zoneName.indexOf('村')>-1||zoneName.indexOf('安全')>-1;
 
       // Auto attack only when in the selected farming zone
-      if(autoAtk&&!window.__gmFarming.returning&&!isInTown&&zoneName===farmZone){
-        if(window.__ws)window.__ws.send('42["attack"]');
+      if(autoAtk&&!window.__gmFarming.returning&&!isInTown&&zoneId===farmZone){
+        if(window.__ws){
+          window.__ws.send('42["attack"]');
+          status.textContent='攻擊中...';
+        }
       }
 
       // Check HP/MP
