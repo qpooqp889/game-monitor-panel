@@ -1,38 +1,47 @@
 (function(){
-console.log('[GM] Script starting...');
-console.log('[GM] __gmInjected before:', window.__gmInjected);
-if(window.__gmInjected){console.log('[GM] Already injected');return;}
-window.__gmInjected=true;
-console.log('[GM] __gmInjected after:', window.__gmInjected);
+if(sessionStorage.getItem('__gmRunning')){console.log('[GM] Already running');return;}
+sessionStorage.setItem('__gmRunning','true');
 
-window.__battleStatus={packets:[]};
-console.log('[GM] __battleStatus created:', typeof window.__battleStatus);
+sessionStorage.setItem('__gmPackets','[]');
+sessionStorage.setItem('__gmWs','null');
+sessionStorage.setItem('__gmState','null');
 
 // Hook WebSocket send
-var origSend=WebSocket.prototype.send;
+var _send=WebSocket.prototype.send;
 WebSocket.prototype.send=function(data){
-window.__battleStatus.packets.push({type:'send',data:data});
-window.__ws=this;
-return origSend.call(this,data);
+var pkts=JSON.parse(sessionStorage.getItem('__gmPackets')||'[]');
+pkts.push({type:'send',data:data,time:Date.now()});
+if(pkts.length>100)pkts=pkts.slice(-50);
+sessionStorage.setItem('__gmPackets',JSON.stringify(pkts));
+sessionStorage.setItem('__gmWs','true');
+this.addEventListener('message',function(e){
+var pkts2=JSON.parse(sessionStorage.getItem('__gmPackets')||'[]');
+pkts2.push({type:'receive',data:e.data,time:Date.now()});
+sessionStorage.setItem('__gmPackets',JSON.stringify(pkts2));
+try{
+var d=JSON.parse(e.data.substring(2));
+if(d[0]==='state'){sessionStorage.setItem('__gmState',e.data);}
+}catch(err){}
+});
+return _send.call(this,data);
 };
 
-// Hook existing WebSocket
-if(window.__ws){
-window.__ws.addEventListener('message',function(e){
-window.__battleStatus.packets.push({type:'receive',data:e.data});
-});
+// Check for existing WebSocket
+function checkWS(){
+if(!sessionStorage.getItem('__gmWs')||sessionStorage.getItem('__gmWs')==='null'){
+// Try to find existing WS
+var iframes=document.querySelectorAll('iframe');
+for(var i=0;i<iframes.length;i++){
+try{
+var win=iframes[i].contentWindow;
+if(win&&win.WebSocket){
+// Hook it
 }
-
-// Poll to hook WebSocket
-setInterval(function(){
-if(window.__ws&&!window.__ws.__hooked){
-window.__ws.__hooked=true;
-window.__ws.addEventListener('message',function(e){
-window.__battleStatus.packets.push({type:'receive',data:e.data});
-console.log('[GM] WS MSG:', e.data.substring(0,50));
-});
+}catch(e){}
 }
-},100);
+}
+}
+setTimeout(checkWS,500);
 
 // Create panel
 (function(){
@@ -62,9 +71,14 @@ p.innerHTML=
 '</div>'+
 '</div>';
 document.body.appendChild(p);
-document.getElementById('__gmp_btn_hp').onclick=function(){window.__ws&&window.__ws.send('42["useItem","potion_heal"]');};
-document.getElementById('__gmp_btn_atk').onclick=function(){window.__ws&&window.__ws.send('42["attack"]');};
-document.getElementById('__gmp_btn_stop').onclick=function(){window.__ws&&window.__ws.send('42["stop"]');};
+document.getElementById('__gmp_btn_hp').onclick=function(){
+var ws=document.querySelector('iframe')?document.querySelector('iframe').contentWindow:null;
+if(ws&&ws.WebSocket){
+var wss=ws.WebSocket;
+}
+};
+document.getElementById('__gmp_btn_atk').onclick=function(){console.log('[GM] ATK clicked')};
+document.getElementById('__gmp_btn_stop').onclick=function(){console.log('[GM] STOP clicked')};
 document.getElementById('__gmp_close').onclick=function(){var panel=document.getElementById('__gmp');if(panel)panel.remove();};
 document.getElementById('__gmp_expand').onclick=function(){isExpanded=!isExpanded;document.getElementById('__gmp_content').style.display=isExpanded?'block':'none';this.textContent=isExpanded?'▼':'▶';};
 document.getElementById('__gmp_zoom_in').onclick=function(){zoom=Math.min(zoom+0.1,2);p.style.transform='scale('+zoom+')';};
@@ -75,13 +89,15 @@ document.addEventListener('mousemove',function(e){if(drag){p.style.left=(e.clien
 document.addEventListener('mouseup',function(){drag=false;});
 })();
 
-// Update function
+// Update function using sessionStorage
 function upd(){
-var pkts=(window.__battleStatus||{packets:[]}).packets;
-var sp=pkts.filter(function(x){return x.type==='receive'&&x.data&&x.data.indexOf('"state"')>-1;});
-if(!sp.length)return;
+var stateStr=sessionStorage.getItem('__gmState');
+if(!stateStr||stateStr==='null'){
+document.getElementById('__gmp_mobs').innerHTML='<span style="color:#888;">Waiting for state...</span>';
+return;
+}
 try{
-var d=JSON.parse(sp[sp.length-1].data.substring(2))[1];
+var d=JSON.parse(stateStr.substring(2))[1];
 var c=d.char;
 if(!c)return;
 document.getElementById('__gmp_name').textContent=c.name||'?';
@@ -100,5 +116,5 @@ document.getElementById('__gmp_mobs').innerHTML=h||'<span style="color:#888;">no
 }
 setInterval(upd,500);
 upd();
-console.log('[GM] Monitor injected!');
+console.log('[GM] Monitor injected with sessionStorage!');
 })();

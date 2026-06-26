@@ -93,7 +93,7 @@ function updateInjectButton() {
 }
 
 document.getElementById('btnInject').addEventListener('click', function() {
-  updateStatus('Injecting...');
+  updateStatus('Injecting in MAIN world...');
   
   chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
     if (!tabs || !tabs[0]) {
@@ -106,10 +106,11 @@ document.getElementById('btnInject').addEventListener('click', function() {
       return;
     }
     
-    // Use chrome.scripting.executeScript (MV3 way)
+    // Execute directly in MAIN world
     chrome.scripting.executeScript({
       target: {tabId: tab.id},
-      files: ['game-monitor.js']
+      files: ['game-monitor.js'],
+      world: 'MAIN'
     }, function(results) {
       if (chrome.runtime.lastError) {
         updateStatus('Error: ' + chrome.runtime.lastError.message.substring(0,60));
