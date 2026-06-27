@@ -14,6 +14,7 @@ window.__gmFarming={running:false,timer:null,returning:false,waitTimer:null};
 // ====== WB Boss Hook ======
 window.__wbBossEmitLog=[];
 window.__wbSocket=null;
+window.lastState=null;  // 初始化全域 lastState
 (function(){
   function installSioHook(){
     if(window.__wbSioHooked)return;
@@ -40,8 +41,13 @@ window.__wbSocket=null;
       SP.onevent=function(p){
         if(!window.__wbSocket)window.__wbSocket=this;
         if(p&&p.data&&p.data[0]){
+          var evtName=p.data[0];
           window.__sioPackets=window.__sioPackets||[];
-          window.__sioPackets.push({t:Date.now(),dir:'EVENT',evt:p.data[0],args:JSON.stringify(p.data).slice(0,300)});
+          window.__sioPackets.push({t:Date.now(),dir:'EVENT',evt:evtName,args:JSON.stringify(p.data).slice(0,500)});
+          // 解析 state 事件並更新 window.lastState
+          if(evtName==='state'&&p.data[1]){
+            window.lastState=p.data[1];
+          }
         }
         if(_oe)_oe.call(this,p);
       };
