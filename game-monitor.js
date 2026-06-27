@@ -251,7 +251,7 @@ function startFarming(){
     if(!window.__gmFarming.running)return;
     var pkts=(window.__battleStatus||{packets:[]}).packets;
     var sp=pkts.filter(function(x){return x.type==='receive'&&x.data&&x.data.indexOf('"state"')>-1});
-    console.log('[GM] loop running, packets:',pkts.length,'state packets:',sp.length);
+    gmLog('[GM] loop running, packets:',pkts.length,'state packets:',sp.length);
     if(!sp.length){window.__gmFarming.timer=setTimeout(loop,1000);return;}
     try{
       var d=JSON.parse(sp[sp.length-1].data.substring(2))[1];
@@ -795,6 +795,68 @@ function __gmBuildPanel(){
     }
   });
 }
+// === Debug log wrapper ===
+window.__gmDebugLog = true;
+function gmLog() {
+  if (window.__gmDebugLog) {
+    console.log.apply(console, arguments);
+  }
+}
+
+// === Dynamically add settings UI ===
+// Add debug log toggle to game tab
+var debugContainer = document.createElement('div');
+debugContainer.style.cssText = 'display:flex;align-items:center;gap:6px;margin-top:8px;margin-bottom:8px;';
+var debugChk = document.createElement('input');
+debugChk.type = 'checkbox';
+debugChk.id = '__gmp_debug_log';
+debugChk.checked = true;
+debugChk.style.cssText = 'width:14px;height:14px;cursor:pointer;';
+debugChk.onchange = function() {
+  window.__gmDebugLog = this.checked;
+};
+var debugLabel = document.createElement('label');
+debugLabel.htmlFor = '__gmp_debug_log';
+debugLabel.style.cssText = 'font-size:10px;color:#aaa;cursor:pointer;';
+debugLabel.textContent = '顯示主控台偵測日誌';
+debugContainer.appendChild(debugChk);
+debugContainer.appendChild(debugLabel);
+
+// Add export button to game tab
+var exportBtn = document.createElement('button');
+exportBtn.id = '__gmp_export_log';
+exportBtn.textContent = '📥 匯出封包監控.log';
+exportBtn.style.cssText = 'width:100%;padding:6px;background:#0f3460;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;margin-bottom:8px;';
+exportBtn.onclick = function() {
+  // Export packet logs
+  var logs = [];
+  if (window.__battleStatus && window.__battleStatus.packets) {
+    logs = window.__battleStatus.packets.map(function(p) {
+      return JSON.stringify(p);
+    });
+  }
+  var content = logs.join('\n');
+  var blob = new Blob([content], {type: 'text/plain'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = '封包監控_' + new Date().toISOString().slice(0,10) + '.log';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  alert('已匯出 ' + logs.length + ' 筆封包記錄');
+};
+
+// Append to game tab
+setTimeout(function() {
+  var gameTab = document.getElementById('__gmp_tab_content_game');
+  if (gameTab) {
+    gameTab.appendChild(exportBtn);
+    gameTab.appendChild(debugContainer);
+  }
+}, 100);
+
 __gmBuildPanel();
 document.addEventListener('__gm_show_panel',function(){__gmBuildPanel()});
 console.log('[GM] Monitor injected '+ver);
