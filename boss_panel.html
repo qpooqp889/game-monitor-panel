@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Boss Panel</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Segoe UI',Arial,sans-serif;background:transparent;user-select:none;}
+  .__wbPanel{
+    position:fixed;top:10px;right:10px;z-index:999999;
+    width:290px;background:#0a0e1aee;border-radius:14px;
+    border:1px solid #1a2540;box-shadow:0 8px 32px rgba(0,0,0,0.7);
+    font-size:12px;color:#e0e0e0;overflow:hidden;transition:all 0.3s;
+  }
+  .__wbPanel.mini{width:150px;}
+  .__wbHdr{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:10px 14px;background:#0f1a2e;cursor:pointer;
+    border-bottom:1px solid #1a2540;
+  }
+  .__wbHdrL{display:flex;align-items:center;gap:8px;}
+  .__wbDot{width:8px;height:8px;border-radius:50%;background:#e94560;}
+  .__wbTitle{font-size:12px;font-weight:bold;color:#e94560;letter-spacing:0.5px;}
+  .__wbVer{font-size:9px;color:#4a6080;margin-left:4px;}
+  .__wbMin{background:none;border:none;color:#888;cursor:pointer;font-size:16px;padding:0 4px;}
+  .__wbClose{background:none;border:none;color:#555;cursor:pointer;font-size:14px;padding:0 4px;}
+  .__wbClose:hover{color:#e94560;}
+  .__wbBody{padding:10px;display:none;}
+  .__wbBody.open{display:block;}
+  /* Sections */
+  .__wbSec{background:rgba(255,255,255,0.04);border-radius:8px;padding:8px 10px;margin-bottom:8px;}
+  .__wbSecTit{font-size:10px;color:#607080;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;}
+  /* Boss info */
+  .__wbBossName{font-weight:bold;font-size:13px;color:#e94560;margin-bottom:2px;}
+  .__wbBossLv{font-size:10px;color:#607080;margin-bottom:6px;}
+  .__wbHpRow{display:flex;justify-content:space-between;font-size:10px;color:#888;margin-bottom:3px;}
+  .__wbHpBarBg{background:#2a1010;border-radius:4px;height:12px;}
+  .__wbHpBar{height:100%;background:#e94560;border-radius:4px;transition:width 0.4s,background 0.4s;}
+  .__wbHpBar.yel{background:#fbbf24;}
+  .__wbHpBar.red{background:#dc2626;}
+  .__wbBuffs{font-size:10px;color:#60a5fa;margin-top:4px;min-height:14px;}
+  /* Cooldowns */
+  .__wbCDGrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;}
+  .__wbCDItem{background:rgba(255,255,255,0.04);border-radius:4px;padding:5px 6px;text-align:center;}
+  .__wbCDItem.ready{background:rgba(74,222,128,0.1);}
+  .__wbCDItem.cooldown{background:rgba(233,69,96,0.1);}
+  .__wbCDIcon{font-size:14px;display:block;}
+  .__wbCDLabel{font-size:9px;color:#607080;display:block;margin-top:1px;}
+  .__wbCDTime{font-size:10px;font-weight:bold;display:block;margin-top:2px;}
+  .__wbCDTime.ready{color:#4ade80;}
+  .__wbCDTime.cooldown{color:#e94560;}
+  /* Action buttons */
+  .__wbBtnGrid{display:grid;grid-template-columns:1fr 1fr;gap:4px;}
+  .__wbBtn{padding:9px 6px;border-radius:8px;border:none;cursor:pointer;font-size:11px;font-weight:bold;transition:all 0.15s;display:flex;flex-direction:column;align-items:center;gap:2px;}
+  .__wbBtn:hover{filter:brightness(1.3);transform:translateY(-1px);}
+  .__wbBtn:active{transform:scale(0.95);}
+  .__wbBtnPot{background:linear-gradient(135deg,#1a3a1a,#0f2a0f);border:1px solid #2a6a2a;color:#4ade80;}
+  .__wbBtnAtk{background:linear-gradient(135deg,#3a1a1a,#2a0f0f);border:1px solid #7a2a2a;color:#f87171;}
+  .__wbBtnHeal{background:linear-gradient(135deg,#1a3a2a,#0f2a1a);border:1px solid #2a7a4a;color:#86efac;}
+  .__wbBtnConvert{background:linear-gradient(135deg,#2a2a4a,#1a1a3a);border:1px solid #4a4a9a;color:#a5b4fc;}
+  .__wbBtnBarrier{background:linear-gradient(135deg,#2a2a4a,#1a1a3a);border:1px solid #4a4a9a;color:#818cf8;}
+  .__wbBtnHoly{background:linear-gradient(135deg,#3a2a3a,#2a1a2a);border:1px solid #7a3a7a;color:#d8b4fe;}
+  .__wbBtnFull{grid-column:1/-1;background:linear-gradient(135deg,#1a2a3a,#0f1f2e);border:1px solid #2a4a7a;color:#60a5fa;font-size:12px;padding:10px;}
+  .__wbBtnBig{grid-column:1/-1;padding:11px;border-radius:8px;font-size:13px;font-weight:bold;border:none;cursor:pointer;transition:all 0.15s;}
+  .__wbBtnBig:hover{filter:brightness(1.2);}
+  .__wbBtnStart{background:linear-gradient(135deg,#0f3460,#1a4a8a);color:#fff;}
+  .__wbBtnStop{background:linear-gradient(135deg,#e94560,#c73550);color:#fff;}
+  /* Checkbox row */
+  .__wbRow{display:flex;align-items:center;gap:6px;margin-bottom:5px;}
+  .__wbRow input[type=checkbox]{width:13px;height:13px;cursor:pointer;accent-color:#e94560;}
+  .__wbRow label{font-size:10px;color:#aaa;cursor:pointer;}
+  .__wbRow input[type=number]{width:45px;padding:2px 5px;background:#1a2540;border:1px solid #2a3a5a;border-radius:4px;color:#fff;font-size:10px;text-align:center;}
+  .__wbBypass{background:rgba(255,215,0,0.05);border:1px solid rgba(255,215,0,0.2);border-radius:6px;padding:6px 8px;margin-bottom:8px;}
+  .__wbBypass input{accent-color:#ffd700;}
+  .__wbBypass label{color:#ffd700;font-size:11px;}
+  .__wbBypassTip{font-size:9px;color:#555;margin-top:2px;padding-left:22px;}
+  /* Socket status */
+  .__wbSockRow{display:flex;justify-content:space-between;font-size:10px;color:#607080;padding:2px 0;}
+  .__wbSockDot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px;}
+  .__wbSockDot.ok{background:#4ade80;}
+  .__wbSockDot.bad{background:#e94560;}
+  /* Footer */
+  .__wbFoot{text-align:center;font-size:9px;color:#304050;padding:4px;border-top:1px solid #1a2540;}
+</style>
+</head>
+<body>
+<div class="__wbPanel" id="__wbPanel">
+  <div class="__wbHdr" id="__wbHdr">
+    <div class="__wbHdrL">
+      <div class="__wbDot"></div>
+      <span class="__wbTitle">👑 世界王控制<span class="__wbVer">v1.31</span></span>
+    </div>
+    <div>
+      <button class="__wbMin" id="__wbMin">−</button>
+      <button class="__wbClose" id="__wbClose">×</button>
+    </div>
+  </div>
+  <div class="__wbBody open" id="__wbBody">
+    <!-- Boss Info -->
+    <div class="__wbSec">
+      <div class="__wbSecTit">📊 世界王狀態</div>
+      <div class="__wbBossName" id="__wb_boss_name">--</div>
+      <div class="__wbBossLv" id="__wb_boss_lv">mode: --</div>
+      <div class="__wbHpRow"><span>BOSS HP</span><span id="__wb_boss_hp_text">--/--</span></div>
+      <div class="__wbHpBarBg"><div class="__wbHpBar" id="__wb_boss_hp_bar" style="width:0%"></div></div>
+      <div class="__wbBuffs" id="__wb_boss_buffs"></div>
+    </div>
+    <!-- Cooldowns -->
+    <div class="__wbSec">
+      <div class="__wbSecTit">⏱️ 冷卻計時</div>
+      <div class="__wbCDGrid" id="__wb_cd_grid">
+        <div class="__wbCDItem ready" id="__wb_cd_pot"><span class="__wbCDIcon">💊</span><span class="__wbCDLabel">藥水</span><span class="__wbCDTime ready">就緒</span></div>
+        <div class="__wbCDItem ready" id="__wb_cd_atk"><span class="__wbCDIcon">⚔️</span><span class="__wbCDLabel">攻擊</span><span class="__wbCDTime ready">就緒</span></div>
+        <div class="__wbCDItem ready" id="__wb_cd_heal"><span class="__wbCDIcon">💚</span><span class="__wbCDLabel">治療</span><span class="__wbCDTime ready">就緒</span></div>
+        <div class="__wbCDItem ready" id="__wb_cd_convert"><span class="__wbCDIcon">🔄</span><span class="__wbCDLabel">轉換</span><span class="__wbCDTime ready">就緒</span></div>
+        <div class="__wbCDItem ready" id="__wb_cd_barrier"><span class="__wbCDIcon">🛡️</span><span class="__wbCDLabel">屏障</span><span class="__wbCDTime ready">就緒</span></div>
+        <div class="__wbCDItem ready" id="__wb_cd_holybarrier"><span class="__wbCDIcon">✨</span><span class="__wbCDLabel">神聖</span><span class="__wbCDTime ready">就緒</span></div>
+      </div>
+    </div>
+    <!-- Manual Actions -->
+    <div class="__wbSec">
+      <div class="__wbSecTit">🎮 手動指令</div>
+      <div class="__wbBtnGrid">
+        <button class="__wbBtn __wbBtnPot" onclick="__wbSend('pot')">💊<span>藥水</span></button>
+        <button class="__wbBtn __wbBtnAtk" onclick="__wbSend('atk')">⚔️<span>攻擊</span></button>
+        <button class="__wbBtn __wbBtnHeal" onclick="__wbSend('heal')">💚<span>治療</span></button>
+        <button class="__wbBtn __wbBtnConvert" onclick="__wbSend('convert')">🔄<span>轉換</span></button>
+        <button class="__wbBtn __wbBtnBarrier" onclick="__wbSend('barrier')">🛡️<span>屏障</span></button>
+        <button class="__wbBtn __wbBtnHoly" onclick="__wbSend('holybarrier')">✨<span>神聖</span></button>
+        <button class="__wbBtn __wbBtnFull" onclick="__wbSend('atk')">⚔️ 狂打攻擊（無視冷卻）</button>
+      </div>
+    </div>
+    <!-- Cooldown Bypass -->
+    <div class="__wbBypass">
+      <div class="__wbRow">
+        <input type="checkbox" id="__wb_bypass">
+        <label for="__wb_bypass">🔓 解除冷卻限制</label>
+      </div>
+      <div class="__wbBypassTip">⚠️ 客戶端 bypass（按鈕可一直按），伺服器仍驗證</div>
+    </div>
+    <!-- Auto Boss -->
+    <div class="__wbSec">
+      <div class="__wbSecTit">🤖 自動掛機</div>
+      <div class="__wbRow">
+        <input type="checkbox" id="__wb_auto_pot" checked>
+        <label for="__wb_auto_pot">💊 HP &lt;</label>
+        <input type="number" id="__wb_auto_hp" value="50" min="1" max="100">
+        <span style="font-size:10px;color:#555;">%</span>
+      </div>
+      <div class="__wbRow">
+        <input type="checkbox" id="__wb_auto_heal">
+        <label for="__wb_auto_heal">💚 自動治療魔法</label>
+      </div>
+      <div class="__wbRow">
+        <input type="checkbox" id="__wb_auto_barrier">
+        <label for="__wb_auto_barrier">🛡️ Boss HP &lt;</label>
+        <input type="number" id="__wb_auto_barrier_pct" value="30" min="1" max="100">
+        <span style="font-size:10px;color:#555;">%</span>
+      </div>
+      <div class="__wbRow">
+        <input type="checkbox" id="__wb_auto_atk">
+        <label for="__wb_auto_atk">⚔️ 自動攻擊</label>
+      </div>
+      <div id="__wb_auto_status" style="font-size:10px;color:#607080;text-align:center;margin-bottom:6px;">⏹ 停止中</div>
+      <button class="__wbBtnBig __wbBtnStart" id="__wb_auto_btn" onclick="__wbToggleAuto()">▶ 啟動自動BOSS</button>
+    </div>
+    <!-- Socket Status -->
+    <div class="__wbSec">
+      <div class="__wbSecTit">📡 Socket.IO 狀態</div>
+      <div class="__wbSockRow"><span>連接</span><span><span class="__wbSockDot bad" id="__wb_sock_dot"></span><span id="__wb_sock_status">檢測中...</span></span></div>
+      <div class="__wbSockRow"><span>已發送</span><span id="__wb_sock_sent" style="color:#4ade80;">0</span></div>
+      <div class="__wbSockRow"><span>已接收</span><span id="__wb_sock_evts" style="color:#00d9ff;">0</span></div>
+      <div class="__wbSockRow"><span>lastState</span><span id="__wb_char_hp" style="color:#ffd700;">--</span></div>
+    </div>
+    <!-- Export -->
+    <div style="text-align:center;">
+      <button style="padding:5px 14px;background:#1a2a3a;border:1px solid #2a4a5a;border-radius:6px;color:#607080;font-size:10px;cursor:pointer;" onclick="__wbExport()">📥 匯出封包日誌</button>
+      <button style="padding:5px 14px;background:#1a2a3a;border:1px solid #2a4a5a;border-radius:6px;color:#607080;font-size:10px;cursor:pointer;" onclick="__wbBossEmitLog=[];">🗑 清除日誌</button>
+    </div>
+  </div>
+  <div class="__wbFoot" id="__wbFoot">WB Boss Panel v1.31 | linh5web.win</div>
+</div>
+<script>
+// This script assumes __wbSend, __wbBossEmitLog, window.__wbSocket,
+// window.__wbBossAuto, window.__wbBypassCD, window.__wbToggleBypass,
+// window.__wbBossAutoStart, window.__wbBossAutoStop are already defined.
+// (These are installed by the wb_boss_hook.js script)
+// This panel just handles UI and calls those functions.
+
+(function(){
+  var panel=document.getElementById('__wbPanel');
+  var body=document.getElementById('__wbBody');
+  var minBtn=document.getElementById('__wbMin');
+  var closeBtn=document.getElementById('__wbClose');
+  var hdr=document.getElementById('__wbHdr');
+
+  // Minimize
+  minBtn.onclick=function(){
+    body.classList.toggle('open');
+    minBtn.textContent=body.classList.contains('open')?'−':'+';
+    panel.classList.toggle('mini',!body.classList.contains('open'));
+  };
+
+  // Close (just hide)
+  closeBtn.onclick=function(){
+    panel.style.display='none';
+    // Show again on next page load
+    setTimeout(function(){panel.style.display='';},500);
+  };
+
+  // Drag to move
+  var dragging=false,drX=0,drY=0;
+  hdr.onmousedown=function(e){
+    if(e.target.tagName==='BUTTON')return;
+    dragging=true;drX=e.clientX;drY=e.clientY;
+    document.addEventListener('mousemove',onDrag);
+    document.addEventListener('mouseup',function(){dragging=false;document.removeEventListener('mousemove',onDrag);});
+  };
+  function onDrag(e){
+    if(!dragging)return;
+    var dx=e.clientX-drX,dy=e.clientY-drY;
+    panel.style.left=(parseInt(panel.style.left||panel.offsetLeft)+dx)+'px';
+    panel.style.top=(parseInt(panel.style.top||panel.offsetTop)+dy)+'px';
+    panel.style.right='auto';
+    drX=e.clientX;drY=e.clientY;
+  }
+
+  // Auto config sync
+  function syncConfig(){
+    var cfg=window.__wbBossAuto.config;
+    cfg.pot=document.getElementById('__wb_auto_pot').checked;
+    cfg.heal=document.getElementById('__wb_auto_heal').checked;
+    cfg.barrier=document.getElementById('__wb_auto_barrier').checked;
+    cfg.atk=document.getElementById('__wb_auto_atk').checked;
+    cfg.hpPct=parseInt(document.getElementById('__wb_auto_hp').value)||50;
+    cfg.barrierPct=parseInt(document.getElementById('__wb_auto_barrier_pct').value)||30;
+  }
+  document.getElementById('__wb_auto_pot').addEventListener('change',syncConfig);
+  document.getElementById('__wb_auto_heal').addEventListener('change',syncConfig);
+  document.getElementById('__wb_auto_barrier').addEventListener('change',syncConfig);
+  document.getElementById('__wb_auto_atk').addEventListener('change',syncConfig);
+  document.getElementById('__wb_auto_hp').addEventListener('input',syncConfig);
+  document.getElementById('__wb_auto_barrier_pct').addEventListener('input',syncConfig);
+
+  // Bypass toggle
+  document.getElementById('__wb_bypass').addEventListener('change',function(){
+    if(typeof __wbToggleBypass==='function')__wbToggleBypass(this.checked);
+  });
+
+  // Auto toggle
+  window.__wbToggleAuto=function(){
+    if(window.__wbBossAuto.running){
+      if(typeof __wbBossAutoStop==='function')__wbBossAutoStop();
+      var btn=document.getElementById('__wb_auto_btn');
+      btn.textContent='▶ 啟動自動BOSS';
+      btn.className='__wbBtnBig __wbBtnStart';
+      document.getElementById('__wb_auto_status').textContent='⏹ 停止中';
+      document.getElementById('__wb_auto_status').style.color='#607080';
+    }else{
+      syncConfig();
+      if(typeof __wbBossAutoStart==='function')__wbBossAutoStart();
+      var btn=document.getElementById('__wb_auto_btn');
+      btn.textContent='■ 停止自動BOSS';
+      btn.className='__wbBtnBig __wbBtnStop';
+      document.getElementById('__wb_auto_status').textContent='⚡ 自動BOSS運行中...';
+      document.getElementById('__wb_auto_status').style.color='#4ade80';
+    }
+  };
+
+  // Export
+  window.__wbExport=function(){
+    var all=(window.__wbBossEmitLog||[]).concat(window.__sioPackets||[]);
+    var blob=new Blob([JSON.stringify(all,null,2)],{type:'application/json'});
+    var a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download='wb_packets_'+Date.now()+'.json';a.click();
+  };
+
+  // Update loop
+  function updateBossUI(){
+    var ls=window.lastState||{};
+    var ch=ls.char||{};
+    var boss=ls.boss||{};
+    var cd=boss.cd||{};
+    var mode=ls.mode||'';
+
+    // Boss name/lv
+    var nameEl=document.getElementById('__wb_boss_name');
+    if(nameEl)nameEl.textContent=boss.name?(boss.name+' (Lv.'+(boss.lv||'?')+')'):'-- 無世界王 --';
+    var lvEl=document.getElementById('__wb_boss_lv');
+    if(lvEl)lvEl.textContent='mode: '+mode;
+
+    // Boss HP bar
+    var hpEl=document.getElementById('__wb_boss_hp_text');
+    if(hpEl)hpEl.textContent=boss.hp?(boss.hp+' / '+boss.maxHp):'--/--';
+    var hpBar=document.getElementById('__wb_boss_hp_bar');
+    if(hpBar){
+      var pct=boss.maxHp>0?Math.round(boss.hp/boss.maxHp*100):0;
+      hpBar.style.width=pct+'%';
+      hpBar.className='__wbHpBar'+(pct>50?'':(pct>25?' yel':' red'));
+    }
+
+    // Buffs
+    var bufEl=document.getElementById('__wb_boss_buffs');
+    if(bufEl){
+      var parts=[];
+      if(boss.barrierOn)parts.push('🛡️ 屏障ON');
+      if(boss.barrierHas)parts.push('📦 有屏障');
+      if(boss.attackBoost)parts.push('⚔️ 攻擊加成');
+      bufEl.textContent=parts.join(' | ');
+    }
+
+    // Cooldowns
+    var keys=['pot','atk','heal','convert','barrier','holybarrier'];
+    keys.forEach(function(k){
+      var el=document.getElementById('__wb_cd_'+k);
+      if(!el)return;
+      var v=cd[k]||0;
+      var item=el;
+      var timeEl=el.querySelector('.__wbCDTime');
+      if(v>0.05){
+        if(timeEl){timeEl.textContent=v.toFixed(1)+'s';timeEl.className='__wbCDTime cooldown';}
+        item.className='__wbCDItem cooldown';
+      }else{
+        if(timeEl){timeEl.textContent='就緒';timeEl.className='__wbCDTime ready';}
+        item.className='__wbCDItem ready';
+      }
+    });
+
+    // Socket status
+    var sockEl=document.getElementById('__wb_sock_status');
+    var dotEl=document.getElementById('__wb_sock_dot');
+    if(sockEl){
+      var ok=!!(window.__wbSocket&&window.__wbSocket.connected);
+      sockEl.textContent=ok?'✅ 已連接':'❌ 未連接';
+      sockEl.style.color=ok?'#4ade80':'#e94560';
+      if(dotEl){dotEl.className='__wbSockDot '+(ok?'ok':'bad');}
+    }
+    var sentEl=document.getElementById('__wb_sock_sent');
+    if(sentEl)sentEl.textContent=(window.__wbBossEmitLog||[]).length;
+    var evtsEl=document.getElementById('__wb_sock_evts');
+    if(evtsEl)evtsEl.textContent=(window.__sioPackets||[]).length;
+    var charHpEl=document.getElementById('__wb_char_hp');
+    if(charHpEl){
+      charHpEl.textContent=ch.hp?(ch.hp+'/'+ch.maxHp):'--';
+    }
+  }
+
+  // Start updater
+  setInterval(updateBossUI,400);
+  updateBossUI();
+
+  console.log('[WB] Boss Panel UI ready');
+})();
+</script>
+</body>
+</html>

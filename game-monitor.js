@@ -1,5 +1,5 @@
 (function(){
-var ver='v1.26';
+var ver='v1.31';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -10,6 +10,62 @@ window.__gmInjected=true;
 window.__gmVer=ver;
 window.__battleStatus={packets:[]};window.__gmOnlineCount=null;
 window.__gmFarming={running:false,timer:null,returning:false,waitTimer:null};
+
+// ====== WB Boss Hook ======
+window.__wbBossEmitLog=[];
+window.__wbSocket=null;
+(function(){
+  function installSioHook(){
+    if(window.__wbSioHooked)return;
+    var SP=window.io&&window.io.Socket&&window.io.Socket.prototype;
+    if(!SP){setTimeout(installSioHook,300);return;}
+    window.__wbSioHooked=true;
+    if(!SP.__wbPkt){
+      SP.__wbPkt=true;
+      var _origPkt=SP.packet;
+      SP.packet=function(packet){
+        var type=packet&&packet.type;
+        if(type===2||type===3){
+          var ev=packet.data&&packet.data[0]||null;
+          var args=packet.data&&packet.data.slice(1)||[];
+          window.__wbBossEmitLog.push({t:Date.now(),dir:'SEND',evt:ev,args:JSON.stringify(args).slice(0,300)});
+          console.log('[WB-SEND]',ev,JSON.stringify(args).slice(0,150));
+        }
+        return _origPkt&&_origPkt.call(this,packet);
+      };
+    }
+    if(!SP.__wbOE){
+      SP.__wbOE=true;
+      var _oe=SP.onevent;
+      SP.onevent=function(p){
+        if(!window.__wbSocket)window.__wbSocket=this;
+        if(p&&p.data&&p.data[0]){
+          window.__sioPackets=window.__sioPackets||[];
+          window.__sioPackets.push({t:Date.now(),dir:'EVENT',evt:p.data[0],args:JSON.stringify(p.data).slice(0,300)});
+        }
+        if(_oe)_oe.call(this,p);
+      };
+    }
+    console.log('[WB] SIO4 hook ready');
+  }
+  setTimeout(installSioHook,500);
+})();
+
+function __wbSend(action){if(!window.__wbSocket||!window.__wbSocket.emit){setTimeout(function(){if(window.__wbSocket)window.__wbSocket.emit('bossAction',action);},200);return;}try{window.__wbSocket.emit('bossAction',action);console.log('[WB] bossAction:',action);}catch(e){}}
+function __wbSendPotion(type){if(!window.__wbSocket)return;try{window.__wbSocket.emit('usePotion',{type:type||'potion_heal'});}catch(e){}}
+function __wbCastSkill(id,target){if(!window.__wbSocket)return;try{var p={id:id};if(target)p.target=target;window.__wbSocket.emit('castSkill',p);}catch(e){}}
+function __wbSetBossSet(s){if(!window.__wbSocket)return;try{window.__wbSocket.emit('setBossSet',s);}catch(e){}}
+
+// ====== Boss Auto ======
+window.__wbBossAuto={running:false,timer:null,config:{pot:true,heal:false,barrier:false,atk:false,hpPct:50,barrierPct:30}};
+function __wbBossLoop(){if(!window.__wbBossAuto.running)return;var ls=window.lastState||{};var ch=ls.char||{};var boss=ls.boss||{};var cd=boss.cd||{};var cfg=window.__wbBossAuto.config;var hpPct=ch.maxHp>0?ch.hp/ch.maxHp:1;try{if(cfg.pot&&hpPct<(cfg.hpPct/100)&&cd.pot<0.05)__wbSend('pot');if(cfg.heal&&cd.heal<0.05)__wbSend('heal');if(cfg.barrier&&boss.hp>0&&boss.maxHp>0&&(boss.hp/boss.maxHp)<(cfg.barrierPct/100)&&cd.barrier<0.05&&boss.barrierHas)__wbSend('barrier');if(cfg.atk&&ls.mode==='bosscombat'&&cd.atk<0.05)__wbSend('atk');}catch(e){}window.__wbBossAuto.timer=setTimeout(__wbBossLoop,500);}
+function __wbBossAutoStart(){window.__wbBossAuto.running=true;__wbBossLoop();}
+function __wbBossAutoStop(){window.__wbBossAuto.running=false;if(window.__wbBossAuto.timer)clearTimeout(window.__wbBossAuto.timer);}
+
+// ====== Cooldown Bypass ======
+window.__wbBypassCD=false;
+function __wbToggleBypass(on){window.__wbBypassCD=on;if(on&&!window.__wbBypassPatched){window.__wbBypassPatched=true;var _orig=window.updateBossCd;if(_orig){window.updateBossCd=function(){try{_orig.apply(this,arguments);}catch(e){}var keys=['pot','atk','heal','convert','barrier','holybarrier'];keys.forEach(function(k){var b=document.getElementById('bact-'+k);if(b)b.disabled=false;});};}var _origRBP=window.renderBossPanel;if(_origRBP){window.renderBossPanel=function(p){try{_origRBP.apply(this,arguments);}catch(e){_origRBP(p);}setTimeout(function(){document.querySelectorAll('.bact-btn[id]').forEach(function(b){var k=b.dataset&&b.dataset.k;if(k&&!b.__wbBypass){b.__wbBypass=true;b.addEventListener('click',function(){__wbSend(k);b.disabled=false;});}});},50);};}}console.log('[WB] Bypass:',on?'ON':'OFF');}
+
 
 // ========== Storage Functions ==========
 function saveFarmSettings(){
@@ -408,6 +464,7 @@ function __gmBuildPanel(){
     '<button id="__gmp_tab_game" style="padding:5px 9px;background:#0f3460;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">狀態</button>'+
     '<button id="__gmp_tab_zone" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">地圖</button>'+
     '<button id="__gmp_tab_farm" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">掛機</button>'+
+    '<button id="__gmp_tab_boss" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">👑BOSS</button>'+
     '<span id="__gmp_ver" style="font-size:10px;color:#4ade80;font-weight:bold;">'+ver+'</span>'+
   '</div>'+
   '<div style="display:flex;gap:3px;">'+
@@ -464,6 +521,48 @@ function __gmBuildPanel(){
     '</div>'+
     '<div id="__gmp_boss_list" style="max-height:180px;overflow-y:auto;margin-bottom:4px;display:none;"></div>'+
     '<div id="__gmp_zone_list" style="max-height:180px;overflow-y:auto;"></div>'+
+    '</div>'+
+    // === BOSS TAB ===
+    '<div id="__gmp_tab_content_boss" style="display:none;">'+
+    '<div style="background:rgba(255,255,255,0.06);padding:8px;border-radius:6px;margin-bottom:8px;">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">'+'<span id="__gmp_boss_name" style="font-weight:bold;color:#e94560;font-size:12px;">--</span>'+
+      '<span id="__gmp_boss_lv" style="font-size:11px;color:#aaa;"></span></div>'+
+      '<div style="margin-bottom:4px;"><div style="display:flex;justify-content:space-between;font-size:10px;color:#888;margin-bottom:2px;"><span>BOSS HP</span><span id="__gmp_boss_hp_text" style="color:#e94560;">--/--</span></div>'+
+      '<div style="background:#3a1a1a;border-radius:4px;height:14px;"><div id="__gmp_boss_hp_bar" style="width:0%;background:#e94560;height:100%;border-radius:4px;transition:width 0.3s;"></div></div></div>'+
+      '<div id="__gmp_boss_buffs" style="font-size:10px;color:#86c5ff;margin-top:4px;"></div>'+
+    '</div>'+
+    '<div style="margin-bottom:8px;">'+'<div style="font-size:10px;color:#888;margin-bottom:4px;">冷卻計時</div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">'+'<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">💊</span> 藥水 <span id="__gmp_cd_pot" style="color:#4ade80;float:right;">就緒</span></div>'+
+      '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">⚔️</span> 攻擊 <span id="__gmp_cd_atk" style="color:#4ade80;float:right;">就緒</span></div>'+
+      '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">💚</span> 治療 <span id="__gmp_cd_heal" style="color:#4ade80;float:right;">就緒</span></div>'+
+      '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">🔄</span> 轉換 <span id="__gmp_cd_convert" style="color:#4ade80;float:right;">就緒</span></div>'+
+      '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">🛡️</span> 屏障 <span id="__gmp_cd_barrier" style="color:#4ade80;float:right;">就緒</span></div>'+
+    '</div></div>'+
+    '<div style="margin-bottom:8px;">'+'<div style="font-size:10px;color:#888;margin-bottom:4px;">手動指令（直接發送）</div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">'+'<button id="__gmp_boss_pot" style="padding:8px;background:#1a4a1a;border:1px solid #2a6a2a;color:#4ade80;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">💊 藥水</button>'+
+      '<button id="__gmp_boss_atk" style="padding:8px;background:#2a1a1a;border:1px solid #6a2a2a;color:#f87171;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">⚔️ 攻擊</button>'+
+      '<button id="__gmp_boss_heal" style="padding:8px;background:#1a2a1a;border:1px solid #2a5a2a;color:#86efac;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">💚 治療</button>'+
+      '<button id="__gmp_boss_convert" style="padding:8px;background:#1a1a4a;border:1px solid #2a2a7a;color:#a5b4fc;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">🔄 轉換</button>'+
+      '<button id="__gmp_boss_barrier" style="padding:8px;background:#1a1a3a;border:1px solid #3a3a8a;color:#818cf8;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">🛡️ 屏障</button>'+
+      '<button id="__gmp_boss_holy" style="padding:8px;background:#2a1a2a;border:1px solid #6a2a6a;color:#d8b4fe;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">✨ 神聖</button>'+
+    '</div></div>'+
+    '<div style="margin-bottom:8px;">'+'<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">'+'<input type="checkbox" id="__gmp_boss_bypass" style="width:14px;height:14px;cursor:pointer;">'+'<label for="__gmp_boss_bypass" style="font-size:11px;color:#ffd700;cursor:pointer;">🔓 解除冷卻限制（按了直接發送，無視按鈕鎖定）</label></div>'+
+      '<div style="font-size:10px;color:#555;padding-left:22px;">⚠️ 伺服器仍會驗證冷卻，客戶端 bypass 讓按鈕可以一直按</div>'+
+    '</div>'+
+    '<div style="margin-bottom:8px;">'+'<div style="font-size:10px;color:#888;margin-bottom:4px;">自動掛機</div>'+
+      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+'<input type="checkbox" id="__gmp_boss_auto_pot" style="width:13px;height:13px;cursor:pointer;">'+'<label for="__gmp_boss_auto_pot" style="font-size:10px;color:#4ade80;cursor:pointer;">💊 HP&lt;</label>'+
+      '<input id="__gmp_boss_auto_hp" type="number" value="50" min="1" max="100" style="width:45px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;text-align:center;">'+'<span style="font-size:10px;color:#555;">%</span></div>'+
+      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+'<input type="checkbox" id="__gmp_boss_auto_heal" style="width:13px;height:13px;cursor:pointer;">'+'<label for="__gmp_boss_auto_heal" style="font-size:10px;color:#86efac;cursor:pointer;">💚 自動治療魔法</label></div>'+
+      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+'<input type="checkbox" id="__gmp_boss_auto_barrier" style="width:13px;height:13px;cursor:pointer;">'+'<label for="__gmp_boss_auto_barrier" style="font-size:10px;color:#818cf8;cursor:pointer;">🛡️ Boss HP&lt;</label>'+
+      '<input id="__gmp_boss_auto_barrier_pct" type="number" value="30" min="1" max="100" style="width:45px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;text-align:center;">'+'<span style="font-size:10px;color:#555;">%</span></div>'+
+      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+'<input type="checkbox" id="__gmp_boss_auto_atk" style="width:13px;height:13px;cursor:pointer;">'+'<label for="__gmp_boss_auto_atk" style="font-size:10px;color:#f87171;cursor:pointer;">⚔️ 自動攻擊</label></div>'+
+      '<div id="__gmp_boss_auto_status" style="font-size:10px;color:#888;text-align:center;margin-bottom:6px;">停止中</div>'+
+      '<button id="__gmp_boss_auto_btn" style="width:100%;padding:8px;background:#0f3460;border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:12px;font-weight:bold;">▶ 啟動自動BOSS</button>'+
+    '</div>'+
+    '<div style="margin-bottom:6px;">'+'<div style="font-size:10px;color:#888;margin-bottom:4px;">📡 Socket.IO 狀態</div>'+
+      '<div style="display:flex;gap:6px;margin-bottom:4px;">'+'<span style="font-size:10px;color:#888;">連接: </span><span id="__gmp_sock_status" style="font-size:10px;color:#ffd700;">檢測中...</span></div>'+
+      '<div style="font-size:10px;color:#888;">已捕獲: <span id="__gmp_sock_sent" style="color:#4ade80;">0</span> 發送 / <span id="__gmp_sock_evts" style="color:#00d9ff;">0</span> 事件</div>'+
+    '</div>'+
     '</div>'+
     // === FARM TAB ===
     '<div id="__gmp_tab_content_farm" style="display:none;">'+
@@ -626,7 +725,7 @@ function __gmBuildPanel(){
   // === Tab switching ===
   function switchTab(tab){
     activeTab=tab;
-    ['game','zone','farm'].forEach(function(t){
+    ['game','zone','farm','boss'].forEach(function(t){
       var el=document.getElementById('__gmp_tab_content_'+t);
       if(el)el.style.display=t===tab?'block':'none';
       var btn=document.getElementById('__gmp_tab_'+t);
@@ -637,10 +736,12 @@ function __gmBuildPanel(){
       }
     });
     if(tab==='zone')renderZones(activeZoneTab);
+    if(tab==='boss')__wbUpdateBossStatus();
   }
   document.getElementById('__gmp_tab_game').onclick=function(){switchTab('game')};
   document.getElementById('__gmp_tab_zone').onclick=function(){switchTab('zone')};
   document.getElementById('__gmp_tab_farm').onclick=function(){switchTab('farm')};
+  document.getElementById('__gmp_tab_boss').onclick=function(){switchTab('boss');};   
 
   // === Control buttons ===
   document.getElementById('__gmp_lobby').onclick=function(){sendCmd('toLobby')};
@@ -662,6 +763,122 @@ function __gmBuildPanel(){
       startFarming();
     }
   };
+
+  // === BOSS Tab Handlers ===
+  function __wbUpdateBossStatus(){
+    var ls=window.lastState||{};
+    var ch=ls.char||{};
+    var boss=ls.boss||{};
+    var cd=boss.cd||{};
+    var mode=ls.mode||'';
+    // Boss name
+    var nameEl=document.getElementById('__gmp_boss_name');
+    var lvEl=document.getElementById('__gmp_boss_lv');
+    if(nameEl)nameEl.textContent=boss.name?(boss.name+' (Lv.'+boss.lv+')'):'-- 無世界王 --';
+    if(lvEl)lvEl.textContent='mode: '+mode;
+    // Boss HP bar
+    var hpEl=document.getElementById('__gmp_boss_hp_text');
+    var hpBar=document.getElementById('__gmp_boss_hp_bar');
+    if(hpEl)hpEl.textContent=boss.hp?(boss.hp+'/'+boss.maxHp):'--/--';
+    if(hpBar){
+      var pct=boss.maxHp>0?Math.round(boss.hp/boss.maxHp*100):0;
+      hpBar.style.width=pct+'%';
+      hpBar.style.background=pct>50?'#e94560':pct>25?'#fbbf24':'#dc2626';
+    }
+    // Buffs
+    var bufEl=document.getElementById('__gmp_boss_buffs');
+    if(bufEl){
+      var parts=[];
+      if(boss.barrierOn)parts.push('🛡️ 屏障 ON');
+      if(boss.barrierHas)parts.push('📦 有屏障');
+      bufEl.textContent=parts.length?parts.join(' | '):'';
+    }
+    // Cooldown timers
+    var keys=['pot','atk','heal','convert','barrier'];
+    keys.forEach(function(k){
+      var el=document.getElementById('__gmp_cd_'+k);
+      if(!el)return;
+      var v=cd[k]||0;
+      if(v>0.05){
+        el.textContent=v.toFixed(1)+'s';
+        el.style.color='#e94560';
+      } else {
+        el.textContent='就緒';
+        el.style.color='#4ade80';
+      }
+    });
+    // Socket status
+    var sockEl=document.getElementById('__gmp_sock_status');
+    if(sockEl)sockEl.textContent=window.__wbSocket?'✅ 已連接':'❌ 未連接';
+    if(sockEl)sockEl.style.color=window.__wbSocket?'#4ade80':'#e94560';
+    var sentEl=document.getElementById('__gmp_sock_sent');
+    if(sentEl)sentEl.textContent=(window.__wbBossEmitLog||[]).length;
+    var evtEl=document.getElementById('__gmp_sock_evts');
+    if(evtEl)evtEl.textContent=(window.__sioPackets||[]).length;
+  }
+
+  // BOSS manual buttons
+  document.getElementById('__gmp_boss_pot').onclick=function(){__wbSend('pot');};
+  document.getElementById('__gmp_boss_atk').onclick=function(){__wbSend('atk');};
+  document.getElementById('__gmp_boss_heal').onclick=function(){__wbSend('heal');};
+  document.getElementById('__gmp_boss_convert').onclick=function(){__wbSend('convert');};
+  document.getElementById('__gmp_boss_barrier').onclick=function(){__wbSend('barrier');};
+  document.getElementById('__gmp_boss_holy').onclick=function(){__wbSend('holybarrier');};
+
+  // Cooldown bypass toggle
+  document.getElementById('__gmp_boss_bypass').onchange=function(){
+    __wbToggleBypass(this.checked);
+    if(this.checked){
+      this.parentElement.parentElement.style.border='1px solid #ffd700';
+    } else {
+      this.parentElement.parentElement.style.border='none';
+    }
+  };
+
+  // Auto boss
+  function __wbSyncAutoConfig(){
+    var cfg=window.__wbBossAuto.config;
+    cfg.pot=document.getElementById('__gmp_boss_auto_pot').checked;
+    cfg.heal=document.getElementById('__gmp_boss_auto_heal').checked;
+    cfg.barrier=document.getElementById('__gmp_boss_auto_barrier').checked;
+    cfg.atk=document.getElementById('__gmp_boss_auto_atk').checked;
+    cfg.hpPct=parseInt(document.getElementById('__gmp_boss_auto_hp').value)||50;
+    cfg.barrierPct=parseInt(document.getElementById('__gmp_boss_auto_barrier_pct').value)||30;
+  }
+  document.getElementById('__gmp_boss_auto_pot').addEventListener('change',__wbSyncAutoConfig);
+  document.getElementById('__gmp_boss_auto_heal').addEventListener('change',__wbSyncAutoConfig);
+  document.getElementById('__gmp_boss_auto_barrier').addEventListener('change',__wbSyncAutoConfig);
+  document.getElementById('__gmp_boss_auto_atk').addEventListener('change',__wbSyncAutoConfig);
+  document.getElementById('__gmp_boss_auto_hp').addEventListener('input',__wbSyncAutoConfig);
+  document.getElementById('__gmp_boss_auto_barrier_pct').addEventListener('input',__wbSyncAutoConfig);
+
+  document.getElementById('__gmp_boss_auto_btn').onclick=function(){
+    if(window.__wbBossAuto.running){
+      __wbBossAutoStop();
+      this.textContent='▶ 啟動自動BOSS';
+      this.style.background='#0f3460';
+      var s=document.getElementById('__gmp_boss_auto_status');
+      if(s){s.textContent='停止中';s.style.color='#888';}
+    } else {
+      __wbSyncAutoConfig();
+      __wbBossAutoStart();
+      this.textContent='■ 停止自動BOSS';
+      this.style.background='#e94560';
+      var s=document.getElementById('__gmp_boss_auto_status');
+      if(s){s.textContent='⚡ 自動BOSS運行中...';s.style.color='#4ade80';}
+    }
+  };
+
+  // BOSS status update loop
+  var __wbBossUpdTimer=null;
+  function __wbBossStartUpdater(){
+    if(__wbBossUpdTimer)return;
+    __wbBossUpdTimer=setInterval(function(){
+      if(activeTab==='boss')__wbUpdateBossStatus();
+    },500);
+  }
+  __wbBossStartUpdater();
+  
 
   // === Test Reconnect button ===
   document.getElementById('__gmp_farm_test_reconnect').onclick=function(){
