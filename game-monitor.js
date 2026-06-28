@@ -1,5 +1,5 @@
 (function(){
-var ver='v2.05.1-smart-attack';
+var ver='v2.06.1-char-slot';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -272,7 +272,14 @@ function saveFarmSettings(){
     // 新增：斷線重連設定
     charName: document.getElementById('__gmp_farm_char_name').value||'',
     reconnectEnabled: document.getElementById('__gmp_farm_reconnect').checked,
-    reconnectInterval: parseInt(document.getElementById('__gmp_farm_reconnect_interval').value)||60
+    reconnectInterval: parseInt(document.getElementById('__gmp_farm_reconnect_interval').value)||60,
+    charSlot: parseInt(document.getElementById('__gmp_farm_char_slot').value)||0,
+    charSlot: parseInt(document.getElementById('__gmp_farm_char_slot').value)||0,
+    charSlot: parseInt(document.getElementById('__gmp_farm_char_slot').value)||0,
+    charSlot: parseInt(document.getElementById('__gmp_farm_char_slot').value)||0,
+    // 新增：MP 低於斷線重連
+    mpReconnectEnabled: document.getElementById('__gmp_farm_mp_reconnect').checked,
+    mpReconnectThresh: parseInt(document.getElementById('__gmp_farm_mp_reconnect_thresh').value)||5
   };
   // Send to content script to save via chrome.storage
   window.postMessage({type:'GM_SAVE_SETTINGS',data:data},'*');
@@ -501,6 +508,7 @@ function startFarming(){
   var reconnectCheck=document.getElementById('__gmp_farm_reconnect');
   var charNameInput=document.getElementById('__gmp_farm_char_name');
   var reconnectIntervalInput=document.getElementById('__gmp_farm_reconnect_interval');
+  var charSlotSelect=document.getElementById('__gmp_farm_char_slot');
   var btn=document.getElementById('__gmp_farm_btn');
   var status=document.getElementById('__gmp_farm_status');
 
@@ -513,12 +521,17 @@ function startFarming(){
   var mpEnabled=mpCheck.checked;
   var hpGtEnabled=hpGtCheck.checked;
   var mpGtEnabled=mpGtCheck.checked;
+  var mpReconnectCheck=document.getElementById('__gmp_farm_mp_reconnect');
+  var mpReconnectInput=document.getElementById('__gmp_farm_mp_reconnect_thresh');
+  var mpReconnectEnabled=mpReconnectCheck.checked;
+  var mpReconnectThresh=parseInt(mpReconnectInput.value)||5;
   var logicOp=logicSelect.value;
   var logicEnabled=logicCheck.checked;
   var autoAtk=atkCheck.checked;
   var reconnectEnabled=reconnectCheck.checked;
   var charName=charNameInput.value.trim()||'';
   var reconnectInterval=parseInt(reconnectIntervalInput.value)||60;
+  var charSlot=parseInt(charSlotSelect.value)||0;
 
   if(!farmZone){alert('請先選擇掛機地圖！');return;}
 
@@ -526,8 +539,11 @@ function startFarming(){
   window.__gmFarming.reconnectEnabled=reconnectEnabled;
   window.__gmFarming.charName=charName;
   window.__gmFarming.reconnectInterval=reconnectInterval*1000;
-  window.__gmFarming.lastReconnectCheck=Date.now();
+  window.__gmFarming.charSlot=charSlot;
   window.__gmFarming.__lastLogoutFlag=false;
+  window.__gmFarming.mpReconnectEnabled=mpReconnectEnabled;
+  window.__gmFarming.mpReconnectThresh=mpReconnectThresh;
+  window.__gmFarming.__mpReconnectTriggered=false;
   btn.textContent='■ 停止腳本';
   btn.style.background='#e94560';
   status.textContent='傳送至掛機地圖...';
@@ -612,11 +628,21 @@ function startFarming(){
         if(mpLow)needReturn=true;
       }
 
-      // Feature 1: Return to lobby when HP/MP low
-      if(needReturn&&!window.__gmFarming.returning){
-        window.__gmFarming.returning=true;
-        sendCmd("toLobby")
-        status.textContent='HP/MP不足，返回大廳...';
+      // Feature 1: HP/MP low → send selectChar to reload character state
+      if(needReturn){
+        // Send selectChar to reload character (resets HP/MP to full)
+        try{
+          if(window.__wbSocket && window.__wbSocket.connected){
+            window.__wbSocket.emit('selectChar', window.__gmFarming.charSlot||0);
+            console.log('[GM] HP/MP low, sent selectChar to reload');
+          } else if(window.__ws && window.__ws.readyState===WebSocket.OPEN){
+            window.__ws.send('42["selectChar",'+(window.__gmFarming.charSlot||0)+']');
+            console.log('[GM] HP/MP low, sent selectChar via WS');
+          }
+        }catch(e){
+          console.log('[GM] selectChar error:', e.message);
+        }
+        status.textContent='HP/MP不足，重新載入角色...';
         status.style.color='#fbbf24';
       }
 
@@ -958,6 +984,13 @@ function __gmBuildPanel(){
       '<input id="__gmp_farm_mp" type="number" value="10" min="1" max="100" style="width:55px;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;text-align:center;">'+
       '<span style="font-size:10px;color:#888;">% 返回大廳</span>'+
     '</div>'+
+    // MP reconnect: disconnect when MP low
+    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding:6px;background:rgba(233,69,96,0.1);border-radius:6px;">'+
+      '<input type="checkbox" id="__gmp_farm_mp_reconnect" style="width:14px;height:14px;cursor:pointer;">'+
+      '<span style="font-size:10px;color:#e94560;width:90px;">MP低於斷線</span>'+
+      '<input id="__gmp_farm_mp_reconnect_thresh" type="number" value="5" min="1" max="100" style="width:55px;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;text-align:center;">'+
+      '<span style="font-size:10px;color:#888;">% 主動斷線重連</span>'+
+    '</div>'+
     // Logic operator AND/OR
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
       '<input type="checkbox" id="__gmp_farm_logic_chk" checked style="width:14px;height:14px;cursor:pointer;">'+
@@ -1015,6 +1048,16 @@ function __gmBuildPanel(){
       '<span style="font-size:10px;color:#888;">次</span>'+
       '<span id="__gmp_farm_logout_time" style="font-size:10px;color:#666;flex:1;text-align:right;">--</span>'+
       '<button id="__gmp_farm_logout_history" style="padding:3px 8px;background:#0f3460;border:1px solid #4ade80;border-radius:4px;color:#4ade80;font-size:10px;font-weight:bold;cursor:pointer;">📜 歷史</button>'+
+    '</div>'+
+
+    // Character slot selector
+    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding:6px;background:#1a1a2e;border:1px solid #0f3460;border-radius:6px;">'+
+      '<span style="font-size:10px;color:#ffd700;width:70px;">角色槽位</span>'+
+      '<select id="__gmp_farm_char_slot" style="flex:1;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;">'+
+        '<option value="0">槽 0</option>'+
+        '<option value="1">槽 1</option>'+
+        '<option value="2">槽 2</option>'+
+      '</select>'+
     '</div>'+
     // Test Reconnect button
     '<button id="__gmp_farm_test_reconnect" style="width:100%;padding:6px;background:#2a2a4a;border:1px solid #ffd700;color:#ffd700;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;margin-bottom:8px;">🧪 測試斷線重連</button>'+
@@ -1723,13 +1766,21 @@ function __gmBuildPanel(){
     if(data.charName)document.getElementById('__gmp_farm_char_name').value=data.charName;
     document.getElementById('__gmp_farm_reconnect').checked=data.reconnectEnabled!==false;
     if(data.reconnectInterval)document.getElementById('__gmp_farm_reconnect_interval').value=data.reconnectInterval;
+    if(data.charSlot!==undefined)document.getElementById('__gmp_farm_char_slot').value=data.charSlot;
+    if(data.charSlot!==undefined)document.getElementById('__gmp_farm_char_slot').value=data.charSlot;
+    if(data.charSlot!==undefined)document.getElementById('__gmp_farm_char_slot').value=data.charSlot;
+    if(data.charSlot!==undefined)document.getElementById('__gmp_farm_char_slot').value=data.charSlot;
+    // 新增：MP reconnect
+    if(data.mpReconnectEnabled!==undefined)document.getElementById('__gmp_farm_mp_reconnect').checked=data.mpReconnectEnabled;
+    if(data.mpReconnectThresh)document.getElementById('__gmp_farm_mp_reconnect_thresh').value=data.mpReconnectThresh;
   });
 
   // === Auto-save on change ===
   var farmInputs=['__gmp_farm_zone','__gmp_farm_hp','__gmp_farm_mp','__gmp_farm_hp_chk','__gmp_farm_mp_chk',
     '__gmp_farm_hp_gt','__gmp_farm_mp_gt','__gmp_farm_hp_gt_chk','__gmp_farm_mp_gt_chk',
     '__gmp_farm_logic','__gmp_farm_logic_chk','__gmp_farm_atk',
-    '__gmp_farm_char_name','__gmp_farm_reconnect','__gmp_farm_reconnect_interval'];
+    '__gmp_farm_char_name','__gmp_farm_reconnect','__gmp_farm_reconnect_interval',
+    '__gmp_farm_mp_reconnect','__gmp_farm_mp_reconnect_thresh','__gmp_farm_char_slot'];
   farmInputs.forEach(function(id){
     var el=document.getElementById(id);
     if(el){
