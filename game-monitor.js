@@ -341,11 +341,12 @@ function startFarming(){
 
   if(!farmZone){alert('請先選擇掛機地圖！');return;}
 
-  window.__gmFarming={running:true,timer:null,returning:false,inTown:false,reconnectTimer:null};
+  window.__gmFarming={running:true,timer:null,returning:false,inTown:false,reconnectTimer:null,logoutCount:0,lastLogoutTime:null};
   window.__gmFarming.reconnectEnabled=reconnectEnabled;
   window.__gmFarming.charName=charName;
   window.__gmFarming.reconnectInterval=reconnectInterval*1000;
   window.__gmFarming.lastReconnectCheck=Date.now();
+  window.__gmFarming.__lastLogoutFlag=false;
   btn.textContent='■ 停止腳本';
   btn.style.background='#e94560';
   status.textContent='傳送至掛機地圖...';
@@ -452,9 +453,17 @@ function startFarming(){
     var isOnCharSelect=slotsDiv!==null||charSlots.length>0;
     
     if(isOnCharSelect){
-      console.log('[GM] 斷線檢測：在角色選擇畫面，嘗試點擊角色槽...');
-      status.textContent='⚠️ 斷線檢測中，嘗試重連...';
+      if(!window.__gmFarming.__lastLogoutFlag){
+        window.__gmFarming.logoutCount++;
+        window.__gmFarming.lastLogoutTime=Date.now();
+        window.__gmFarming.__lastLogoutFlag=true;
+        updateLogoutUI();
+        var lastTime=new Date().toLocaleTimeString();
+        console.log('[GM] 被登出 #'+window.__gmFarming.logoutCount+' @ '+lastTime);
+      }
+      status.textContent='⚠️ 斷線檢測 #'+window.__gmFarming.logoutCount+'，嘗試重連...';
       status.style.color='#fbbf24';
+      console.log('[GM] 斷線檢測：在角色選擇畫面，嘗試點擊角色槽...');
       
       // 嘗試找到包含角色名稱的 .char-slot 並點擊
       var clicked=false;
@@ -481,6 +490,11 @@ function startFarming(){
           console.log('[GM] 點擊第一個角色槽...');
         }
       }
+    } else {
+      if(window.__gmFarming.__lastLogoutFlag){
+        window.__gmFarming.__lastLogoutFlag=false;
+        console.log('[GM] 已離開角色選擇畫面');
+      }
     }
     
     window.__gmFarming.reconnectTimer=setTimeout(checkReconnect,window.__gmFarming.reconnectInterval);
@@ -488,6 +502,27 @@ function startFarming(){
   // 延遲啟動檢測
   window.__gmFarming.reconnectTimer=setTimeout(checkReconnect,window.__gmFarming.reconnectInterval);
 }
+
+// 更新被登出計數器 UI
+function updateLogoutUI(){
+  var el=document.getElementById('__gmp_farm_logout_count');
+  if(!el)return;
+  var cnt=(window.__gmFarming&&window.__gmFarming.logoutCount)||0;
+  el.textContent=cnt;
+  if(cnt===0){el.style.color='#4ade80';}
+  else if(cnt<3){el.style.color='#fbbf24';}
+  else{el.style.color='#e94560';}
+  var elTime=document.getElementById('__gmp_farm_logout_time');
+  if(elTime){
+    if(window.__gmFarming&&window.__gmFarming.lastLogoutTime){
+      elTime.textContent='最後: '+new Date(window.__gmFarming.lastLogoutTime).toLocaleTimeString();
+    } else {
+      elTime.textContent='尚未被登出';
+    }
+  }
+}
+// 初始化顯示
+setTimeout(updateLogoutUI,500);
 
 function stopFarming(){
   window.__gmFarming.running=false;
@@ -664,6 +699,12 @@ function __gmBuildPanel(){
       '<span style="font-size:10px;color:#7bd14a;width:50px;">MP大於</span>'+
       '<input id="__gmp_farm_mp_gt" type="number" value="90" min="1" max="100" style="width:55px;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;text-align:center;">'+
       '<span style="font-size:10px;color:#888;">% 傳送掛機</span>'+
+    '</div>'+
+    // 被登出次數計數器
+    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding:6px 8px;background:#1a1a2e;border-radius:6px;">'+
+      '<span style="font-size:11px;color:#e94560;font-weight:bold;">🚪 被登出次數</span>'+
+      '<b id="__gmp_farm_logout_count" style="font-size:18px;color:#4ade80;min-width:24px;text-align:center;">0</b>'+
+      '<span id="__gmp_farm_logout_time" style="font-size:9px;color:#888;flex:1;">尚未被登出</span>'+
     '</div>'+
     // Auto reconnect (斷線重連)
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
