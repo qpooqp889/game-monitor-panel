@@ -1,5 +1,5 @@
-(function(){
-var ver='v2.02';
+﻿(function(){
+var ver='v1.31';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -112,36 +112,13 @@ window.addEventListener('message',function(e){
 
 // ========== End Storage Functions ==========
 
-// Hook WebSocket send (with close-state protection)
+// Hook WebSocket send
 var origSend=WebSocket.prototype.send;
 WebSocket.prototype.send=function(data){
-  try {
-    // Only intercept if WS is open
-    if(this.readyState===WebSocket.OPEN){
-      window.__battleStatus.packets.push({type:'send',data:data});
-      window.__ws=this;
-      return origSend.call(this,data);
-    } else {
-      // WS not open, just pass through without logging
-      return origSend.call(this,data);
-    }
-  } catch(e) {
-    console.log('[GM] WS send error (readyState='+this.readyState+'):',e.message);
-    return;
-  }
+  window.__battleStatus.packets.push({type:'send',data:data});
+  window.__ws=this;
+  return origSend.call(this,data);
 };
-
-// Auto-clear window.__ws when WS closes
-(function(){
-  var origWSClose = WebSocket.prototype.close;
-  WebSocket.prototype.close = function(){
-    if(window.__ws === this) {
-      console.log('[GM] WS closed, clearing socket ref');
-      window.__ws = null;
-    }
-    return origWSClose.apply(this, arguments);
-  };
-})();
 
 if(window.__ws){
   window.__ws.addEventListener('message',function(e){
@@ -268,42 +245,20 @@ function buildZoneNameLookup(){
 var ZONE_NAME_LOOKUP=buildZoneNameLookup();
 
 function sendZone(zoneId){
-  try {
-    if(window.__wbSocket && window.__wbSocket.connected){
-      window.__wbSocket.emit('setZone', zoneId);
-      console.log('[GM] Teleport (SIO):', zoneId);
-      return;
-    }
-    // Fallback: use raw WebSocket if SIO not available
-    if(window.__ws && window.__ws.readyState===WebSocket.OPEN){
-      window.__ws.send('42["setZone", "'+zoneId+'"]');
-      console.log('[GM] Teleport (WS):', zoneId);
-      return;
-    }
-    console.log('[GM] Cannot teleport: socket not open (readyState='+(window.__ws?window.__ws.readyState:'null')+')');
-  } catch(e) {
-    console.log('[GM] Teleport error:', e.message);
+  if(window.__ws){
+    window.__ws.send('42["setZone","'+zoneId+'"]');
+    console.log('[GM] Teleport:',zoneId);
   }
 }
 
 function sendCmd(cmd){
-  try {
-    if(window.__wbSocket && window.__wbSocket.connected){
-      window.__wbSocket.emit(cmd);
-      console.log('[GM] Cmd (SIO):', cmd);
-      return;
-    }
-    if(window.__ws && window.__ws.readyState===WebSocket.OPEN){
-      window.__ws.send('42["'+cmd+'"]');
-      console.log('[GM] Cmd (WS):', cmd);
-      return;
-    }
-    console.log('[GM] Cannot send cmd: socket not open');
-  } catch(e) {
-    console.log('[GM] Cmd error:', e.message);
+  if(window.__ws){
+    window.__ws.send('42["'+cmd+'"]');
+    console.log('[GM] Cmd:',cmd);
   }
 }
 
+// Farming script
 function startFarming(){
   var zoneSelect=document.getElementById('__gmp_farm_zone');
   var hpInput=document.getElementById('__gmp_farm_hp');
@@ -352,17 +307,17 @@ function startFarming(){
   status.style.color='#fbbf24';
 
   // Immediately teleport to farm zone
-  sendZone(farmZone);
+  if(window.__ws)window.__ws.send('42["setZone","'+farmZone+'"]');
 
   function loop(){
     if(!window.__gmFarming.running)return;
-    var d=window.lastState;
-    if(!d||!d.char){
-      gmLog("[GM] loop: no lastState yet");
-      window.__gmFarming.timer=setTimeout(loop,1000);
-      return;
-    }
-    var c=d.char||{};
+    var pkts=(window.__battleStatus||{packets:[]}).packets;
+    var sp=pkts.filter(function(x){return x.type==='receive'&&x.data&&x.data.indexOf('"state"')>-1});
+    gmLog('[GM] loop running, packets:',pkts.length,'state packets:',sp.length);
+    if(!sp.length){window.__gmFarming.timer=setTimeout(loop,1000);return;}
+    try{
+      var d=JSON.parse(sp[sp.length-1].data.substring(2))[1];
+      var c=d.char||{};
       var hp=c.hp||0,maxHp=c.maxHp||1;
       var mp=c.mp||0,maxMp=c.maxMp||1;
       var zoneName=d.zoneName||d.zone||'';
@@ -379,12 +334,12 @@ function startFarming(){
       // Update inTown state
       window.__gmFarming.inTown=isInTown;
 
-      try{
-
       // Auto attack only when in the selected farming zone
       if(autoAtk&&!window.__gmFarming.returning&&!isInTown&&zoneId===farmZone){
-        sendCmd('attack');
-        status.textContent='攻擊中...';
+        if(window.__ws){
+          window.__ws.send('42["attack"]');
+          status.textContent='攻擊中...';
+        }
       }
 
       // Check HP/MP thresholds (return to lobby)
@@ -407,7 +362,7 @@ function startFarming(){
       // Feature 1: Return to lobby when HP/MP low
       if(needReturn&&!window.__gmFarming.returning){
         window.__gmFarming.returning=true;
-        sendCmd("toLobby")
+        if(window.__ws)window.__ws.send('42["toLobby"]');
         status.textContent='HP/MP不足，返回大廳...';
         status.style.color='#fbbf24';
       }
@@ -420,7 +375,7 @@ function startFarming(){
         console.log('[GM] In town, HP:',Math.round(hpPct*100)+'%, MP:',Math.round(mpPct*100)+'%, hpGtOk:',hpGtOk,'mpGtOk:',mpGtOk);
         if(hpGtOk||mpGtOk){
           console.log('[GM] Teleporting to farm zone:',farmZone);
-          sendZone(farmZone);
+          if(window.__ws)window.__ws.send('42["setZone","'+farmZone+'"]');
           status.textContent='HP/MP充足，傳送掛機...';
           status.style.color='#4ade80';
           window.__gmFarming.returning=false;
@@ -740,7 +695,7 @@ function __gmBuildPanel(){
     div.onmouseover=function(){this.style.background='rgba(233,69,96,0.2)'};
     div.onmouseout=function(){this.style.background='rgba(233,69,96,0.08)'};
     div.onclick=function(){
-      sendCmd('gotoWorldBoss,"'+b.id+'"');
+      if(window.__ws)window.__ws.send('42["gotoWorldBoss","'+b.id+'"]');
       this.style.background='rgba(233,69,96,0.4)';
       setTimeout(function(){div.style.background='rgba(233,69,96,0.08)'},300);
     };
@@ -999,9 +954,11 @@ function __gmBuildPanel(){
 
   // === Status update ===
   function upd(){
-    var d=window.lastState;
-    if(!d||!d.char)return;
+    var pkts=(window.__battleStatus||{packets:[]}).packets;
+    var sp=pkts.filter(function(x){return x.type==='receive'&&x.data&&x.data.indexOf('"state"')>-1});
+    if(!sp.length)return;
     try{
+      var d=JSON.parse(sp[sp.length-1].data.substring(2))[1];
       var c=d.char;
       if(!c)return;
       if(document.getElementById('__gmp_name')){
