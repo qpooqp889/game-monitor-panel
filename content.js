@@ -31,6 +31,24 @@ window.addEventListener('message',function(e){
       window.postMessage({type:'GM_LOAD_RESPONSE',data:data},'*');
     });
   }
+  
+  // Load advanced module (game-monitor.js asks us to inject it)
+  if(e.data.type==='GM_LOAD_ADVANCED'&&e.data.src){
+    var scriptName=e.data.src;
+    var url=chrome.runtime.getURL(scriptName);
+    console.log('[GM Content] Loading',scriptName,'from',url);
+    fetch(url).then(function(r){return r.text()}).then(function(code){
+      var s=document.createElement('script');
+      s.textContent=code;
+      s.onload=function(){
+        console.log('[GM Content] '+scriptName+' injected into main world');
+        window.postMessage({type:'GM_ADVANCED_LOADED',src:scriptName},'*');
+      };
+      (document.head||document.documentElement).appendChild(s);
+    }).catch(function(err){
+      console.error('[GM Content] Failed to load',scriptName,err);
+    });
+  }
 });
 
 function togglePanel(){

@@ -1,5 +1,5 @@
 (function(){
-var ver='v2.05.1-smart-attack';
+var ver='v2.02';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -8,10 +8,6 @@ if(window.__gmInjected){
 }
 window.__gmInjected=true;
 window.__gmVer=ver;
-
-// 載入進階模組（透過 content script 注入，因為主世界沒有 chrome.runtime）
-window.postMessage({type:'GM_LOAD_ADVANCED',src:'advanced-farming.js'},'*');
-console.log('[GM] Requested advanced-farming.js via content script');
 window.__battleStatus={packets:[]};window.__gmOnlineCount=null;
 window.__gmFarming={running:false,timer:null,returning:false,waitTimer:null};
 window.__gmLogoutModalVisible=false;
@@ -522,7 +518,7 @@ function startFarming(){
 
   if(!farmZone){alert('請先選擇掛機地圖！');return;}
 
-  window.__gmFarming={running:true,timer:null,returning:false,inTown:false,reconnectTimer:null,logoutCount:0,lastLogoutTime:null,__firstAttackSent:false,__lastAttackTime:null};
+  window.__gmFarming={running:true,timer:null,returning:false,inTown:false,reconnectTimer:null,logoutCount:0,lastLogoutTime:null};
   window.__gmFarming.reconnectEnabled=reconnectEnabled;
   window.__gmFarming.charName=charName;
   window.__gmFarming.reconnectInterval=reconnectInterval*1000;
@@ -542,10 +538,6 @@ function startFarming(){
     if(!d||!d.char){
       gmLog("[GM] loop: no lastState yet");
       window.__gmFarming.timer=setTimeout(loop,1000);
-    // 進階規則評估
-    if(window.__gmAdvanced&&window.__gmAdvanced.tick){
-      try{window.__gmAdvanced.tick(d)}catch(e){}
-    }
       return;
     }
     var c=d.char||{};
@@ -567,32 +559,10 @@ function startFarming(){
 
       try{
 
-      // Smart attack: send once on zone enter, then every 10s check monsters
+      // Auto attack only when in the selected farming zone
       if(autoAtk&&!window.__gmFarming.returning&&!isInTown&&zoneId===farmZone){
-        // First attack: send immediately when entering combat zone
-        if(!window.__gmFarming.__firstAttackSent){
-          sendCmd('attack');
-          window.__gmFarming.__firstAttackSent=true;
-          window.__gmFarming.__lastAttackTime=Date.now();
-          status.textContent='⚔️ 首次攻擊...';
-          console.log('[GM] First attack sent');
-        }
-        // Periodic check: every 10s, check if monsters exist
-        else if(window.__gmFarming.__lastAttackTime){
-          var elapsed=(Date.now()-window.__gmFarming.__lastAttackTime)/1000;
-          if(elapsed>=10){
-            var monsters=d.monsters||[];
-            var hasActiveMonster=monsters.some(function(m){return m&&m.hp>0;});
-            if(!hasActiveMonster){
-              sendCmd('attack');
-              window.__gmFarming.__lastAttackTime=Date.now();
-              status.textContent='⚔️ 無怪物，重新攻擊...';
-              console.log('[GM] Re-attack: no active monsters after 10s');
-            } else {
-              console.log('[GM] Monsters active, skip attack');
-            }
-          }
-        }
+        sendCmd('attack');
+        status.textContent='攻擊中...';
       }
 
       // Check HP/MP thresholds (return to lobby)
@@ -638,11 +608,6 @@ function startFarming(){
       // Reset returning state when left town (entered farm zone)
       if(!isInTown&&window.__gmFarming.returning){
         window.__gmFarming.returning=false;
-      }
-      // Reset first attack flag when entering town (so next zone enter triggers attack)
-      if(isInTown){
-        window.__gmFarming.__firstAttackSent=false;
-        window.__gmFarming.__lastAttackTime=null;
       }
     }catch(e){}
     window.__gmFarming.timer=setTimeout(loop,1000);
@@ -784,8 +749,6 @@ function __gmBuildPanel(){
     '<button id="__gmp_tab_zone" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">地圖</button>'+
     '<button id="__gmp_tab_farm" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">掛機</button>'+
     '<button id="__gmp_tab_boss" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">👑BOSS</button>'+
-    '<button id="__gmp_tab_monitor" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">📡監控</button>'+
-    '<button id="__gmp_tab_skill" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">⚡技能</button>'+
     '<span id="__gmp_ver" style="font-size:10px;color:#4ade80;font-weight:bold;">'+ver+'</span>'+
   '</div>'+
   '<div style="display:flex;gap:3px;">'+
@@ -885,53 +848,6 @@ function __gmBuildPanel(){
       '<div style="font-size:10px;color:#888;">已捕獲: <span id="__gmp_sock_sent" style="color:#4ade80;">0</span> 發送 / <span id="__gmp_sock_evts" style="color:#00d9ff;">0</span> 事件</div>'+
     '</div>'+
     '</div>'+
-    // === MONITOR TAB ===
-    '<div id="__gmp_tab_content_monitor" style="display:none;">'+
-      '<div style="background:rgba(74,222,128,0.08);padding:8px;border-radius:6px;margin-bottom:8px;">'+
-        '<div style="font-size:11px;color:#4ade80;font-weight:bold;margin-bottom:6px;">📡 封包監控 (Packet Monitor)</div>'+
-        '<div style="font-size:10px;color:#aaa;margin-bottom:6px;">記錄所有 WebSocket 與 Socket.IO 封包，匯出為 TXT 供分析</div>'+
-        '<div style="display:flex;gap:4px;margin-bottom:6px;">'+
-          '<button id="__gmp_monitor_start" style="flex:1;padding:8px;background:#1a4a1a;border:1px solid #4ade80;color:#4ade80;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">▶ 開始監控</button>'+
-          '<button id="__gmp_monitor_stop" style="flex:1;padding:8px;background:#4a1a1a;border:1px solid #e94560;color:#e94560;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;" disabled>■ 停止監控</button>'+
-        '</div>'+
-        '<button id="__gmp_monitor_export" style="width:100%;padding:8px;background:#0f3460;border:1px solid #00d9ff;color:#00d9ff;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;margin-bottom:4px;">💾 匯出 TXT</button>'+
-        '<button id="__gmp_monitor_clear" style="width:100%;padding:6px;background:#333;border:1px solid #666;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">🗑️ 清空記錄</button>'+
-      '</div>'+
-      '<div style="background:rgba(255,255,255,0.04);padding:8px;border-radius:6px;margin-bottom:8px;">'+
-        '<div style="font-size:10px;color:#888;margin-bottom:4px;">監控狀態</div>'+
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:10px;">'+
-          '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;"><span style="color:#888;">狀態:</span> <span id="__gmp_monitor_status" style="color:#e94560;font-weight:bold;">未啟動</span></div>'+
-          '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;"><span style="color:#888;">已記錄:</span> <span id="__gmp_monitor_count" style="color:#4ade80;font-weight:bold;">0</span></div>'+
-          '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;"><span style="color:#888;">SEND:</span> <span id="__gmp_monitor_send" style="color:#fbbf24;">0</span></div>'+
-          '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;"><span style="color:#888;">RECV:</span> <span id="__gmp_monitor_recv" style="color:#86c5ff;">0</span></div>'+
-        '</div>'+
-      '</div>'+
-      '<div style="background:rgba(0,0,0,0.3);padding:6px;border-radius:6px;max-height:280px;overflow-y:auto;font-family:monospace;font-size:10px;">'+
-        '<div style="color:#888;margin-bottom:4px;border-bottom:1px solid #333;padding-bottom:4px;">最新封包 (最近 50 筆):</div>'+
-        '<div id="__gmp_monitor_log" style="color:#ccc;line-height:1.4;"></div>'+
-      '</div>'+
-    '</div>'+
-    // === SKILL TAB ===
-    '<div id="__gmp_tab_content_skill" style="display:none;">'+
-      '<div style="background:rgba(245,158,11,0.08);padding:8px;border-radius:6px;margin-bottom:8px;">'+
-        '<div style="font-size:11px;color:#f59e0b;font-weight:bold;margin-bottom:6px;">⚡ 自動施法同步</div>'+
-        '<div style="font-size:10px;color:#aaa;margin-bottom:6px;">從遊戲設定面板 (#panel-scroll) 讀取/寫入所有自動施法設定</div>'+
-        '<div style="display:flex;gap:4px;margin-bottom:6px;">'+
-          '<button id="__gmp_skill_read" style="flex:1;padding:8px;background:#1a3a1a;border:1px solid #4ade80;color:#4ade80;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">📥 從遊戲讀取</button>'+
-          '<button id="__gmp_skill_write" style="flex:1;padding:8px;background:#3a1a1a;border:1px solid #f59e0b;color:#f59e0b;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">📤 寫回遊戲</button>'+
-        '</div>'+
-        '<button id="__gmp_skill_open_panel" style="width:100%;padding:6px;background:#0f3460;border:1px solid #00d9ff;color:#00d9ff;border-radius:6px;cursor:pointer;font-size:11px;margin-bottom:4px;">🔓 開啟遊戲設定面板</button>'+
-        '<button id="__gmp_skill_clear" style="width:100%;padding:5px;background:#333;border:1px solid #666;color:#aaa;border-radius:6px;cursor:pointer;font-size:10px;">🗑️ 清空</button>'+
-      '</div>'+
-      '<div style="background:rgba(0,0,0,0.2);padding:6px 8px;border-radius:6px;margin-bottom:6px;font-size:10px;">'+
-        '<span style="color:#888;">讀取狀態:</span> <span id="__gmp_skill_status" style="color:#fbbf24;">未讀取</span>'+
-        ' | <span style="color:#888;">已記錄:</span> <span id="__gmp_skill_count" style="color:#4ade80;">0</span> 項'+
-      '</div>'+
-      '<div id="__gmp_skill_list" style="background:rgba(0,0,0,0.3);padding:8px;border-radius:6px;max-height:320px;overflow-y:auto;font-family:monospace;font-size:10px;">'+
-        '<div style="color:#666;text-align:center;padding:20px;">尚無資料<br><span style="font-size:9px;">點擊「從遊戲讀取」開始</span></div>'+
-      '</div>'+
-    '</div>'+
-
     // === FARM TAB ===
     '<div id="__gmp_tab_content_farm" style="display:none;">'+
     '<div style="margin-bottom:8px;">'+
@@ -1004,10 +920,6 @@ function __gmBuildPanel(){
     '</div>'+
     // Status
     '<div id="__gmp_farm_status" style="font-size:10px;color:#888;margin-bottom:6px;text-align:center;">已停止</div>'+
-    // Advanced settings button
-    '<div style="display:flex;gap:4px;margin-bottom:4px;">'+
-      '<button id="__gmp_farm_advanced_settings" style="flex:1;padding:5px;background:#0f3460;border:1px solid #ffd700;border-radius:6px;color:#ffd700;font-size:11px;font-weight:bold;cursor:pointer;">⚙️ 進階設定 (Advanced Rules)</button>'+
-    '</div>'+
     // Logout history shortcut box
     '<div id="__gmp_farm_logout_box" style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding:6px 8px;background:#1a1a2e;border:1px solid #0f3460;border-radius:6px;">'+
       '<span style="font-size:10px;color:#aaa;">⚠️ 被登出</span>'+
@@ -1111,7 +1023,7 @@ function __gmBuildPanel(){
   // === Tab switching ===
   function switchTab(tab){
     activeTab=tab;
-    ['game','zone','farm','boss','monitor','skill'].forEach(function(t){
+    ['game','zone','farm','boss'].forEach(function(t){
       var el=document.getElementById('__gmp_tab_content_'+t);
       if(el)el.style.display=t===tab?'block':'none';
       var btn=document.getElementById('__gmp_tab_'+t);
@@ -1127,340 +1039,7 @@ function __gmBuildPanel(){
   document.getElementById('__gmp_tab_game').onclick=function(){switchTab('game')};
   document.getElementById('__gmp_tab_zone').onclick=function(){switchTab('zone')};
   document.getElementById('__gmp_tab_farm').onclick=function(){switchTab('farm')};
-  document.getElementById('__gmp_tab_boss').onclick=function(){switchTab('boss');};
-  document.getElementById('__gmp_tab_monitor').onclick=function(){switchTab('monitor')};
-
-  // ========== Monitor Tab Logic ==========
-  window.__pmLog=[];
-  window.__pmMaxLog=1000;  // 最多保存 1000 筆
-  window.__pmMonitoring=false;
-
-  // 包裝 __battleStatus.packets.push 來即時記錄
-  // ===== Socket.IO / Engine.IO binary decoder =====
-  function __pmDecodeSocketIO(buf){
-    try{
-      if(!buf||buf.byteLength<1)return null;
-      var view=new DataView(buf);
-      var type=view.getUint8(0);
-      var typeNames={0:'open',1:'close',2:'ping',3:'pong',4:'message',5:'upgrade',6:'noop'};
-      var typeName=typeNames[type]||('type'+type);
-      if(type!==4)return '[EI] '+typeName;
-      var bytes=new Uint8Array(buf,1);
-      var str='';
-      try{str=new TextDecoder('utf-8').decode(bytes);}catch(e){str=String.fromCharCode.apply(null,bytes);}
-      return '[SIO] '+str;
-    }catch(e){return '[decode-err] '+e.message;}
-  }
-
-  function __pmLogPacket(dir, rawData){
-    try{
-      var decoded;
-      if(typeof rawData==='string'){
-        var first=rawData.charAt(0);
-        if(first==='4'){decoded='[SIO] '+rawData.substring(1);}
-        else if(first==='3'){decoded='[SIO-PONG]';}
-        else if(first==='2'){decoded='[SIO-PING]';}
-        else{decoded='[WS] '+rawData;}
-      } else if(rawData instanceof ArrayBuffer){
-        decoded=__pmDecodeSocketIO(rawData);
-      } else if(rawData&&rawData.buffer){
-        decoded=__pmDecodeSocketIO(rawData.buffer);
-      } else {
-        decoded='[?] '+String(rawData).substring(0,200);
-      }
-      var entry={t:Date.now(),dir:dir,data:decoded};
-      window.__pmLog.push(entry);
-      if(window.__pmLog.length>window.__pmMaxLog)window.__pmLog.shift();
-    }catch(e){console.warn('[PM] log error:',e);}
-  }
-
-  function __pmInitHook(){
-    if(window.__pmHooked)return;
-    window.__pmHooked=true;
-    if(!window.__battleStatus)window.__battleStatus={packets:[]};
-
-    var origPush=window.__battleStatus.packets.push.bind(window.__battleStatus.packets);
-    window.__battleStatus.packets.push=function(pkt){
-      origPush(pkt);
-      if(window.__pmMonitoring){
-        __pmLogPacket(pkt.type==='send'?'SEND':'RECV', pkt.data);
-      }
-    };
-
-    if(!WebSocket.prototype.__pmSendHooked){
-      WebSocket.prototype.__pmSendHooked=true;
-      var origSend=WebSocket.prototype.send;
-      WebSocket.prototype.send=function(data){
-        if(window.__pmMonitoring)__pmLogPacket('SEND',data);
-        return origSend.call(this,data);
-      };
-    }
-
-    window.__pmPollTimer=setInterval(function(){
-      if(!window.__pmMonitoring)return;
-      if(window.__ws&&!window.__ws.__pmMsgWrapped){
-        window.__ws.__pmMsgWrapped=true;
-        window.__ws.addEventListener('message',function(e){
-          __pmLogPacket('RECV',e.data);
-        });
-      }
-    },200);
-  }
-
-  function __pmUpdateUI(){
-    var status=document.getElementById('__gmp_monitor_status');
-    var count=document.getElementById('__gmp_monitor_count');
-    var send=document.getElementById('__gmp_monitor_send');
-    var recv=document.getElementById('__gmp_monitor_recv');
-    var logEl=document.getElementById('__gmp_monitor_log');
-    var startBtn=document.getElementById('__gmp_monitor_start');
-    var stopBtn=document.getElementById('__gmp_monitor_stop');
-
-    if(status)status.textContent=window.__pmMonitoring?'監控中':'未啟動';
-    if(status)status.style.color=window.__pmMonitoring?'#4ade80':'#e94560';
-    if(count)count.textContent=window.__pmLog.length;
-    if(send)send.textContent=window.__pmLog.filter(function(p){return p.dir==='SEND'}).length;
-    if(recv)recv.textContent=window.__pmLog.filter(function(p){return p.dir==='RECV'}).length;
-    if(startBtn)startBtn.disabled=window.__pmMonitoring;
-    if(stopBtn)stopBtn.disabled=!window.__pmMonitoring;
-
-    if(logEl&&window.__pmLog.length){
-      var recent=window.__pmLog.slice(-50).reverse();
-      logEl.innerHTML=recent.map(function(p){
-        var time=new Date(p.t).toLocaleTimeString('zh-TW',{hour12:false});
-        var color=p.dir==='SEND'?'#fbbf24':'#86c5ff';
-        return '<div style="margin-bottom:2px;border-bottom:1px solid rgba(255,255,255,0.05);padding-bottom:2px;">'+
-          '<span style="color:#888;">['+time+']</span> '+
-          '<span style="color:'+color+';font-weight:bold;">'+p.dir+'</span> '+
-          '<span style="color:#ccc;word-break:break-all;">'+p.data.replace(/</g,'&lt;').substring(0,200)+'</span>'+
-        '</div>';
-      }).join('');
-    } else if(logEl){
-      logEl.innerHTML='<div style="color:#666;text-align:center;padding:20px;">尚無封包記錄<br><span style="font-size:9px;">點擊「開始監控」後執行操作</span></div>';
-    }
-  }
-
-  // 每 500ms 更新 UI
-  setInterval(__pmUpdateUI,500);
-
-  // 開始監控
-  document.getElementById('__gmp_monitor_start').onclick=function(){
-    __pmInitHook();
-    window.__pmMonitoring=true;
-    console.log('[Monitor] Started, current packets:',(window.__battleStatus.packets||[]).length);
-    // 也記錄現有的歷史封包
-    if(window.__battleStatus&&window.__battleStatus.packets){
-      window.__battleStatus.packets.forEach(function(pkt){
-        try{
-          var entry={
-            t:Date.now(),
-            dir:pkt.type==='send'?'SEND':'RECV',
-            data:typeof pkt.data==='string'?pkt.data.substring(0,500):JSON.stringify(pkt.data).substring(0,500)
-          };
-          window.__pmLog.push(entry);
-        }catch(e){}
-      });
-    }
-    __pmUpdateUI();
-  };
-
-  // 停止監控
-  document.getElementById('__gmp_monitor_stop').onclick=function(){
-    window.__pmMonitoring=false;
-    console.log('[Monitor] Stopped, captured:',window.__pmLog.length);
-    __pmUpdateUI();
-  };
-
-  // 匯出 TXT
-  document.getElementById('__gmp_monitor_export').onclick=function(){
-    if(!window.__pmLog.length){alert('無記錄可匯出');return;}
-    var lines=[];
-    lines.push('# ============================================');
-    lines.push('# 封包監控記錄 (Packet Monitor Log)');
-    lines.push('# 角色: '+(window.lastState&&window.lastState.char?window.lastState.char.name:'?'));
-    lines.push('# 匯出時間: '+new Date().toLocaleString('zh-TW'));
-    lines.push('# 總筆數: '+window.__pmLog.length);
-    lines.push('# SEND: '+window.__pmLog.filter(function(p){return p.dir==='SEND'}).length);
-    lines.push('# RECV: '+window.__pmLog.filter(function(p){return p.dir==='RECV'}).length);
-    lines.push('# ============================================');
-    lines.push('');
-
-    window.__pmLog.forEach(function(p,i){
-      var time=new Date(p.t).toLocaleString('zh-TW',{hour12:false});
-      lines.push('--- ['+(i+1)+'] '+p.dir+' @ '+time+' ---');
-      lines.push(p.data);
-      lines.push('');
-    });
-
-    var content=lines.join('\n');
-    var blob=new Blob([content],{type:'text/plain;charset=utf-8'});
-    var url=URL.createObjectURL(blob);
-    var a=document.createElement('a');
-    a.href=url;
-    var ts=new Date().toISOString().replace(/[:.]/g,'-').substring(0,19);
-    a.download='packet_monitor_'+ts+'.txt';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    console.log('[Monitor] Exported:',window.__pmLog.length,'packets');
-  };
-
-  // 清空記錄
-  document.getElementById('__gmp_monitor_clear').onclick=function(){
-    if(!confirm('確定要清空所有 '+window.__pmLog.length+' 筆記錄？'))return;
-    window.__pmLog=[];
-    __pmUpdateUI();
-    console.log('[Monitor] Cleared');
-  };
-
-  // 初始化 UI
-  __pmUpdateUI();
-
-  // ========== Skill Tab Logic ==========
-  // 從 #panel-scroll .auto-box 讀取所有 data-k / data-skill 設定
-  window.__pmAuto = {};  // 儲存讀取到的設定
-
-  function __pmReadFromGame(){
-    var panel = document.getElementById('panel-scroll');
-    if (!panel) {
-      alert('找不到遊戲設定面板 (#panel-scroll)。\n請先在遊戲內打開自動施法設定介面。');
-      return false;
-    }
-    var boxes = panel.querySelectorAll('.auto-box');
-    window.__pmAuto = {boxes: [], all: {}};
-    var status = document.getElementById('__gmp_skill_status');
-    if (status) { status.textContent = '讀取中...'; status.style.color = '#fbbf24'; }
-
-    boxes.forEach(function(box, bi){
-      var hdEl = box.querySelector('.hd');
-      var sectionName = hdEl ? hdEl.textContent.trim() : ('Section ' + (bi+1));
-      var sectionData = {name: sectionName, items: {}};
-
-      // 收集所有有 data-k 的元素 (select/input)
-      box.querySelectorAll('[data-k]').forEach(function(el){
-        var k = el.getAttribute('data-k');
-        var val;
-        if (el.tagName === 'SELECT') {
-          val = el.value;
-        } else if (el.tagName === 'INPUT') {
-          if (el.type === 'checkbox') val = el.checked;
-          else if (el.type === 'number') val = el.value;
-          else val = el.value;
-        } else {
-          val = el.textContent.trim();
-        }
-        sectionData.items[k] = val;
-        window.__pmAuto.all[k] = val;
-      });
-
-      // 收集所有 data-skill (狀態技能 checkbox)
-      box.querySelectorAll('[data-skill]').forEach(function(el){
-        var k = el.getAttribute('data-skill');
-        var val = el.checked;
-        sectionData.items[k] = val;
-        window.__pmAuto.all[k] = val;
-      });
-
-      window.__pmAuto.boxes.push(sectionData);
-    });
-
-    var total = Object.keys(window.__pmAuto.all).length;
-    var cnt = document.getElementById('__gmp_skill_count');
-    if (cnt) cnt.textContent = total;
-    if (status) { status.textContent = '已讀取 ' + total + ' 項'; status.style.color = '#4ade80'; }
-    __pmRenderSkillList();
-    console.log('[Skill Sync] Read', total, 'items from', boxes.length, 'sections', window.__pmAuto);
-    return true;
-  }
-
-  function __pmRenderSkillList(){
-    var list = document.getElementById('__gmp_skill_list');
-    if (!list) return;
-    if (!window.__pmAuto.boxes || !window.__pmAuto.boxes.length) {
-      list.innerHTML = '<div style="color:#666;text-align:center;padding:20px;">尚無資料<br><span style="font-size:9px;">點擊「從遊戲讀取」開始</span></div>';
-      return;
-    }
-    var html = '';
-    window.__pmAuto.boxes.forEach(function(sec){
-      html += '<div style="margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(245,158,11,0.3);">';
-      html += '<div style="color:#f59e0b;font-weight:bold;margin-bottom:4px;">📦 ' + sec.name + '</div>';
-      Object.keys(sec.items).forEach(function(k){
-        var v = sec.items[k];
-        var vs = (typeof v === 'boolean') ? (v ? '✅' : '❌') : ('<span style="color:#86c5ff;">' + String(v) + '</span>');
-        html += '<div style="display:flex;justify-content:space-between;padding:2px 4px;color:#ccc;">' +
-          '<span style="color:#aaa;">' + k + '</span>' +
-          '<span style="color:#4ade80;">' + vs + '</span>' +
-          '</div>';
-      });
-      html += '</div>';
-    });
-    list.innerHTML = html;
-  }
-
-  function __pmWriteToGame(){
-    var panel = document.getElementById('panel-scroll');
-    if (!panel) {
-      alert('找不到遊戲設定面板。請先打開自動施法設定介面。');
-      return;
-    }
-    if (!window.__pmAuto.all || !Object.keys(window.__pmAuto.all).length) {
-      alert('請先點「從遊戲讀取」抓取當前設定。');
-      return;
-    }
-    var changed = 0;
-    // 寫回 data-k
-    panel.querySelectorAll('[data-k]').forEach(function(el){
-      var k = el.getAttribute('data-k');
-      if (window.__pmAuto.all.hasOwnProperty(k)) {
-        var v = window.__pmAuto.all[k];
-        if (el.tagName === 'SELECT') {
-          if (el.value !== v) { el.value = v; el.dispatchEvent(new Event('change', {bubbles: true})); changed++; }
-        } else if (el.tagName === 'INPUT') {
-          if (el.type === 'checkbox') {
-            if (el.checked !== v) { el.checked = v; el.dispatchEvent(new Event('change', {bubbles: true})); changed++; }
-          } else {
-            if (el.value !== String(v)) { el.value = v; el.dispatchEvent(new Event('input', {bubbles: true})); changed++; }
-          }
-        }
-      }
-    });
-    // 寫回 data-skill
-    panel.querySelectorAll('[data-skill]').forEach(function(el){
-      var k = el.getAttribute('data-skill');
-      if (window.__pmAuto.all.hasOwnProperty(k)) {
-        var v = window.__pmAuto.all[k];
-        if (el.checked !== v) { el.checked = v; el.dispatchEvent(new Event('change', {bubbles: true})); changed++; }
-      }
-    });
-    var status = document.getElementById('__gmp_skill_status');
-    if (status) { status.textContent = '已寫入 ' + changed + ' 項'; status.style.color = '#4ade80'; }
-    console.log('[Skill Sync] Wrote', changed, 'items back to game');
-  }
-
-  document.getElementById('__gmp_tab_skill').onclick = function(){ switchTab('skill'); };
-  document.getElementById('__gmp_skill_read').onclick = __pmReadFromGame;
-  document.getElementById('__gmp_skill_write').onclick = __pmWriteToGame;
-  document.getElementById('__gmp_skill_clear').onclick = function(){
-    window.__pmAuto = {}; __pmRenderSkillList();
-    var cnt = document.getElementById('__gmp_skill_count');
-    if (cnt) cnt.textContent = '0';
-    var status = document.getElementById('__gmp_skill_status');
-    if (status) { status.textContent = '已清空'; status.style.color = '#888'; }
-  };
-  document.getElementById('__gmp_skill_open_panel').onclick = function(){
-    // 嘗試找到並點擊遊戲的設定按鈕
-    var btns = document.querySelectorAll('button, .btn, [class*="setting"], [class*="auto"]');
-    var found = false;
-    btns.forEach(function(b){
-      if (b.textContent && /設定|setting|auto|自動|施法/i.test(b.textContent)) {
-        console.log('[Skill Sync] Clicking:', b.textContent.trim().substring(0, 30));
-        b.click(); found = true;
-      }
-    });
-    if (!found) alert('請手動打開遊戲內的自動施法設定面板');
-  };
-
+  document.getElementById('__gmp_tab_boss').onclick=function(){switchTab('boss');};   
 
   // === Control buttons ===
   document.getElementById('__gmp_lobby').onclick=function(){sendCmd('toLobby')};
@@ -1601,14 +1180,6 @@ function __gmBuildPanel(){
 
   // === Test Reconnect button ===
   document.getElementById('__gmp_farm_logout_history').onclick=__gmOpenLogoutHistory;
-  var advBtn=document.getElementById('__gmp_farm_advanced_settings');
-  if(advBtn)advBtn.onclick=function(){
-    if(window.__gmAdvanced&&window.__gmAdvanced.openModal){
-      window.__gmAdvanced.openModal();
-    } else {
-      alert('進階模組尚未載入，請稍候再試');
-    }
-  };
   document.getElementById('__gmp_farm_test_reconnect').onclick=function(){
     var status=document.getElementById('__gmp_farm_status');
     var charNameInput=document.getElementById('__gmp_farm_char_name');
