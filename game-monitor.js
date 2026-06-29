@@ -1557,8 +1557,26 @@ function __gmBuildPanel(){
     if (cnt) cnt.textContent = total;
     if (status) { status.textContent = '已讀取 ' + total + ' 項'; status.style.color = '#4ade80'; }
     // 同時寫入 chrome.storage.local（供進階模組下拉使用）
+    var skillData=JSON.parse(JSON.stringify(window.__pmAuto.all||{}));
+    if(charName&&Object.keys(skillData).length){
+      __gmStorageGet(['gmSkillSettings']).then(function(result){
+        var arr=result&&result.gmSkillSettings||[];
+        var found=false;
+        for(var i=0;i<arr.length;i++){
+          if(arr[i].charName===charName){
+            arr[i]={charName:charName,updatedAt:Date.now(),skills:skillData};
+            found=true;break;
+          }
+        }
+        if(!found)arr.push({charName:charName,updatedAt:Date.now(),skills:skillData});
+        return __gmStorageSet('gmSkillSettings',arr);
+      }).catch(function(e){
+        console.warn('[Skill Sync] storage save error:',e);
+      });
+    }
+    // 若 advanced-farming.js 已載入，同步更新其快取
     if(typeof window.__gmAdvanced!=='undefined'&&window.__gmAdvanced.SkillDB){
-      window.__gmAdvanced.SkillDB.save(charName, JSON.parse(JSON.stringify(window.__pmAuto.all||{})));
+      window.__gmAdvanced.SkillDB.save(charName,skillData);
     }
     __pmRenderSkillList();
     console.log('[Skill Sync] Read', total, 'items — char:', charName, window.__pmAuto);
