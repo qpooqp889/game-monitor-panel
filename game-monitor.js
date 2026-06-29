@@ -1,5 +1,5 @@
 (function(){
-var ver='v2.06.1-char-slot';
+var ver='v2.04';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -969,7 +969,7 @@ function __gmBuildPanel(){
       '<div id="__gmp_skill_list" style="background:rgba(0,0,0,0.25);padding:6px 8px;border-radius:6px;max-height:360px;overflow-y:auto;font-size:11px;">'+
         '<div id="__gmp_skill_empty" style="color:#555;text-align:center;padding:24px 0;">尚無資料<br><span style="font-size:9px;color:#444;">點「讀取設定」從遊戲面板抓取</span></div>'+
       '</div>'+
-    '</div'>
+    '</div>'+
 
     // === FARM TAB ===
     '<div id="__gmp_tab_content_farm" style="display:none;">'+
@@ -1089,6 +1089,7 @@ function __gmBuildPanel(){
   var farmSel=document.getElementById('__gmp_farm_zone');
   var farmSearch=document.getElementById('__gmp_farm_search');
   function populateFarmZones(filter){
+    if(!farmSel)return;
     var f=(filter||'').toLowerCase();
     farmSel.innerHTML='';
     var allZones=[
