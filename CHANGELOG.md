@@ -1,5 +1,63 @@
 # 異動說明 (CHANGELOG)
 
+## [v2.07] - 2026-06-29
+
+### ⚡ Skills Tab → IndexedDB 同步
+
+#### 讀取設定時自動寫入 IDB
+- `__pmReadFromGame()` 讀取遊戲技能面板後，自動寫入 `gm-panel-db` → `skill_settings` store
+- Key：`charName`（角色名稱），含 `updatedAt` 時間戳
+- 供進階模組下拉使用（從 IndexedDB 讀取，不再依賴 DOM）
+
+#### 怪物 + 技能雙重 datalist
+- `setTarget`（指定目標）→ 怪物名稱下拉（自動收錄 + 清除）
+- `setAuto`（設定自動技能）→ **技能 ID 下拉**（Skills Tab 讀取後可用）
+
+### 📥 全域匯出 / 匯入（狀態 Tab）
+
+按鈕位置：狀態 Tab → Socket.IO 狀態區塊下方
+
+| 按鈕 | 功能 |
+|------|------|
+| 📥 匯出設定 | 下載 `gm-panel-settings-YYYY-MM-DD.json`，包含：advanced_rules、monsters、skill_settings |
+| 📤 匯入設定 | 選擇 JSON 檔案，完整寫入 IndexedDB |
+
+匯入成功後自動刷新怪物與技能下拉。
+
+### 🛠 進階設定按鈕 → 有意義提示
+
+點擊「進階設定」時：
+
+- **從未讀取過技能** → 顯示引導提示：
+  > 請依序操作：
+  > 1️⃣ 進入遊戲，切換到「設定」頁面
+  > 2️⃣ 點擊上方「⚡技能」Tab
+  > 3️⃣ 點「讀取設定」按鈕
+
+- **模組未完全載入** → 提示「請稍候再試（可嘗試重新整理頁面）」
+
+### 🆕 新動作：`setAuto`（設定自動技能）
+
+```javascript
+// emit: setAuto [{openSkill: 'sk_fireball'}]  // 開怪技能
+// emit: setAuto [{atkSkill: 'sk_fireball'}]   // 攻擊技能
+```
+
+參數：
+- **技能 ID**：可直接打字或從下拉選擇（Skills Tab 讀取後可用）
+- **類型**：「開怪」（openSkill）或「攻擊」（atkSkill）下拉切換
+
+### 📁 異動檔案
+
+| 檔案 | 變更 |
+|------|------|
+| `game-monitor.js` | v2.06→v2.07；Skills Tab 讀取後存 IDB；新增匯出/匯入按鈕及事件；進階設定按鈕提示優化 |
+| `advanced-farming.js` | v1.4→v1.5；DB v3 新增 skill_settings store；`__gmSkillDB`；`__gmExportAll`/`__gmImportAll`；`setAuto` 動作類型；`setAuto` datalist 下拉；`setAuto` 事件解析 |
+| `manifest.json` | v2.06→v2.07 |
+| `CHANGELOG.md` | 新增本版 |
+
+---
+
 ## [v2.06] - 2026-06-29
 
 ### 🎯 怪物下拉自動收錄（Monster Datalist）

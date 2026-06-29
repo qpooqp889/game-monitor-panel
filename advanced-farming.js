@@ -12,7 +12,7 @@
   window.__gmAdvancedLoaded=true;
 
   // ====== 設定 ======
-  var DB_NAME='gm-panel-db',DB_VERSION=2,STORE='advanced_rules',MSTORE='monsters';
+  var DB_NAME='gm-panel-db',DB_VERSION=3,STORE='advanced_rules',MSTORE='monsters',SSTORE='skill_settings';
   var _dbPromise=null;
   function openDB(){
     if(_dbPromise)return _dbPromise;
@@ -27,6 +27,10 @@
         // v2: monsters store for session-encountered monster names
         if(!db.objectStoreNames.contains(MSTORE)){
           db.createObjectStore(MSTORE,{keyPath:'name'});
+        }
+        // v3: skill_settings store for Skills Tab data
+        if(!db.objectStoreNames.contains(SSTORE)){
+          db.createObjectStore(SSTORE,{keyPath:'charName'});
         }
       };
       req.onsuccess=function(e){resolve(e.target.result)};
@@ -63,6 +67,70 @@
     clear:function(){
       return tx('readwrite',MSTORE).then(function(s){return rp(s.clear())}).catch(function(){});
     }
+  };
+
+  // ====== 技能設定存取（Skills Tab 寫入） ======
+  var __gmSkillDB={
+    save:function(charName,skills){
+      if(!charName)return Promise.resolve();
+      return tx('readwrite',SSTORE).then(function(s){
+        return rp(s.put({charName:charName,updatedAt:Date.now(),skills:skills||{}}));
+      }).catch(function(e){console.warn('[AdvFarm] skillDB save error:',e)});
+    },
+    getLatest:function(){
+      return tx('readonly',SSTORE).then(function(s){return rp(s.getAll())}).then(function(a){
+        if(!a||!a.length)return null;
+        return a.sort(function(x,y){return(y.updatedAt||0)-(x.updatedAt||0)})[0];
+      }).catch(function(){return null});
+    },
+    getAllKeys:function(){
+      return tx('readonly',SSTORE).then(function(s){return rp(s.getAll())}).then(function(a){
+        return(a||[]).map(function(x){return x.charName;}).filter(Boolean).sort();
+      }).catch(function(){return[]});
+    },
+    clear:function(){
+      return tx('readwrite',SSTORE).then(function(s){return rp(s.clear())}).catch(function(){});
+    }
+  };
+
+  // ====== 全域匯出/匯入（供 game-monitor.js 呼叫） ======
+  var __gmExportAll=function(){
+    return Promise.all([
+      AdvDB.getAll(),
+      __gmMonsterDB.getAllNames(),
+      __gmSkillDB.getLatest()
+    ]).then(function(results){
+      return{
+        version:1,
+        exportedAt:new Date().toISOString(),
+        advanced_rules:results[0],
+        monsters:results[1],
+        skill_settings:results[2]
+      };
+    });
+  };
+
+  var __gmImportAll=function(data){
+    if(!data||!data.version)return Promise.reject(new Error('格式錯誤'));
+    var p=Promise.resolve();
+    if(data.advanced_rules&&Array.isArray(data.advanced_rules)){
+      p=p.then(function(){return AdvDB.clear()});
+      data.advanced_rules.forEach(function(r){
+        var nr={};
+        Object.keys(r).forEach(function(k){if(k!=='id')nr[k]=r[k]});
+        p=p.then(function(){return AdvDB.save(nr)});
+      });
+    }
+    if(data.monsters&&Array.isArray(data.monsters)){
+      p=p.then(function(){return __gmMonsterDB.clear()});
+      data.monsters.forEach(function(n){
+        p=p.then(function(){return tx('readwrite',MSTORE).then(function(s){return rp(s.put({name:n}))})});
+      });
+    }
+    if(data.skill_settings){
+      p=p.then(function(){return __gmSkillDB.save(data.skill_settings.charName||'imported',data.skill_settings.skills||{})});
+    }
+    return p;
   };
 
   // ====== 規則類型定義 ======
@@ -119,7 +187,8 @@
     'equipArmor':{label:'裝備防具',params:['itemId'],hint:'防具物品 ID'},
     'attack':{label:'一般攻擊',params:[],hint:''},
     'toLobby':{label:'返回大廳',params:[],hint:''},
-    'setTarget':{label:'指定目標',params:['targetValue'],hint:'怪物名稱（部分匹配）或索引數字'}
+    'setTarget':{label:'指定目標',params:['targetValue'],hint:'怪物名稱（部分匹配）或索引數字'},
+    'setAuto':{label:'設定自動技能',params:['skillId','autoType'],hint:'skillId / openSkill / atkSkill'}
   };
 
   // ====== API ======
@@ -236,6 +305,18 @@
             console.warn('[AdvFarm] setTarget: no matching monster for "' + tv + '"');
           }
           break;
+        case 'setAuto':
+          // autoType: 'openSkill' | 'atkSkill'，預設 'atkSkill'
+          // skillId: 技能 ID 如 sk_fireball, strike 等
+          (function(){
+            var autoType=a.autoType||'atkSkill';
+            var skillId=a.skillId||'strike';
+            var payload={};
+            payload[autoType]=skillId;
+            window.__wbSocket.emit('setAuto',[payload]);
+            console.log('[AdvFarm] setAuto:',autoType,skillId);
+          })();
+          break;
       }
     });
   }
@@ -253,14 +334,19 @@
 
   // ====== 對外 API ======
   window.__gmAdvanced={
-    version:'1.3',
+    version:'1.5',
     CONDITION_TYPES:CONDITION_TYPES,
     OPERATORS:OPERATORS,
     ACTION_TYPES:ACTION_TYPES,
     AdvDB:AdvDB,
     MonsterDB:__gmMonsterDB,
+    SkillDB:__gmSkillDB,
     evalRule:evalRule,
     triggerRule:triggerRule,
+    exportAll:function(){return __gmExportAll()},
+    importAll:function(d){return __gmImportAll(d)},
+    refreshMonsterDatalist:refreshMonsterDatalist,
+    refreshSkillDatalist:refreshSkillDatalist,
     // 由 game-monitor.js loop() 呼叫
     tick:function(state){
       if(!state)return;
@@ -320,6 +406,7 @@
         '</div>'+
         // hidden datalist — 供所有 setTarget 下拉使用
         '<datalist id="__gmAdvMonsterList"></datalist>'+
+        '<datalist id="__gmAdvSkillList"></datalist>'+
         '<div id="__gmAdvList" style="padding:12px 16px;overflow-y:auto;flex:1;"></div>'+
         '<div id="__gmAdvStatus" style="padding:8px 12px;border-top:1px solid #0f3460;font-size:10px;color:#888;text-align:center;"></div>'+
       '</div>';
@@ -341,6 +428,7 @@
     };
     m.onclick=function(e){if(e.target===m)m.remove()};
     refreshMonsterDatalist();
+    refreshSkillDatalist();
     renderList();
   }
 
@@ -350,6 +438,21 @@
     __gmMonsterDB.getAllNames().then(function(names){
       dl.innerHTML=names.map(function(n){
         return '<option value="'+escapeHtml(n)+'">';
+      }).join('');
+    });
+  }
+
+  function refreshSkillDatalist(){
+    var dl=document.getElementById('__gmAdvSkillList');
+    if(!dl)return;
+    __gmSkillDB.getLatest().then(function(rec){
+      var skills=rec&&rec.skills||{};
+      var keys=Object.keys(skills).sort();
+      dl.innerHTML=keys.map(function(k){
+        var v=skills[k];
+        var label=typeof v==='object'?(v.label||k):k;
+        var val=typeof v==='object'?(v.value||k):v;
+        return '<option value="'+escapeHtml(val)+'">'+escapeHtml(label+' ('+val+')')+'</option>';
       }).join('');
     });
   }
@@ -442,11 +545,18 @@
             opts+='<option value="'+k+'" '+(a.type===k?'selected':'')+'>'+ACTION_TYPES[k].label+'</option>';
           });
           var p1=a.skillId||a.potionType||a.itemId||a.targetValue||'';
+          var p2=a.autoType||'atkSkill';
           var placeholder=a.type==='setTarget'?'選擇或輸入怪物名稱 / 索引':a.type==='castSkill'?'例: strike, heal':a.type==='usePotion'?'例: potion_heal':'參數';
-          // setTarget 使用 datalist 下拉（可搜尋、從 IndexedDB 讀取已遇過的怪物）
-          var paramInput=a.type==='setTarget'
-            ?'<input data-af="param" list="__gmAdvMonsterList" type="text" value="'+escapeHtml(p1)+'" placeholder="'+placeholder+'" autocomplete="off" style="flex:1;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;padding:3px;font-size:10px;">'
-            :'<input data-af="param" type="text" value="'+escapeHtml(p1)+'" placeholder="'+placeholder+'" style="flex:1;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;padding:3px;font-size:10px;">';
+          // setTarget / setAuto 使用 datalist 下拉
+          var paramInput='';
+          if(a.type==='setTarget'){
+            paramInput='<input data-af="param" list="__gmAdvMonsterList" type="text" value="'+escapeHtml(p1)+'" placeholder="選擇或輸入怪物名稱 / 索引" autocomplete="off" style="flex:1;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;padding:3px;font-size:10px;">';
+          } else if(a.type==='setAuto'){
+            paramInput='<input data-af="skillId" list="__gmAdvSkillList" type="text" value="'+escapeHtml(p1)+'" placeholder="選擇或輸入技能ID (sk_fireball)" autocomplete="off" style="flex:1;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;padding:3px;font-size:10px;">'+
+              '<select data-af="autoType" style="background:#1a2a3a;border:1px solid #0f3460;border-radius:4px;color:#ffd700;padding:3px;font-size:10px;"><option value="openSkill" '+(p2==='openSkill'?'selected':'')+'>開怪</option><option value="atkSkill" '+(p2==='atkSkill'?'selected':'')+'>攻擊</option></select>';
+          } else {
+            paramInput='<input data-af="param" type="text" value="'+escapeHtml(p1)+'" placeholder="'+placeholder+'" style="flex:1;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;padding:3px;font-size:10px;">';
+          }
           return '<div data-act-i="'+i+'" style="display:flex;gap:4px;align-items:center;margin-bottom:4px;">'+
             '<select data-af="type" style="flex:1;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;padding:3px;font-size:10px;">'+opts+'</select>'+
             paramInput+
@@ -492,14 +602,19 @@
           });
           rule.actions=[];
           card.querySelectorAll('[data-act-i]').forEach(function(row){
-            var i=parseInt(row.getAttribute('data-act-i'));
             var t=row.querySelector('[data-af="type"]').value;
-            var p=row.querySelector('[data-af="param"]').value;
+            var pEl=row.querySelector('[data-af="param"]');
+            var skEl=row.querySelector('[data-af="skillId"]');
+            var atEl=row.querySelector('[data-af="autoType"]');
             var a={type:t};
-            if(t==='castSkill')a.skillId=p;
-            else if(t==='usePotion')a.potionType=p;
-            else if(t==='equipWeapon'||t==='equipArmor')a.itemId=p;
-            else if(t==='setTarget')a.targetValue=p;
+            if(t==='castSkill')a.skillId=(skEl||pEl).value;
+            else if(t==='usePotion')a.potionType=(skEl||pEl).value;
+            else if(t==='equipWeapon'||t==='equipArmor')a.itemId=(skEl||pEl).value;
+            else if(t==='setTarget')a.targetValue=(skEl||pEl).value;
+            else if(t==='setAuto'){
+              a.skillId=(skEl||pEl).value;
+              a.autoType=atEl?atEl.value:'atkSkill';
+            } else a[(skEl||pEl).getAttribute('data-af')==='param'?'potionType':'skillId']=(skEl||pEl).value;
             rule.actions.push(a);
           });
           AdvDB.save(rule).then(function(){
@@ -525,7 +640,7 @@
 
         // 新增動作
         card.querySelector('[data-act="addAct"]').onclick=function(){
-          rule.actions.push({type:'castSkill',skillId:'strike'});
+          rule.actions.push({type:'setAuto',skillId:'sk_fireball',autoType:'atkSkill'});
           AdvDB.save(rule).then(function(){renderList()});
         };
 

@@ -1,5 +1,5 @@
 (function(){
-var ver='v2.06';
+var ver='v2.07';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -922,7 +922,13 @@ function __gmBuildPanel(){
     '<div style="margin-bottom:6px;">'+'<div style="font-size:10px;color:#888;margin-bottom:4px;">📡 Socket.IO 狀態</div>'+
       '<div style="display:flex;gap:6px;margin-bottom:4px;">'+'<span style="font-size:10px;color:#888;">連接: </span><span id="__gmp_sock_status" style="font-size:10px;color:#ffd700;">檢測中...</span></div>'+
       '<div style="font-size:10px;color:#888;">已捕獲: <span id="__gmp_sock_sent" style="color:#4ade80;">0</span> 發送 / <span id="__gmp_sock_evts" style="color:#00d9ff;">0</span> 事件</div>'+
-    '</div>'+
+      '<div style="margin-top:8px;display:flex;gap:4px;">'+
+        '<button id="__gmp_export_all" style="flex:1;padding:5px 4px;background:#0f3460;border:1px solid #7bd14a;color:#7bd14a;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">📥 匯出設定</button>'+
+        '<button id="__gmp_import_all" style="flex:1;padding:5px 4px;background:#0f3460;border:1px solid #fbbf24;color:#fbbf24;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">📤 匯入設定</button>'+
+        '<input type="file" id="__gmp_import_file" accept=".json" style="display:none;">'+
+      '</div>'+
+      '<div id="__gmp_idb_status" style="font-size:10px;color:#555;margin-top:3px;text-align:center;"></div>'+
+    '</div>'>
     '</div>'+
     // === MONITOR TAB ===
     '<div id="__gmp_tab_content_monitor" style="display:none;">'+
@@ -1493,6 +1499,10 @@ function __gmBuildPanel(){
     var cnt = document.getElementById('__gmp_skill_count');
     if (cnt) cnt.textContent = total;
     if (status) { status.textContent = '已讀取 ' + total + ' 項'; status.style.color = '#4ade80'; }
+    // 同時寫入 IndexedDB（供進階模組下拉使用）
+    if(typeof window.__gmAdvanced!=='undefined'&&window.__gmAdvanced.SkillDB){
+      window.__gmAdvanced.SkillDB.save(charName, JSON.parse(JSON.stringify(window.__pmAuto.all||{})));
+    }
     __pmRenderSkillList();
     console.log('[Skill Sync] Read', total, 'items — char:', charName, window.__pmAuto);
   }
@@ -1786,6 +1796,67 @@ function __gmBuildPanel(){
     },500);
   }
   __wbBossStartUpdater();
+
+  // === IDB 全域匯出/匯入 ===
+  function __gmShowIdbStatus(msg,color){
+    var el=document.getElementById('__gmp_idb_status');
+    if(!el)return;
+    el.textContent=msg;el.style.color=color||'#888';
+    clearTimeout(window.__gmIdbTimer);
+    window.__gmIdbTimer=setTimeout(function(){
+      var e=document.getElementById('__gmp_idb_status');
+      if(e)e.textContent='';
+    },4000);
+  }
+
+  document.getElementById('__gmp_export_all').onclick=function(){
+    if(!window.__gmAdvanced){
+      __gmShowIdbStatus('⚠️ 請先在掛機Tab點一次進階設定，初始化資料庫','#fbbf24');
+      return;
+    }
+    window.__gmAdvanced.exportAll().then(function(data){
+      var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+      var url=URL.createObjectURL(blob);
+      var a=document.createElement('a');
+      a.href=url;a.download='gm-panel-settings-'+(new Date().toISOString().slice(0,10))+'.json';
+      document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+      var ruleCount=data.advanced_rules?data.advanced_rules.length:0;
+      var monsterCount=data.monsters?data.monsters.length:0;
+      __gmShowIdbStatus('✅ 匯出成功：'+ruleCount+' 規則 / '+monsterCount+' 怪物 / 技能設定','#4ade80');
+    }).catch(function(e){
+      __gmShowIdbStatus('❌ 匯出失敗：'+e.message,'#e94560');
+    });
+  };
+
+  document.getElementById('__gmp_import_all').onclick=function(){
+    var inp=document.getElementById('__gmp_import_file');
+    inp.value='';inp.click();
+  };
+
+  document.getElementById('__gmp_import_file').onchange=function(e){
+    var file=e.target.files[0];
+    if(!file)return;
+    var reader=new FileReader();
+    reader.onload=function(ev){
+      try{
+        var data=JSON.parse(ev.target.result);
+        if(!window.__gmAdvanced){
+          __gmShowIdbStatus('⚠️ 請先在掛機Tab點一次進階設定，初始化資料庫','#fbbf24');
+          return;
+        }
+        window.__gmAdvanced.importAll(data).then(function(){
+          __gmShowIdbStatus('✅ 匯入成功，請重新開啟進階設定查看','#4ade80');
+          if(window.__gmAdvanced.refreshMonsterDatalist)window.__gmAdvanced.refreshMonsterDatalist();
+          if(window.__gmAdvanced.refreshSkillDatalist)window.__gmAdvanced.refreshSkillDatalist();
+        }).catch(function(err){
+          __gmShowIdbStatus('❌ 匯入失敗：'+err.message,'#e94560');
+        });
+      }catch(ex){
+        __gmShowIdbStatus('❌ JSON 格式錯誤','#e94560');
+      }
+    };
+    reader.readAsText(file);
+  };
   
 
   // === Test Reconnect button ===
@@ -1795,7 +1866,32 @@ function __gmBuildPanel(){
     if(window.__gmAdvanced&&window.__gmAdvanced.openModal){
       window.__gmAdvanced.openModal();
     } else {
-      alert('進階模組尚未載入，請稍候再試');
+      // 先檢查 IndexedDB skill_settings 是否為空（從未讀取過技能）
+      if(window.__gmAdvanced&&window.__gmAdvanced.SkillDB){
+        window.__gmAdvanced.SkillDB.getLatest().then(function(rec){
+          if(!rec||!rec.skills||!Object.keys(rec.skills).length){
+            alert('⚠️ 尚未初始化資料
+
+請依序操作：
+1️⃣ 進入遊戲，切換到「設定」頁面
+2️⃣ 點擊上方「⚡技能」Tab
+3️⃣ 點「讀取設定」按鈕
+
+讀取完成後，怪物名稱與技能設定會自動收錄，再回來點「進階設定」即可。');
+          } else {
+            alert('進階模組尚未完全載入，請稍候再試（可嘗試重新整理頁面）');
+          }
+        });
+      } else {
+        alert('⚠️ 進階模組尚未載入
+
+請依序操作：
+1️⃣ 進入遊戲，切換到「設定」頁面
+2️⃣ 點擊上方「⚡技能」Tab
+3️⃣ 點「讀取設定」按鈕
+
+讀取完成後，怪物名稱與技能設定會自動收錄，再回來點「進階設定」即可。');
+      }
     }
   };
   document.getElementById('__gmp_farm_test_reconnect').onclick=function(){
