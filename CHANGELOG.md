@@ -1,5 +1,35 @@
 # 異動說明 (CHANGELOG)
 
+## [v2.05] - 2026-06-29
+
+### ⚙️ 進階規則引擎強化 (Advanced Rules Engine Enhancement)
+
+#### 1️⃣ 新增「怪物名稱」條件 (`monsterName`)
+- 從 `d.monsters` 讀取所有存活怪物名稱
+- 支援「包含」比對（`==` → 名稱包含輸入文字即通過，`!=` → 不包含才通過）
+- 可搭配「怪物數量」做 AND 邏輯（例如：怪物數量 > 0 AND 怪物名稱包含「惡魔」）
+
+#### 2️⃣ 新增「指定目標」動作 (`setTarget`)
+- 參數：怪物名稱（部分匹配）或索引數字
+- 數字 → 直接用數字作為 monster index 發送 `setTarget [idx]`
+- 文字 → 在 `d.monsters` 中找第一個名稱包含該文字的怪物，發送對應索引
+- 若找不到匹配怪物，顯示警告但不會錯誤崩潰
+
+#### 3️⃣ Modal UI 優化
+- `setTarget` 動作的參數輸入框 placeholder 改為「怪物名稱（部分匹配）或索引」
+- 技能／藥水／武器等各類動作各自有專屬 placeholder 提示
+
+### 📁 異動檔案
+
+| 檔案 | 變更類型 | 說明 |
+|------|---------|------|
+| `advanced-farming.js` | 修改 | 新增 monsterName 條件、setTarget 動作、substring 比對邏輯 |
+| `game-monitor.js` | 修改 | 版本 v2.04 → v2.05 |
+| `manifest.json` | 修改 | 版本 v2.04 → v2.05 |
+| `CHANGELOG.md` | 修改 | 新增本版異動記錄 |
+
+---
+
 ## [v2.03] - 2026-06-29
 
 ### 🔧 掛機 Tab 版面重構 (Farming Tab UI Redesign)

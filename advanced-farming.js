@@ -38,6 +38,14 @@
     'monsterCount':{label:'怪物數量',unit:'隻',extract:function(state){
       return (state&&state.monsters)?state.monsters.filter(function(m){return m&&m.hp>0}).length:0;
     }},
+    'monsterName':{label:'怪物名稱',unit:'',extract:function(state){
+      // 回傳第一個存活怪物的名稱（供 ==/!= 比對），同時也支援計算數量
+      var m=state&&state.monsters;
+      if(!m||!m.length)return '';
+      var alive=m.filter(function(x){return x&&x.hp>0});
+      if(!alive.length)return '';
+      return alive.map(function(x){return x.n||'';}).join('|'); // pipe-separated
+    }},
     'monsterLevel':{label:'怪物等級',unit:'級',extract:function(state){
       var m=state&&state.monsters;
       if(!m||!m.length)return 0;
@@ -78,7 +86,8 @@
     'equipWeapon':{label:'裝備武器',params:['itemId'],hint:'武器物品 ID'},
     'equipArmor':{label:'裝備防具',params:['itemId'],hint:'防具物品 ID'},
     'attack':{label:'一般攻擊',params:[],hint:''},
-    'toLobby':{label:'返回大廳',params:[],hint:''}
+    'toLobby':{label:'返回大廳',params:[],hint:''},
+    'setTarget':{label:'指定目標',params:['targetValue'],hint:'怪物名稱（部分匹配）或索引數字'}
   };
 
   // ====== API ======
@@ -117,9 +126,15 @@
       var actual=ctype.extract(state);
       var op=OPERATORS[c.op];
       if(!op)return false;
-      // 字串比較 vs 數字比較
+      // 字串比對（monsterName 支援 contains / !contains）
+      // 其他字串：精確比對；數字：數值比對
       var pass;
-      if(typeof actual==='string'){
+      if(c.type==='monsterName'&&(c.op==='=='||c.op==='!=')){
+        // actual 是 pipe-separated names，expect 是部分名稱 → contains 語意
+        var expect=String(c.value||'').toLowerCase().trim();
+        var actualL=(actual||'').toLowerCase();
+        pass=c.op==='=='?actualL.indexOf(expect)>-1:actualL.indexOf(expect)===-1;
+      }else if(typeof actual==='string'){
         var expect=String(c.value||'');
         if(c.op==='==')pass=actual===expect;
         else if(c.op==='!=')pass=actual!==expect;
@@ -165,6 +180,30 @@
           window.__wbSocket.emit('toLobby');
           console.log('[AdvFarm] toLobby');
           break;
+        case 'setTarget':
+          // targetValue: 數字 → 直接用數字索引；文字 → 在 d.monsters 中找名稱匹配的第一隻
+          var tv = a.targetValue;
+          var targetIdx = null;
+          if (/^\d+$/.test(String(tv).trim())) {
+            targetIdx = parseInt(tv);
+          } else if (tv) {
+            var name = String(tv).toLowerCase().trim();
+            var monsters = (context && context.state && context.state.monsters) || [];
+            for (var mi = 0; mi < monsters.length; mi++) {
+              var m = monsters[mi];
+              if (m && m.n && m.hp > 0 && m.n.toLowerCase().indexOf(name) > -1) {
+                targetIdx = mi;
+                break;
+              }
+            }
+          }
+          if (targetIdx !== null) {
+            window.__wbSocket.emit('setTarget', targetIdx);
+            console.log('[AdvFarm] setTarget:', targetIdx, tv);
+          } else {
+            console.warn('[AdvFarm] setTarget: no matching monster for "' + tv + '"');
+          }
+          break;
       }
     });
   }
@@ -182,7 +221,7 @@
 
   // ====== 對外 API ======
   window.__gmAdvanced={
-    version:'1.0',
+    version:'1.1',
     CONDITION_TYPES:CONDITION_TYPES,
     OPERATORS:OPERATORS,
     ACTION_TYPES:ACTION_TYPES,
@@ -253,8 +292,8 @@
       enabled:true,
       priority:10,
       cooldownMs:3000,
-      conditions:[{type:'monsterCount',op:'>',value:'1'}],
-      actions:[{type:'castSkill',skillId:'strike'}]
+      conditions:[{type:'monsterCount',op:'>',value:'0'}],
+      actions:[{type:'setTarget',targetValue:'0'}]
     };
     AdvDB.save(rule).then(function(){renderList()});
   }
@@ -329,10 +368,11 @@
           Object.keys(ACTION_TYPES).forEach(function(k){
             opts+='<option value="'+k+'" '+(a.type===k?'selected':'')+'>'+ACTION_TYPES[k].label+'</option>';
           });
-          var p1=a.skillId||a.potionType||a.itemId||'';
+          var p1=a.skillId||a.potionType||a.itemId||a.targetValue||'';
+          var placeholder=a.type==='setTarget'?'怪物名稱（部分匹配）或索引':a.type==='castSkill'?'例: strike, heal':a.type==='usePotion'?'例: potion_heal':'參數';
           return '<div data-act-i="'+i+'" style="display:flex;gap:4px;align-items:center;margin-bottom:4px;">'+
             '<select data-af="type" style="flex:1;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;padding:3px;font-size:10px;">'+opts+'</select>'+
-            '<input data-af="param" type="text" value="'+escapeHtml(p1)+'" placeholder="參數" style="flex:1;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;padding:3px;font-size:10px;">'+
+            '<input data-af="param" type="text" value="'+escapeHtml(p1)+'" placeholder="'+placeholder+'" style="flex:1;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;padding:3px;font-size:10px;">'+
             '<button data-af="del" style="background:#666;border:none;color:#fff;width:22px;height:22px;border-radius:4px;cursor:pointer;font-size:11px;">×</button>'+
           '</div>';
         }).join('')+
@@ -382,6 +422,7 @@
             if(t==='castSkill')a.skillId=p;
             else if(t==='usePotion')a.potionType=p;
             else if(t==='equipWeapon'||t==='equipArmor')a.itemId=p;
+            else if(t==='setTarget')a.targetValue=p;
             rule.actions.push(a);
           });
           AdvDB.save(rule).then(function(){
