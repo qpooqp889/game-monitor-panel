@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>SIO4 Hook 注入工具</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a2e; color: #fff; }
+        button { padding: 10px 20px; margin: 5px; background: #0f3460; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
+        button:hover { background: #16213e; }
+        #log { background: #000; padding: 10px; border-radius: 6px; height: 400px; overflow-y: auto; font-size: 12px; }
+        .success { color: #4ade80; }
+        .error { color: #e94560; }
+        .info { color: #4fc3f7; }
+    </style>
+</head>
+<body>
+    <h1>🔧 SIO4 Hook 注入工具</h1>
+    <p>在遊戲頁面（linh5web.win）開啟此 HTML，然後點擊下方按鈕</p>
+    
+    <button onclick="checkIO()">1. 檢查 window.io</button>
+    <button onclick="installHook()">2. 安裝 Hook</button>
+    <button onclick="checkStatus()">3. 檢查狀態</button>
+    <button onclick="testEmit()">4. 測試 emit</button>
+    
+    <h3>Log:</h3>
+    <div id="log"></div>
+    
+    <script>
+        function log(msg, cls) {
+            var logDiv = document.getElementById('log');
+            var line = document.createElement('div');
+            line.className = cls || '';
+            line.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+            logDiv.appendChild(line);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function checkIO() {
+            log('檢查 window.io...', 'info');
+            log('typeof window.io: ' + typeof window.io, 'info');
+            
+            if (typeof window.io !== 'function') {
+                log('❌ window.io 不是函數', 'error');
+                return;
+            }
+            
+            try {
+                var s = window.io();
+                log('✅ io() 返回值: ' + (s ? '存在' : 'null'), 'success');
+                if (s) {
+                    log('  - connected: ' + s.connected, 'info');
+                    log('  - id: ' + s.id, 'info');
+                }
+            } catch(e) {
+                log('❌ io() 錯誤: ' + e.message, 'error');
+            }
+            
+            // 檢查 managers
+            try {
+                var managers = window.io.managers || {};
+                var mkeys = Object.keys(managers);
+                log('io.managers 數量: ' + mkeys.length, 'info');
+            } catch(e) {
+                log('❌ 檢查 managers 錯誤: ' + e.message, 'error');
+            }
+        }
+        
+        function installHook() {
+            log('開始安裝 Hook...', 'info');
+            
+            if (window.__wbSioHookedV3) {
+                log('⚠️ Hook 已安裝', 'error');
+                return;
+            }
+            window.__wbSioHookedV3 = true;
+            
+            function findAndHookSocket() {
+                var io = window.io;
+                if (!io || typeof io !== 'function') {
+                    log('⏳ 等待 window.io...', 'info');
+                    setTimeout(findAndHookSocket, 500);
+                    return;
+                }
+                
+                // 方法 1: 直接呼叫 io()
+                try {
+                    var s = io();
+                    if (s && s.connected) {
+                        hookSocket(s);
+                        return;
+                    }
+                } catch(e) {
+                    log('方法 1 失敗: ' + e.message, 'error');
+                }
+                
+                // 方法 2: 檢查 io.sockets
+                try {
+                    if (io.sockets && io.sockets.connected) {
+                        var keys = Object.keys(io.sockets.connected);
+                        if (keys.length > 0) {
+                            hookSocket(io.sockets.connected[keys[0]]);
+                            return;
+                        }
+                    }
+                } catch(e) {
+                    log('方法 2 失敗: ' + e.message, 'error');
+                }
+                
+                // 方法 3: 檢查 Manager
+                try {
+                    var managers = io.managers || {};
+                    var mkeys = Object.keys(managers);
+                    for (var i = 0; i < mkeys.length; i++) {
+                        var m = managers[mkeys[i]];
+                        if (m && m.nsps) {
+                            var nsps = Object.keys(m.nsps);
+                            for (var j = 0; j < nsps.length; j++) {
+                                var sock = m.nsps[nsps[j]];
+                                if (sock && sock.connected) {
+                                    hookSocket(sock);
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                } catch(e) {
+                    log('方法 3 失敗: ' + e.message, 'error');
+                }
+                
+                log('⏳ Socket 尚未連接，1 秒後重試...', 'info');
+                setTimeout(findAndHookSocket, 1000);
+            }
+            
+            function hookSocket(s) {
+                if (s.__hookedV3) return;
+                s.__hookedV3 = true;
+                window.__wbSocket = s;
+                log('✅ Socket hooked! connected=' + s.connected, 'success');
+                
+                // Hook onevent
+                var _oe = s.onevent;
+                s.onevent = function(p) {
+                    try {
+                        if (p && p.data && p.data[0] === 'state' && p.data[1]) {
+                            window.lastState = p.data[1];
+                            window.__wbLatestState = p.data[1];
+                            log('✅ state 事件捕獲! HP=' + (p.data[1].char ? p.data[1].char.hp : '?'), 'success');
+                            if (window.__gmBuildSkillOptions) window.__gmBuildSkillOptions(p.data[1]);
+                        }
+                    } catch(e) {
+                        log('onevent hook 錯誤: ' + e.message, 'error');
+                    }
+                    if (_oe) _oe.call(this, p);
+                };
+                
+                log('✅ onevent hook 安裝完成', 'success');
+                
+                // Hook emit
+                var _emit = s.emit;
+                s.emit = function() {
+                    try {
+                        log('[SEND] ' + arguments[0] + ' ' + JSON.stringify(Array.prototype.slice.call(arguments, 1)).slice(0, 100), 'info');
+                    } catch(e) {}
+                    return _emit.apply(this, arguments);
+                };
+                
+                log('✅ emit hook 安裝完成', 'success');
+            }
+            
+            findAndHookSocket();
+            log('Hook 安裝程序已啟動（將持續監控）', 'success');
+        }
+        
+        function checkStatus() {
+            log('檢查狀態...', 'info');
+            log('__wbSocket: ' + (window.__wbSocket ? '存在 (connected=' + window.__wbSocket.connected + ')' : 'null'), window.__wbSocket ? 'success' : 'error');
+            log('lastState: ' + (window.lastState ? '存在 (HP=' + (window.lastState.char ? window.lastState.char.hp : '?') + ')' : 'null'), window.lastState ? 'success' : 'error');
+            log('__gmBuildSkillOptions: ' + (typeof window.__gmBuildSkillOptions), 'info');
+        }
+        
+        function testEmit() {
+            if (!window.__wbSocket || !window.__wbSocket.connected) {
+                log('❌ Socket 未連接', 'error');
+                return;
+            }
+            log('測試 emit...', 'info');
+            window.__wbSocket.emit('test', {v: Date.now()});
+            log('✅ emit 成功（應該會看到 [SEND] 日誌）', 'success');
+        }
+        
+        log('工具已載入，請先開啟遊戲頁面 (linh5web.win)，然後點擊按鈕', 'info');
+    </script>
+</body>
+</html>

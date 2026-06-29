@@ -1,0 +1,20 @@
+# 舊版本備份
+game-monitor-fixed.js
+game-monitor-new.js
+game-monitor-v1.31.js
+game-monitor-v1.32.js
+game-monitor-v1.50.js
+game-monitor.idb-integrated.js
+game-monitor.js.backup
+hook_debug_v133.js
+hook_injector.html
+inject_panel.js
+sendzone_fix.js
+
+# 亂碼檔案
+封包相關.md
+
+# 系統檔案
+*.log
+.DS_Store
+Thumbs.db

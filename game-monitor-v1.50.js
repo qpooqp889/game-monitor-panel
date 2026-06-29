@@ -1,0 +1,1073 @@
+﻿(function(){
+var ver='v1.31';
+if(window.__gmInjected){
+  console.log('[GM] Already injected ('+ver+')');
+  var el=document.getElementById('__gmp_ver');
+  if(el)el.textContent=ver;
+  return;
+}
+window.__gmInjected=true;
+window.__gmVer=ver;
+window.__battleStatus={packets:[]};window.__gmOnlineCount=null;
+window.__gmFarming={running:false,timer:null,returning:false,waitTimer:null};
+
+// ====== WB Boss Hook ======
+window.__wbBossEmitLog=[];
+window.__wbSocket=null;
+(function(){
+  function installSioHook(){
+    if(window.__wbSioHooked)return;
+    var SP=window.io&&window.io.Socket&&window.io.Socket.prototype;
+    if(!SP){setTimeout(installSioHook,300);return;}
+    window.__wbSioHooked=true;
+    if(!SP.__wbPkt){
+      SP.__wbPkt=true;
+      var _origPkt=SP.packet;
+      SP.packet=function(packet){
+        var type=packet&&packet.type;
+        if(type===2||type===3){
+          var ev=packet.data&&packet.data[0]||null;
+          var args=packet.data&&packet.data.slice(1)||[];
+          window.__wbBossEmitLog.push({t:Date.now(),dir:'SEND',evt:ev,args:JSON.stringify(args).slice(0,300)});
+          console.log('[WB-SEND]',ev,JSON.stringify(args).slice(0,150));
+        }
+        return _origPkt&&_origPkt.call(this,packet);
+      };
+    }
+    if(!SP.__wbOE){
+      SP.__wbOE=true;
+      var _oe=SP.onevent;
+      SP.onevent=function(p){
+        if(!window.__wbSocket)window.__wbSocket=this;
+        if(p&&p.data&&p.data[0]){
+          window.__sioPackets=window.__sioPackets||[];
+          window.__sioPackets.push({t:Date.now(),dir:'EVENT',evt:p.data[0],args:JSON.stringify(p.data).slice(0,300)});
+        }
+        if(_oe)_oe.call(this,p);
+      };
+    }
+    console.log('[WB] SIO4 hook ready');
+  }
+  setTimeout(installSioHook,500);
+})();
+
+function __wbSend(action){if(!window.__wbSocket||!window.__wbSocket.emit){setTimeout(function(){if(window.__wbSocket)window.__wbSocket.emit('bossAction',action);},200);return;}try{window.__wbSocket.emit('bossAction',action);console.log('[WB] bossAction:',action);}catch(e){}}
+function __wbSendPotion(type){if(!window.__wbSocket)return;try{window.__wbSocket.emit('usePotion',{type:type||'potion_heal'});}catch(e){}}
+function __wbCastSkill(id,target){if(!window.__wbSocket)return;try{var p={id:id};if(target)p.target=target;window.__wbSocket.emit('castSkill',p);}catch(e){}}
+function __wbSetBossSet(s){if(!window.__wbSocket)return;try{window.__wbSocket.emit('setBossSet',s);}catch(e){}}
+
+// ====== Boss Auto ======
+window.__wbBossAuto={running:false,timer:null,config:{pot:true,heal:false,barrier:false,atk:false,hpPct:50,barrierPct:30}};
+function __wbBossLoop(){if(!window.__wbBossAuto.running)return;var ls=window.lastState||{};var ch=ls.char||{};var boss=ls.boss||{};var cd=boss.cd||{};var cfg=window.__wbBossAuto.config;var hpPct=ch.maxHp>0?ch.hp/ch.maxHp:1;try{if(cfg.pot&&hpPct<(cfg.hpPct/100)&&cd.pot<0.05)__wbSend('pot');if(cfg.heal&&cd.heal<0.05)__wbSend('heal');if(cfg.barrier&&boss.hp>0&&boss.maxHp>0&&(boss.hp/boss.maxHp)<(cfg.barrierPct/100)&&cd.barrier<0.05&&boss.barrierHas)__wbSend('barrier');if(cfg.atk&&ls.mode==='bosscombat'&&cd.atk<0.05)__wbSend('atk');}catch(e){}window.__wbBossAuto.timer=setTimeout(__wbBossLoop,500);}
+function __wbBossAutoStart(){window.__wbBossAuto.running=true;__wbBossLoop();}
+function __wbBossAutoStop(){window.__wbBossAuto.running=false;if(window.__wbBossAuto.timer)clearTimeout(window.__wbBossAuto.timer);}
+
+// ====== Cooldown Bypass ======
+window.__wbBypassCD=false;
+function __wbToggleBypass(on){window.__wbBypassCD=on;if(on&&!window.__wbBypassPatched){window.__wbBypassPatched=true;var _orig=window.updateBossCd;if(_orig){window.updateBossCd=function(){try{_orig.apply(this,arguments);}catch(e){}var keys=['pot','atk','heal','convert','barrier','holybarrier'];keys.forEach(function(k){var b=document.getElementById('bact-'+k);if(b)b.disabled=false;});};}var _origRBP=window.renderBossPanel;if(_origRBP){window.renderBossPanel=function(p){try{_origRBP.apply(this,arguments);}catch(e){_origRBP(p);}setTimeout(function(){document.querySelectorAll('.bact-btn[id]').forEach(function(b){var k=b.dataset&&b.dataset.k;if(k&&!b.__wbBypass){b.__wbBypass=true;b.addEventListener('click',function(){__wbSend(k);b.disabled=false;});}});},50);};}}console.log('[WB] Bypass:',on?'ON':'OFF');}
+
+
+// ========== Storage Functions ==========
+function saveFarmSettings(){
+  var data={
+    farmZone: document.getElementById('__gmp_farm_zone').value||'',
+    hpThresh: parseInt(document.getElementById('__gmp_farm_hp').value)||20,
+    mpThresh: parseInt(document.getElementById('__gmp_farm_mp').value)||10,
+    hpEnabled: document.getElementById('__gmp_farm_hp_chk').checked,
+    mpEnabled: document.getElementById('__gmp_farm_mp_chk').checked,
+    hpGtThresh: parseInt(document.getElementById('__gmp_farm_hp_gt').value)||80,
+    mpGtThresh: parseInt(document.getElementById('__gmp_farm_mp_gt').value)||50,
+    hpGtEnabled: document.getElementById('__gmp_farm_hp_gt_chk').checked,
+    mpGtEnabled: document.getElementById('__gmp_farm_mp_gt_chk').checked,
+    logicOp: document.getElementById('__gmp_farm_logic').value||'AND',
+    logicEnabled: document.getElementById('__gmp_farm_logic_chk').checked,
+    autoAtk: document.getElementById('__gmp_farm_atk').checked,
+    // ?啣?嚗蝺???身摰?    charName: document.getElementById('__gmp_farm_char_name').value||'',
+    reconnectEnabled: document.getElementById('__gmp_farm_reconnect').checked,
+    reconnectInterval: parseInt(document.getElementById('__gmp_farm_reconnect_interval').value)||60
+  };
+  // Send to content script to save via chrome.storage
+  window.postMessage({type:'GM_SAVE_SETTINGS',data:data},'*');
+}
+
+function loadFarmSettings(callback){
+  window.postMessage({type:'GM_LOAD_SETTINGS'},'*');
+  window.__gmLoadCallback=callback;
+}
+
+// Listen for load response from content script
+window.addEventListener('message',function(e){
+  if(e.data&&e.data.type==='GM_LOAD_RESPONSE'&&window.__gmLoadCallback){
+    window.__gmLoadCallback(e.data.data);
+    window.__gmLoadCallback=null;
+  }
+});
+
+// ========== End Storage Functions ==========
+
+// Hook WebSocket send
+var origSend=WebSocket.prototype.send;
+WebSocket.prototype.send=function(data){
+  window.__battleStatus.packets.push({type:'send',data:data});
+  window.__ws=this;
+  return origSend.call(this,data);
+};
+
+if(window.__ws){
+  window.__ws.addEventListener('message',function(e){
+    window.__battleStatus.packets.push({type:'receive',data:e.data});
+  });
+}
+
+setInterval(function(){
+  if(window.__ws&&!window.__ws.__hooked){
+    window.__ws.__hooked=true;
+    window.__ws.addEventListener('message',function(e){
+      window.__battleStatus.packets.push({type:'receive',data:e.data});
+      try{
+        var d=JSON.parse(e.data.substring(2));
+        if(d[0]==='onlineCount')window.__gmOnlineCount=d[1];
+      }catch(err){}
+    });
+  }
+},100);
+
+// Zone data
+var ZONES={
+  town:[
+    {id:'town_silver_knight',name:'?擉ㄚ??,sub:'摰?'},
+    {id:'town_elf',name:'憒移璉格?',sub:'摰?'},
+    {id:'town_talking',name:'隤芾店銋雀',sub:'摰?'},
+    {id:'town_gludio',name:'???,sub:'摰?'},
+    {id:'town_giran',name:'憟痔',sub:'摰?'},
+    {id:'town_heine',name:'瘚琿',sub:'摰?'},
+    {id:'town_oren',name:'甇???',sub:'摰?'},
+    {id:'town_ivory_tower',name:'鞊∠?憛?,sub:'摰?'},
+    {id:'town_sherine',name:'撣剔蟡挪',sub:'摰?'},
+    {id:'town_witon',name:'憡???,sub:'摰?'},
+  ],
+  wild:[
+    {id:'training',name:'?啣靽桃毀??,sub:'撱箄降 Lv.3'},
+    {id:'silver_knight',name:'?擉ㄚ?啣?',sub:'撱箄降 Lv.10'},
+    {id:'talking_island',name:'隤芾店銋雀?券?',sub:'撱箄降 Lv.6'},
+    {id:'zone_01',name:'憒移璉格??券?',sub:'撱箄降 Lv.9'},
+    {id:'talking_island_port',name:'隤芾店銋雀皜臬',sub:'撱箄降 Lv.14'},
+    {id:'elf_forest',name:'憒?璉格?',sub:'撱箄降 Lv.15'},
+    {id:'gludio',name:'?日陌銝?,sub:'撱箄降 Lv.11'},
+    {id:'windwood',name:'憸冽',sub:'撱箄降 Lv.10'},
+    {id:'desert',name:'瘝?',sub:'撱箄降 Lv.20'},
+    {id:'kent',name:'?舐',sub:'撱箄降 Lv.11'},
+    {id:'dragon_valley',name:'樴?靚?,sub:'撱箄降 Lv.20'},
+    {id:'fire_dragon',name:'?恍?蝒?,sub:'撱箄降 Lv.33'},
+    {id:'giran',name:'憟痔',sub:'撱箄降 Lv.20'},
+    {id:'heine',name:'瘚琿',sub:'撱箄降 Lv.19'},
+    {id:'mirror_forest',name:'?∪?璉格?',sub:'撱箄降 Lv.22'},
+    {id:'zone_02',name:'甇?',sub:'撱箄降 Lv.18'},
+    {id:'zone_03',name:'甇??芸?',sub:'撱箄降 Lv.32'},
+    {id:'zone_04',name:'?曄?拇??啣',sub:'撱箄降 Lv.24'},
+    {id:'zone_05',name:'??閬?',sub:'撱箄降 Lv.29'},
+    {id:'dream_island',name:'憭Ｗ劂銋雀',sub:'撱箄降 Lv.39'},
+  ],
+  dungeon:[
+    {id:'zone_06',name:'?日陌銝??璅?,sub:'Lv.9'},
+    {id:'zone_07',name:'?日陌銝??璅?,sub:'Lv.14'},
+    {id:'zone_08',name:'?日陌銝??璅?,sub:'Lv.14'},
+    {id:'zone_09',name:'?日陌銝??璅?,sub:'Lv.15'},
+    {id:'zone_10',name:'?日陌銝??璅?,sub:'Lv.16'},
+    {id:'zone_11',name:'?日陌銝??璅?,sub:'Lv.20'},
+    {id:'zone_12',name:'?日陌銝??璅?,sub:'Lv.18'},
+    {id:'zone_13',name:'隤芾店銋雀?啁1璅?,sub:'Lv.10'},
+    {id:'zone_14',name:'隤芾店銋雀?啁2璅?,sub:'Lv.11'},
+    {id:'zone_15',name:'??瘣庖1璅?,sub:'Lv.6'},
+    {id:'zone_16',name:'??瘣庖2璅?,sub:'Lv.9'},
+    {id:'zone_17',name:'??瘣庖3璅?,sub:'Lv.13'},
+    {id:'crystal_cave1',name:'瘞湔瘣庖1璅?,sub:'Lv.28'},
+    {id:'crystal_cave2',name:'瘞湔瘣庖2璅?,sub:'Lv.28'},
+    {id:'crystal_cave3',name:'瘞湔瘣庖3璅?,sub:'Lv.28'},
+    {id:'zone_18',name:'憟痔?啁1璅?,sub:'Lv.14'},
+    {id:'zone_19',name:'憟痔?啁2璅?,sub:'Lv.15'},
+    {id:'zone_20',name:'憟痔?啁3璅?,sub:'Lv.15'},
+    {id:'zone_21',name:'憟痔?啁4璅?,sub:'Lv.22'},
+    {id:'zone_22',name:'瘝??啁1璅?,sub:'Lv.9'},
+    {id:'zone_23',name:'瘝??啁2璅?,sub:'Lv.15'},
+    {id:'zone_24',name:'瘝??啁3璅?,sub:'Lv.15'},
+    {id:'zone_25',name:'瘝??啁4璅?,sub:'Lv.25'},
+    {id:'zone_26',name:'樴?靚瑕??璅?,sub:'Lv.24'},
+    {id:'zone_27',name:'樴?靚瑕??璅?,sub:'Lv.28'},
+    {id:'zone_28',name:'樴?靚瑕??璅?,sub:'Lv.29'},
+    {id:'zone_29',name:'樴?靚瑕??璅?,sub:'Lv.30'},
+    {id:'zone_30',name:'樴?靚瑕??璅?,sub:'Lv.36'},
+    {id:'zone_31',name:'樴?靚瑕??璅?,sub:'Lv.38'},
+    {id:'zone_32',name:'?瘣?1璅?,sub:'Lv.16'},
+    {id:'zone_33',name:'?瘣?2璅?,sub:'Lv.16'},
+    {id:'zone_34',name:'?唬???1璅?,sub:'Lv.16'},
+    {id:'zone_35',name:'?唬???2璅?,sub:'Lv.19'},
+    {id:'zone_36',name:'?唬???3璅?,sub:'Lv.21'},
+    {id:'eva_kingdom',name:'隡???',sub:'Lv.22'},
+    {id:'zone_37',name:'鞊∠?憛?璅?,sub:'Lv.32'},
+    {id:'zone_38',name:'鞊∠?憛?璅?,sub:'Lv.32'},
+    {id:'zone_39',name:'鞊∠?憛?璅?,sub:'Lv.43'},
+    {id:'zone_40',name:'鞊∠?憛?璅?,sub:'Lv.43'},
+    {id:'zone_41',name:'鞊∠?憛?璅?,sub:'Lv.43'},
+  ],
+  special:[
+    {id:'antaras_lair',name:'摰??璉脫??,sub:'Lv.93'},
+    {id:'fafurion_lair',name:'瘜??蝛?,sub:'Lv.93'},
+    {id:'valakas_lair',name:'撌湔??⊥撌Ｙ庖',sub:'Lv.95'},
+  ],
+  WORLDBOSS:[
+    {id:'wb_sema',name:'镼輻',lv:42},{id:'wb_batus',name:'撌游???,lv:43},
+    {id:'wb_casper',name:'?∪ㄚ??,lv:44},{id:'wb_marcus',name:'擐砍澈??,lv:45},
+    {id:'wb_ifrit',name:'隡??拍',lv:45},{id:'wb_wyvern',name:'憌?',lv:48},
+    {id:'wb_blackelder',name:'暺??,lv:50},{id:'wb_doppel',name:'霈耦?芷???,lv:50},
+    {id:'wb_baphomet',name:'撌湧◢??,lv:50},{id:'wb_kurt',name:'?',lv:51},
+    {id:'wb_dk',name:'甇颱滿擉ㄚ',lv:52},{id:'wb_ice',name:'?唬?憟喟?',lv:56},
+    {id:'wb_antqueen',name:'撌刻憟喟?',lv:57},{id:'wb_phoenix',name:'銝香曈?,lv:59},
+    {id:'wb_demon',name:'?⊿?',lv:61},
+  ],
+};
+
+// Build zone ID lookup (Chinese name -> zone ID)
+function buildZoneNameLookup(){
+  var m={};
+  [ZONES.town,ZONES.wild,ZONES.dungeon,ZONES.special].forEach(function(arr){
+    (arr||[]).forEach(function(z){if(z.id&&z.name)m[z.name]=z.id});
+  });
+  return m;
+}
+var ZONE_NAME_LOOKUP=buildZoneNameLookup();
+
+function sendZone(zoneId){
+  if(window.__ws){
+    window.__ws.send('42["setZone","'+zoneId+'"]');
+    console.log('[GM] Teleport:',zoneId);
+  }
+}
+
+function sendCmd(cmd){
+  if(window.__ws){
+    window.__ws.send('42["'+cmd+'"]');
+    console.log('[GM] Cmd:',cmd);
+  }
+}
+
+// Farming script
+function startFarming(){
+  var zoneSelect=document.getElementById('__gmp_farm_zone');
+  var hpInput=document.getElementById('__gmp_farm_hp');
+  var mpInput=document.getElementById('__gmp_farm_mp');
+  var hpCheck=document.getElementById('__gmp_farm_hp_chk');
+  var mpCheck=document.getElementById('__gmp_farm_mp_chk');
+  var hpGtInput=document.getElementById('__gmp_farm_hp_gt');
+  var mpGtInput=document.getElementById('__gmp_farm_mp_gt');
+  var hpGtCheck=document.getElementById('__gmp_farm_hp_gt_chk');
+  var mpGtCheck=document.getElementById('__gmp_farm_mp_gt_chk');
+  var logicSelect=document.getElementById('__gmp_farm_logic');
+  var logicCheck=document.getElementById('__gmp_farm_logic_chk');
+  var atkCheck=document.getElementById('__gmp_farm_atk');
+  var reconnectCheck=document.getElementById('__gmp_farm_reconnect');
+  var charNameInput=document.getElementById('__gmp_farm_char_name');
+  var reconnectIntervalInput=document.getElementById('__gmp_farm_reconnect_interval');
+  var btn=document.getElementById('__gmp_farm_btn');
+  var status=document.getElementById('__gmp_farm_status');
+
+  var farmZone=zoneSelect.value||'';
+  var hpThresh=parseInt(hpInput.value)||0;
+  var mpThresh=parseInt(mpInput.value)||0;
+  var hpGtThresh=parseInt(hpGtInput.value)||0;
+  var mpGtThresh=parseInt(mpGtInput.value)||0;
+  var hpEnabled=hpCheck.checked;
+  var mpEnabled=mpCheck.checked;
+  var hpGtEnabled=hpGtCheck.checked;
+  var mpGtEnabled=mpGtCheck.checked;
+  var logicOp=logicSelect.value;
+  var logicEnabled=logicCheck.checked;
+  var autoAtk=atkCheck.checked;
+  var reconnectEnabled=reconnectCheck.checked;
+  var charName=charNameInput.value.trim()||'';
+  var reconnectInterval=parseInt(reconnectIntervalInput.value)||60;
+
+  if(!farmZone){alert('隢??豢????啣?嚗?);return;}
+
+  window.__gmFarming={running:true,timer:null,returning:false,inTown:false,reconnectTimer:null};
+  window.__gmFarming.reconnectEnabled=reconnectEnabled;
+  window.__gmFarming.charName=charName;
+  window.__gmFarming.reconnectInterval=reconnectInterval*1000;
+  window.__gmFarming.lastReconnectCheck=Date.now();
+  btn.textContent='???迫?單';
+  btn.style.background='#e94560';
+  status.textContent='?喲???啣?...';
+  status.style.color='#fbbf24';
+
+  // Immediately teleport to farm zone
+  if(window.__ws)window.__ws.send('42["setZone","'+farmZone+'"]');
+
+  function loop(){
+    if(!window.__gmFarming.running)return;
+    var pkts=(window.__battleStatus||{packets:[]}).packets;
+    var sp=pkts.filter(function(x){return x.type==='receive'&&x.data&&x.data.indexOf('"state"')>-1});
+    gmLog('[GM] loop running, packets:',pkts.length,'state packets:',sp.length);
+    if(!sp.length){window.__gmFarming.timer=setTimeout(loop,1000);return;}
+    try{
+      var d=JSON.parse(sp[sp.length-1].data.substring(2))[1];
+      var c=d.char||{};
+      var hp=c.hp||0,maxHp=c.maxHp||1;
+      var mp=c.mp||0,maxMp=c.maxMp||1;
+      var zoneName=d.zoneName||d.zone||'';
+      var mode=d.mode||'';
+      // Resolve zone ID: try d.zoneId first, then lookup by Chinese name
+      var zoneId=d.zoneId||ZONE_NAME_LOOKUP[zoneName]||zoneName||'';
+      // Check if in town: by mode='lobby' or zone name contains town keywords
+      var isInTown=mode==='lobby'||
+                   zoneName.indexOf('憭批輒')>-1||zoneName.indexOf('憭批?')>-1||
+                   zoneName.indexOf('??)>-1||zoneName.indexOf('摰')>-1;
+      
+      console.log('[GM] mode:',mode,'zoneName:',zoneName,'isInTown:',isInTown,'HP:',Math.round(hp/maxHp*100)+'%','MP:',Math.round(mp/maxMp*100)+'%');
+      
+      // Update inTown state
+      window.__gmFarming.inTown=isInTown;
+
+      // Auto attack only when in the selected farming zone
+      if(autoAtk&&!window.__gmFarming.returning&&!isInTown&&zoneId===farmZone){
+        if(window.__ws){
+          window.__ws.send('42["attack"]');
+          status.textContent='?餅?銝?..';
+        }
+      }
+
+      // Check HP/MP thresholds (return to lobby)
+      var hpPct=hp/maxHp;
+      var mpPct=mp/maxMp;
+      var needReturn=false;
+      var hpLow=hpEnabled&&hpPct<(hpThresh/100);
+      var mpLow=mpEnabled&&mpPct<(mpThresh/100);
+
+      if(logicEnabled&&logicOp==='AND'){
+        needReturn=hpLow&&mpLow;
+      } else if(logicEnabled&&logicOp==='OR'){
+        needReturn=hpLow||mpLow;
+      } else {
+        // No logic checkbox: any enabled condition triggers return
+        if(hpLow)needReturn=true;
+        if(mpLow)needReturn=true;
+      }
+
+      // Feature 1: Return to lobby when HP/MP low
+      if(needReturn&&!window.__gmFarming.returning){
+        window.__gmFarming.returning=true;
+        if(window.__ws)window.__ws.send('42["toLobby"]');
+        status.textContent='HP/MP銝雲嚗??之撱?..';
+        status.style.color='#fbbf24';
+      }
+
+      // Feature 2: Auto teleport to farm when HP/MP > threshold (in town)
+      // Triggered when in town AND HP/MP above thresholds
+      if(isInTown){
+        var hpGtOk=hpGtEnabled&&hpPct>(hpGtThresh/100);
+        var mpGtOk=mpGtEnabled&&mpPct>(mpGtThresh/100);
+        console.log('[GM] In town, HP:',Math.round(hpPct*100)+'%, MP:',Math.round(mpPct*100)+'%, hpGtOk:',hpGtOk,'mpGtOk:',mpGtOk);
+        if(hpGtOk||mpGtOk){
+          console.log('[GM] Teleporting to farm zone:',farmZone);
+          if(window.__ws)window.__ws.send('42["setZone","'+farmZone+'"]');
+          status.textContent='HP/MP?雲嚗??璈?..';
+          status.style.color='#4ade80';
+          window.__gmFarming.returning=false;
+        }
+      }
+      
+      // Reset returning state when left town (entered farm zone)
+      if(!isInTown&&window.__gmFarming.returning){
+        window.__gmFarming.returning=false;
+      }
+    }catch(e){}
+    window.__gmFarming.timer=setTimeout(loop,1000);
+  }
+  loop();
+
+  // === ?瑞???炎皜?===
+  function checkReconnect(){
+    if(!window.__gmFarming.running)return;
+    if(!window.__gmFarming.reconnectEnabled||!window.__gmFarming.charName){
+      window.__gmFarming.reconnectTimer=setTimeout(checkReconnect,window.__gmFarming.reconnectInterval);
+      return;
+    }
+    
+    var charName=window.__gmFarming.charName;
+    
+    // 瑼Ｘ葫?臬?刻??脤??ｇ?瑼Ｘ葫 #slots ??.char-slot ?臬摮嚗?    var slotsDiv=document.getElementById('slots');
+    var charSlots=document.querySelectorAll('.char-slot');
+    var isOnCharSelect=slotsDiv!==null||charSlots.length>0;
+    
+    if(isOnCharSelect){
+      console.log('[GM] ?瑞?瑼Ｘ葫嚗閫?豢??恍嚗?閰阡????脫局...');
+      status.textContent='?? ?瑞?瑼Ｘ葫銝哨??岫??..';
+      status.style.color='#fbbf24';
+      
+      // ?岫?曉?閫?迂??.char-slot 銝阡???      var clicked=false;
+      charSlots.forEach(function(slot){
+        if(slot.innerHTML.indexOf(charName)>-1){
+          var emptyDiv=slot.querySelector('.empty');
+          if(!emptyDiv){
+            console.log('[GM] ?曉閫瑽踝?暺??脣...');
+            slot.click();
+            clicked=true;
+            status.textContent='?? 暺?閫?脣?...';
+            status.style.color='#4ade80';
+          }
+        }
+      });
+      
+      if(!clicked){
+        console.log('[GM] ?芣?啗??脫局嚗?閰阡??遙雿?????..');
+        // ?嚗??洵銝??閫??瑽?        var firstChar=document.querySelector('.char-slot:not(.empty)');
+        if(firstChar){
+          firstChar.click();
+          clicked=true;
+          console.log('[GM] 暺?蝚砌????脫局...');
+        }
+      }
+    }
+    
+    window.__gmFarming.reconnectTimer=setTimeout(checkReconnect,window.__gmFarming.reconnectInterval);
+  }
+  // 撱園??瑼Ｘ葫
+  window.__gmFarming.reconnectTimer=setTimeout(checkReconnect,window.__gmFarming.reconnectInterval);
+}
+
+function stopFarming(){
+  window.__gmFarming.running=false;
+  if(window.__gmFarming.timer){clearTimeout(window.__gmFarming.timer);window.__gmFarming.timer=null;}
+  if(window.__gmFarming.reconnectTimer){clearTimeout(window.__gmFarming.reconnectTimer);window.__gmFarming.reconnectTimer=null;}
+  window.__gmFarming.returning=false;
+  var btn=document.getElementById('__gmp_farm_btn');
+  var status=document.getElementById('__gmp_farm_status');
+  if(btn){btn.textContent='?????單';btn.style.background='#0f3460'}
+  if(status){status.textContent='撌脣?甇?;status.style.color='#888'}
+}
+
+// Main panel build
+function __gmBuildPanel(){
+  var old=document.getElementById('__gmp');if(old)old.remove();
+  var isExpanded=true;var zoom=1;
+  var activeTab='game';
+  var activeZoneTab='town';
+  var p=document.createElement('div');p.id='__gmp';
+  Object.assign(p.style,{position:'fixed',top:'10px',right:'10px',width:'300px',background:'linear-gradient(135deg,#1a1a2e,#16213e)',border:'2px solid #0f3460',borderRadius:'12px',padding:'12px',fontFamily:'Segoe UI',color:'#fff',zIndex:'999999',boxShadow:'0 4px 20px rgba(0,0,0,0.5)',cursor:'move'});
+
+  p.innerHTML=
+  '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #0f3460;">'+
+  '<div style="display:flex;align-items:center;gap:6px;">'+
+    '<button id="__gmp_tab_game" style="padding:5px 9px;background:#0f3460;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">???/button>'+
+    '<button id="__gmp_tab_zone" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">?啣?</button>'+
+    '<button id="__gmp_tab_farm" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">??</button>'+
+    '<button id="__gmp_tab_boss" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">??BOSS</button>'+
+    '<span id="__gmp_ver" style="font-size:10px;color:#4ade80;font-weight:bold;">'+ver+'</span>'+
+  '</div>'+
+  '<div style="display:flex;gap:3px;">'+
+    '<button id="__gmp_expand" style="background:#0f3460;border:none;color:#fff;width:22px;height:22px;border-radius:4px;cursor:pointer;font-size:12px;">??/button>'+
+    '<button id="__gmp_zoom_in" style="background:#333;border:none;color:#fff;width:20px;height:20px;border-radius:4px;cursor:pointer;font-size:12px;">+</button>'+
+    '<button id="__gmp_zoom_out" style="background:#333;border:none;color:#fff;width:20px;height:20px;border-radius:4px;cursor:pointer;font-size:12px;">-</button>'+
+    '<button id="__gmp_close" style="background:#e94560;border:none;color:#fff;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:12px;">X</button>'+
+  '</div>'+
+  '</div>'+
+  '<div id="__gmp_content">'+
+    // === GAME TAB ===
+    '<div id="__gmp_tab_content_game" style="display:block;">'+
+    '<div style="display:flex;gap:5px;margin-bottom:8px;">'+
+      '<button id="__gmp_lobby" style="flex:1;padding:6px 0;background:#e94560;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">?? 餈?憭批輒</button>'+
+      '<button id="__gmp_zone_town" style="flex:1;padding:6px 0;background:#0f3460;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:11px;">?? ?擉ㄚ??/button>'+
+    '</div>'+
+    '<div style="background:rgba(255,255,255,0.05);padding:8px;border-radius:6px;margin-bottom:8px;">'+
+      '<div id="__gmp_name" style="font-weight:bold;color:#ffd700;font-size:14px;">Loading...</div>'+
+      '<div id="__gmp_info" style="font-size:11px;color:#aaa;">Lv.?</div>'+
+    '</div>'+
+    '<div style="margin-bottom:5px;">'+
+      '<div style="display:flex;justify-content:space-between;"><span style="color:#e94560;">HP</span><span id="__gmp_hp_text" style="color:#e94560;">--/--</span></div>'+
+      '<div style="background:#3a1a1a;border-radius:4px;height:14px;"><div id="__gmp_hp_bar" style="width:0%;background:#e94560;height:100%;border-radius:4px;"></div></div>'+
+    '</div>'+
+    '<div style="margin-bottom:5px;">'+
+      '<div style="display:flex;justify-content:space-between;"><span style="color:#00d9ff;">MP</span><span id="__gmp_mp_text" style="color:#00d9ff;">--/--</span></div>'+
+      '<div style="background:#1a2a3a;border-radius:4px;height:10px;"><div id="__gmp_mp_bar" style="width:0%;background:#00d9ff;height:100%;border-radius:4px;"></div></div>'+
+    '</div>'+
+    '<div style="margin-bottom:6px;">'+
+      '<div style="display:flex;justify-content:space-between;"><span style="color:#ffd700;">EXP</span><span id="__gmp_exp_text" style="color:#ffd700;">--%</span></div>'+
+      '<div style="background:#3a3a1a;border-radius:4px;height:8px;"><div id="__gmp_exp_bar" style="width:0%;background:#ffd700;height:100%;border-radius:4px;"></div></div>'+
+    '</div>'+
+    '<div style="display:flex;gap:5px;margin-bottom:6px;">'+
+      '<div style="flex:1;background:rgba(255,255,255,0.05);padding:5px 8px;border-radius:4px;">'+
+        '<span style="color:#888;font-size:10px;">GOLD </span><span id="__gmp_gold" style="color:#ffd700;font-weight:bold;">--</span>'+
+      '</div>'+
+      '<div style="flex:1;background:rgba(255,255,255,0.05);padding:5px 8px;border-radius:4px;text-align:center;">'+
+        '<span style="color:#888;font-size:10px;">? </span><span id="__gmp_online" style="color:#7bd14a;font-weight:bold;">--</span>'+
+      '</div>'+
+    '</div>'+
+    '<div style="background:rgba(255,255,255,0.05);padding:6px;border-radius:4px;">'+
+      '<div style="font-weight:bold;margin-bottom:3px;font-size:11px;">? MONSTERS</div>'+
+      '<div id="__gmp_mobs" style="font-size:11px;color:#aaa;">...</div>'+
+    '</div>'+
+    '</div>'+
+    // === ZONE TAB ===
+    '<div id="__gmp_tab_content_zone" style="display:none;">'+
+    '<input id="__gmp_search" placeholder="?? ??..." style="width:100%;padding:6px 8px;background:rgba(255,255,255,0.08);border:1px solid #0f3460;border-radius:6px;color:#fff;font-size:11px;margin-bottom:6px;outline:none;box-sizing:border-box;">'+
+    '<div style="display:flex;gap:3px;margin-bottom:6px;flex-wrap:wrap;">'+
+      '<button class="__gmp_st active" data-t="town" style="padding:4px 7px;background:#0f3460;border:none;color:#fff;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">??/button>'+
+      '<button class="__gmp_st" data-t="wild" style="padding:4px 7px;background:#333;border:none;color:#aaa;border-radius:5px;cursor:pointer;font-size:10px;">??</button>'+
+      '<button class="__gmp_st" data-t="dungeon" style="padding:4px 7px;background:#333;border:none;color:#aaa;border-radius:5px;cursor:pointer;font-size:10px;">?啁</button>'+
+      '<button class="__gmp_st" data-t="special" style="padding:4px 7px;background:#333;border:none;color:#aaa;border-radius:5px;cursor:pointer;font-size:10px;">????/button>'+
+    '</div>'+
+    '<div id="__gmp_boss_list" style="max-height:180px;overflow-y:auto;margin-bottom:4px;display:none;"></div>'+
+    '<div id="__gmp_zone_list" style="max-height:180px;overflow-y:auto;"></div>'+
+    '</div>'+
+    // === BOSS TAB ===
+    '<div id="__gmp_tab_content_boss" style="display:none;">'+
+    '<div style="background:rgba(255,255,255,0.06);padding:8px;border-radius:6px;margin-bottom:8px;">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">'+'<span id="__gmp_boss_name" style="font-weight:bold;color:#e94560;font-size:12px;">--</span>'+
+      '<span id="__gmp_boss_lv" style="font-size:11px;color:#aaa;"></span></div>'+
+      '<div style="margin-bottom:4px;"><div style="display:flex;justify-content:space-between;font-size:10px;color:#888;margin-bottom:2px;"><span>BOSS HP</span><span id="__gmp_boss_hp_text" style="color:#e94560;">--/--</span></div>'+
+      '<div style="background:#3a1a1a;border-radius:4px;height:14px;"><div id="__gmp_boss_hp_bar" style="width:0%;background:#e94560;height:100%;border-radius:4px;transition:width 0.3s;"></div></div></div>'+
+      '<div id="__gmp_boss_buffs" style="font-size:10px;color:#86c5ff;margin-top:4px;"></div>'+
+    '</div>'+
+    '<div style="margin-bottom:8px;">'+'<div style="font-size:10px;color:#888;margin-bottom:4px;">?瑕閮?</div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">'+'<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">??</span> ?交偌 <span id="__gmp_cd_pot" style="color:#4ade80;float:right;">撠梁?</span></div>'+
+      '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">??</span> ?餅? <span id="__gmp_cd_atk" style="color:#4ade80;float:right;">撠梁?</span></div>'+
+      '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">??</span> 瘝餌? <span id="__gmp_cd_heal" style="color:#4ade80;float:right;">撠梁?</span></div>'+
+      '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">??</span> 頧? <span id="__gmp_cd_convert" style="color:#4ade80;float:right;">撠梁?</span></div>'+
+      '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">?儭?/span> 撅? <span id="__gmp_cd_barrier" style="color:#4ade80;float:right;">撠梁?</span></div>'+
+    '</div></div>'+
+    '<div style="margin-bottom:8px;">'+'<div style="font-size:10px;color:#888;margin-bottom:4px;">???誘嚗?亦??</div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">'+'<button id="__gmp_boss_pot" style="padding:8px;background:#1a4a1a;border:1px solid #2a6a2a;color:#4ade80;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">?? ?交偌</button>'+
+      '<button id="__gmp_boss_atk" style="padding:8px;background:#2a1a1a;border:1px solid #6a2a2a;color:#f87171;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">?? ?餅?</button>'+
+      '<button id="__gmp_boss_heal" style="padding:8px;background:#1a2a1a;border:1px solid #2a5a2a;color:#86efac;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">?? 瘝餌?</button>'+
+      '<button id="__gmp_boss_convert" style="padding:8px;background:#1a1a4a;border:1px solid #2a2a7a;color:#a5b4fc;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">?? 頧?</button>'+
+      '<button id="__gmp_boss_barrier" style="padding:8px;background:#1a1a3a;border:1px solid #3a3a8a;color:#818cf8;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">?儭?撅?</button>'+
+      '<button id="__gmp_boss_holy" style="padding:8px;background:#2a1a2a;border:1px solid #6a2a6a;color:#d8b4fe;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">??蟡?</button>'+
+    '</div></div>'+
+    '<div style="margin-bottom:8px;">'+'<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">'+'<input type="checkbox" id="__gmp_boss_bypass" style="width:14px;height:14px;cursor:pointer;">'+'<label for="__gmp_boss_bypass" style="font-size:11px;color:#ffd700;cursor:pointer;">?? 閫??瑕?嚗?鈭?亦???∟?????嚗?/label></div>'+
+      '<div style="font-size:10px;color:#555;padding-left:22px;">?? 隡箸??其???霅?鳴?摰Ｘ蝡?bypass 霈??隞乩??湔?</div>'+
+    '</div>'+
+    '<div style="margin-bottom:8px;">'+'<div style="font-size:10px;color:#888;margin-bottom:4px;">?芸???</div>'+
+      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+'<input type="checkbox" id="__gmp_boss_auto_pot" style="width:13px;height:13px;cursor:pointer;">'+'<label for="__gmp_boss_auto_pot" style="font-size:10px;color:#4ade80;cursor:pointer;">?? HP&lt;</label>'+
+      '<input id="__gmp_boss_auto_hp" type="number" value="50" min="1" max="100" style="width:45px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;text-align:center;">'+'<span style="font-size:10px;color:#555;">%</span></div>'+
+      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+'<input type="checkbox" id="__gmp_boss_auto_heal" style="width:13px;height:13px;cursor:pointer;">'+'<label for="__gmp_boss_auto_heal" style="font-size:10px;color:#86efac;cursor:pointer;">?? ?芸?瘝餌?擳?</label></div>'+
+      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+'<input type="checkbox" id="__gmp_boss_auto_barrier" style="width:13px;height:13px;cursor:pointer;">'+'<label for="__gmp_boss_auto_barrier" style="font-size:10px;color:#818cf8;cursor:pointer;">?儭?Boss HP&lt;</label>'+
+      '<input id="__gmp_boss_auto_barrier_pct" type="number" value="30" min="1" max="100" style="width:45px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;text-align:center;">'+'<span style="font-size:10px;color:#555;">%</span></div>'+
+      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+'<input type="checkbox" id="__gmp_boss_auto_atk" style="width:13px;height:13px;cursor:pointer;">'+'<label for="__gmp_boss_auto_atk" style="font-size:10px;color:#f87171;cursor:pointer;">?? ?芸??餅?</label></div>'+
+      '<div id="__gmp_boss_auto_status" style="font-size:10px;color:#888;text-align:center;margin-bottom:6px;">?迫銝?/div>'+
+      '<button id="__gmp_boss_auto_btn" style="width:100%;padding:8px;background:#0f3460;border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:12px;font-weight:bold;">?????芸?BOSS</button>'+
+    '</div>'+
+    '<div style="margin-bottom:6px;">'+'<div style="font-size:10px;color:#888;margin-bottom:4px;">? Socket.IO ???/div>'+
+      '<div style="display:flex;gap:6px;margin-bottom:4px;">'+'<span style="font-size:10px;color:#888;">??: </span><span id="__gmp_sock_status" style="font-size:10px;color:#ffd700;">瑼Ｘ葫銝?..</span></div>'+
+      '<div style="font-size:10px;color:#888;">撌脫??? <span id="__gmp_sock_sent" style="color:#4ade80;">0</span> ?潮?/ <span id="__gmp_sock_evts" style="color:#00d9ff;">0</span> 鈭辣</div>'+
+    '</div>'+
+    '</div>'+
+    // === FARM TAB ===
+    '<div id="__gmp_tab_content_farm" style="display:none;">'+
+    '<div style="margin-bottom:8px;">'+
+      '<div style="font-size:10px;color:#888;margin-bottom:3px;">???啣?</div>'+
+      '<input id="__gmp_farm_search" placeholder="????/?啁?迂..." '+
+        'style="width:100%;padding:5px 8px;background:#2a2a4a;border:1px solid #0f3460;border-radius:6px;'+
+        'color:#aaa;font-size:11px;outline:none;box-sizing:border-box;margin-bottom:4px;display:block;">'+
+      '<select id="__gmp_farm_zone" size="6" '+
+        'style="width:100%;background:#1a1a2e;border:1px solid #0f3460;border-radius:6px;'+
+        'color:#fff;font-size:11px;outline:none;box-sizing:border-box;cursor:pointer;padding:2px 4px;">'+
+      '</select>'+
+    '</div>'+
+    // HP row
+    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
+      '<input type="checkbox" id="__gmp_farm_hp_chk" checked style="width:14px;height:14px;cursor:pointer;">'+
+      '<span style="font-size:10px;color:#e94560;width:50px;">HP雿</span>'+
+      '<input id="__gmp_farm_hp" type="number" value="20" min="1" max="100" style="width:55px;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;text-align:center;">'+
+      '<span style="font-size:10px;color:#888;">% 餈?憭批輒</span>'+
+    '</div>'+
+    // MP row
+    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
+      '<input type="checkbox" id="__gmp_farm_mp_chk" checked style="width:14px;height:14px;cursor:pointer;">'+
+      '<span style="font-size:10px;color:#00d9ff;width:50px;">MP雿</span>'+
+      '<input id="__gmp_farm_mp" type="number" value="10" min="1" max="100" style="width:55px;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;text-align:center;">'+
+      '<span style="font-size:10px;color:#888;">% 餈?憭批輒</span>'+
+    '</div>'+
+    // Logic operator AND/OR
+    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
+      '<input type="checkbox" id="__gmp_farm_logic_chk" checked style="width:14px;height:14px;cursor:pointer;">'+
+      '<span style="font-size:10px;color:#ffd700;width:50px;">璇辣</span>'+
+      '<select id="__gmp_farm_logic" style="padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;">'+
+        '<option value="AND">AND (銝?</option>'+
+        '<option value="OR" selected>OR (??</option>'+
+      '</select>'+
+      '<span style="font-size:10px;color:#888;">蝯??斗</span>'+
+    '</div>'+
+    // HP > condition
+    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
+      '<input type="checkbox" id="__gmp_farm_hp_gt_chk" checked style="width:14px;height:14px;cursor:pointer;">'+
+      '<span style="font-size:10px;color:#4ade80;width:50px;">HP憭扳</span>'+
+      '<input id="__gmp_farm_hp_gt" type="number" value="90" min="1" max="100" style="width:55px;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;text-align:center;">'+
+      '<span style="font-size:10px;color:#888;">% ?喲?璈?/span>'+
+    '</div>'+
+    // MP > condition
+    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
+      '<input type="checkbox" id="__gmp_farm_mp_gt_chk" checked style="width:14px;height:14px;cursor:pointer;">'+
+      '<span style="font-size:10px;color:#7bd14a;width:50px;">MP憭扳</span>'+
+      '<input id="__gmp_farm_mp_gt" type="number" value="90" min="1" max="100" style="width:55px;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;text-align:center;">'+
+      '<span style="font-size:10px;color:#888;">% ?喲?璈?/span>'+
+    '</div>'+
+    // Auto reconnect (?瑞???
+    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
+      '<input type="checkbox" id="__gmp_farm_reconnect" checked style="width:14px;height:14px;cursor:pointer;">'+
+      '<span style="font-size:10px;color:#ffd700;">?? ?瑞???/span>'+
+      '<input id="__gmp_farm_char_name" type="text" placeholder="閫?迂" style="flex:1;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;">'+
+    '</div>'+
+    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:10px;color:#888;">'+
+      '瑼Ｘ葫?? <input id="__gmp_farm_reconnect_interval" type="number" value="60" min="10" max="300" style="width:50px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;outline:none;text-align:center;"> 蝘?+
+    '</div>'+
+    // Auto attack
+    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">'+
+      '<input type="checkbox" id="__gmp_farm_atk" checked style="width:14px;height:14px;cursor:pointer;">'+
+      '<span style="font-size:11px;color:#7bd14a;font-weight:bold;">?? ?芸??餅?</span>'+
+    '</div>'+
+    // Status
+    '<div id="__gmp_farm_status" style="font-size:10px;color:#888;margin-bottom:6px;text-align:center;">撌脣?甇?/div>'+
+    // Test Reconnect button
+    '<button id="__gmp_farm_test_reconnect" style="width:100%;padding:6px;background:#2a2a4a;border:1px solid #ffd700;color:#ffd700;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;margin-bottom:8px;">?妒 皜祈岫?瑞???/button>'+
+    // Start/Stop button
+    '<button id="__gmp_farm_btn" style="width:100%;padding:9px;background:#0f3460;border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:12px;font-weight:bold;">?????單</button>'+
+    '</div>'+
+  '</div>';
+  document.body.appendChild(p);
+
+  // === Populate farm zone select ===
+  var farmSel=document.getElementById('__gmp_farm_zone');
+  var farmSearch=document.getElementById('__gmp_farm_search');
+  function populateFarmZones(filter){
+    var f=(filter||'').toLowerCase();
+    farmSel.innerHTML='';
+    var allZones=[
+      {list:ZONES.wild,label:'-- ?? --'},
+      {list:ZONES.dungeon,label:'-- ?啁 --'}
+    ];
+    allZones.forEach(function(g){
+      var opts=g.list.filter(function(z){
+        return !f||z.name.toLowerCase().indexOf(f)>-1||(z.sub||'').toLowerCase().indexOf(f)>-1;
+      });
+      if(!opts.length)return;
+      var og=document.createElement('optgroup');
+      og.label=g.label;
+      opts.forEach(function(z){
+        var o=document.createElement('option');
+        o.value=z.id;
+        o.textContent=z.name+' ('+z.sub+')';
+        og.appendChild(o);
+      });
+      farmSel.appendChild(og);
+    });
+  }
+  populateFarmZones('');
+  farmSearch.addEventListener('input',function(){populateFarmZones(this.value)});
+
+  // === Zone tab functions ===
+  function buildZoneItem(z){
+    var div=document.createElement('div');
+    div.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:5px 8px;background:rgba(255,255,255,0.04);border-radius:5px;margin-bottom:2px;cursor:pointer;border:1px solid transparent;transition:all 0.15s;';
+    div.innerHTML='<span style="font-size:11px;">'+z.name+'</span><span style="font-size:10px;color:#888;">'+(z.sub||'')+'</span>';
+    div.onmouseover=function(){this.style.background='rgba(255,255,255,0.1)';this.style.borderColor='#0f3460'};
+    div.onmouseout=function(){this.style.background='rgba(255,255,255,0.04)';this.style.borderColor='transparent'};
+    div.onclick=function(){
+      sendZone(z.id);
+      this.style.background='#0f3460';
+      setTimeout(function(){div.style.background='rgba(255,255,255,0.04)'},300);
+    };
+    return div;
+  }
+
+  function buildBossItem(b){
+    var div=document.createElement('div');
+    div.style.cssText='display:flex;align-items:center;padding:5px 8px;background:rgba(233,69,96,0.08);border-radius:5px;margin-bottom:2px;cursor:pointer;border:1px solid rgba(233,69,96,0.3);transition:all 0.15s;';
+    div.innerHTML='<span style="font-size:11px;color:#e94560;">?? '+b.name+'</span><span style="font-size:10px;color:#888;margin-left:auto;">Lv.'+b.lv+'</span>';
+    div.onmouseover=function(){this.style.background='rgba(233,69,96,0.2)'};
+    div.onmouseout=function(){this.style.background='rgba(233,69,96,0.08)'};
+    div.onclick=function(){
+      if(window.__ws)window.__ws.send('42["gotoWorldBoss","'+b.id+'"]');
+      this.style.background='rgba(233,69,96,0.4)';
+      setTimeout(function(){div.style.background='rgba(233,69,96,0.08)'},300);
+    };
+    return div;
+  }
+
+  function renderZones(tab){
+    activeZoneTab=tab;
+    var list=document.getElementById('__gmp_zone_list');
+    var bossList=document.getElementById('__gmp_boss_list');
+    list.innerHTML='';
+    bossList.style.display='none';
+    list.style.display='block';
+    var search=(document.getElementById('__gmp_search')||{value:''}).value.trim().toLowerCase();
+    if(tab==='special'){
+      bossList.style.display='block';
+      bossList.innerHTML='';
+      ZONES.WORLDBOSS.forEach(function(b){if(!search||b.name.toLowerCase().indexOf(search)>-1)bossList.appendChild(buildBossItem(b))});
+      (ZONES.special||[]).forEach(function(z){if(!search||z.name.toLowerCase().indexOf(search)>-1)list.appendChild(buildZoneItem(z))});
+    } else {
+      (ZONES[tab]||[]).forEach(function(z){if(!search||z.name.toLowerCase().indexOf(search)>-1)list.appendChild(buildZoneItem(z))});
+    }
+    document.querySelectorAll('.__gmp_st').forEach(function(b){
+      b.style.background=b.dataset.t===tab?'#0f3460':'#333';
+      b.style.color=b.dataset.t===tab?'#fff':'#aaa';
+      b.style.fontWeight=b.dataset.t===tab?'bold':'normal';
+    });
+  }
+
+  if(document.getElementById('__gmp_search'))document.getElementById('__gmp_search').oninput=function(){renderZones(activeZoneTab)};
+  document.querySelectorAll('.__gmp_st').forEach(function(b){b.onclick=function(){renderZones(this.dataset.t)}});
+
+  // === Tab switching ===
+  function switchTab(tab){
+    activeTab=tab;
+    ['game','zone','farm','boss'].forEach(function(t){
+      var el=document.getElementById('__gmp_tab_content_'+t);
+      if(el)el.style.display=t===tab?'block':'none';
+      var btn=document.getElementById('__gmp_tab_'+t);
+      if(btn){
+        btn.style.background=t===tab?'#0f3460':'#333';
+        btn.style.color=t===tab?'#fff':'#aaa';
+        btn.style.fontWeight=t===tab?'bold':'normal';
+      }
+    });
+    if(tab==='zone')renderZones(activeZoneTab);
+    if(tab==='boss')__wbUpdateBossStatus();
+  }
+  document.getElementById('__gmp_tab_game').onclick=function(){switchTab('game')};
+  document.getElementById('__gmp_tab_zone').onclick=function(){switchTab('zone')};
+  document.getElementById('__gmp_tab_farm').onclick=function(){switchTab('farm')};
+  document.getElementById('__gmp_tab_boss').onclick=function(){switchTab('boss');};   
+
+  // === Control buttons ===
+  document.getElementById('__gmp_lobby').onclick=function(){sendCmd('toLobby')};
+  document.getElementById('__gmp_zone_town').onclick=function(){sendZone('town_silver_knight')};
+  document.getElementById('__gmp_close').onclick=function(){stopFarming();document.getElementById('__gmp').remove()};
+  document.getElementById('__gmp_expand').onclick=function(){
+    isExpanded=!isExpanded;
+    document.getElementById('__gmp_content').style.display=isExpanded?'block':'none';
+    this.textContent=isExpanded?'??:'??;
+  };
+  document.getElementById('__gmp_zoom_in').onclick=function(){zoom=Math.min(zoom+0.1,2);p.style.transform='scale('+zoom+')'};
+  document.getElementById('__gmp_zoom_out').onclick=function(){zoom=Math.max(zoom-0.1,0.5);p.style.transform='scale('+zoom+')'};
+
+  // === Farm button ===
+  document.getElementById('__gmp_farm_btn').onclick=function(){
+    if(window.__gmFarming.running){
+      stopFarming();
+    } else {
+      startFarming();
+    }
+  };
+
+  // === BOSS Tab Handlers ===
+  function __wbUpdateBossStatus(){
+    var ls=window.lastState||{};
+    var ch=ls.char||{};
+    var boss=ls.boss||{};
+    var cd=boss.cd||{};
+    var mode=ls.mode||'';
+    // Boss name
+    var nameEl=document.getElementById('__gmp_boss_name');
+    var lvEl=document.getElementById('__gmp_boss_lv');
+    if(nameEl)nameEl.textContent=boss.name?(boss.name+' (Lv.'+boss.lv+')'):'-- ?∩??? --';
+    if(lvEl)lvEl.textContent='mode: '+mode;
+    // Boss HP bar
+    var hpEl=document.getElementById('__gmp_boss_hp_text');
+    var hpBar=document.getElementById('__gmp_boss_hp_bar');
+    if(hpEl)hpEl.textContent=boss.hp?(boss.hp+'/'+boss.maxHp):'--/--';
+    if(hpBar){
+      var pct=boss.maxHp>0?Math.round(boss.hp/boss.maxHp*100):0;
+      hpBar.style.width=pct+'%';
+      hpBar.style.background=pct>50?'#e94560':pct>25?'#fbbf24':'#dc2626';
+    }
+    // Buffs
+    var bufEl=document.getElementById('__gmp_boss_buffs');
+    if(bufEl){
+      var parts=[];
+      if(boss.barrierOn)parts.push('?儭?撅? ON');
+      if(boss.barrierHas)parts.push('? ????);
+      bufEl.textContent=parts.length?parts.join(' | '):'';
+    }
+    // Cooldown timers
+    var keys=['pot','atk','heal','convert','barrier'];
+    keys.forEach(function(k){
+      var el=document.getElementById('__gmp_cd_'+k);
+      if(!el)return;
+      var v=cd[k]||0;
+      if(v>0.05){
+        el.textContent=v.toFixed(1)+'s';
+        el.style.color='#e94560';
+      } else {
+        el.textContent='撠梁?';
+        el.style.color='#4ade80';
+      }
+    });
+    // Socket status
+    var sockEl=document.getElementById('__gmp_sock_status');
+    if(sockEl)sockEl.textContent=window.__wbSocket?'??撌脤?':'???芷?';
+    if(sockEl)sockEl.style.color=window.__wbSocket?'#4ade80':'#e94560';
+    var sentEl=document.getElementById('__gmp_sock_sent');
+    if(sentEl)sentEl.textContent=(window.__wbBossEmitLog||[]).length;
+    var evtEl=document.getElementById('__gmp_sock_evts');
+    if(evtEl)evtEl.textContent=(window.__sioPackets||[]).length;
+  }
+
+  // BOSS manual buttons
+  document.getElementById('__gmp_boss_pot').onclick=function(){__wbSend('pot');};
+  document.getElementById('__gmp_boss_atk').onclick=function(){__wbSend('atk');};
+  document.getElementById('__gmp_boss_heal').onclick=function(){__wbSend('heal');};
+  document.getElementById('__gmp_boss_convert').onclick=function(){__wbSend('convert');};
+  document.getElementById('__gmp_boss_barrier').onclick=function(){__wbSend('barrier');};
+  document.getElementById('__gmp_boss_holy').onclick=function(){__wbSend('holybarrier');};
+
+  // Cooldown bypass toggle
+  document.getElementById('__gmp_boss_bypass').onchange=function(){
+    __wbToggleBypass(this.checked);
+    if(this.checked){
+      this.parentElement.parentElement.style.border='1px solid #ffd700';
+    } else {
+      this.parentElement.parentElement.style.border='none';
+    }
+  };
+
+  // Auto boss
+  function __wbSyncAutoConfig(){
+    var cfg=window.__wbBossAuto.config;
+    cfg.pot=document.getElementById('__gmp_boss_auto_pot').checked;
+    cfg.heal=document.getElementById('__gmp_boss_auto_heal').checked;
+    cfg.barrier=document.getElementById('__gmp_boss_auto_barrier').checked;
+    cfg.atk=document.getElementById('__gmp_boss_auto_atk').checked;
+    cfg.hpPct=parseInt(document.getElementById('__gmp_boss_auto_hp').value)||50;
+    cfg.barrierPct=parseInt(document.getElementById('__gmp_boss_auto_barrier_pct').value)||30;
+  }
+  document.getElementById('__gmp_boss_auto_pot').addEventListener('change',__wbSyncAutoConfig);
+  document.getElementById('__gmp_boss_auto_heal').addEventListener('change',__wbSyncAutoConfig);
+  document.getElementById('__gmp_boss_auto_barrier').addEventListener('change',__wbSyncAutoConfig);
+  document.getElementById('__gmp_boss_auto_atk').addEventListener('change',__wbSyncAutoConfig);
+  document.getElementById('__gmp_boss_auto_hp').addEventListener('input',__wbSyncAutoConfig);
+  document.getElementById('__gmp_boss_auto_barrier_pct').addEventListener('input',__wbSyncAutoConfig);
+
+  document.getElementById('__gmp_boss_auto_btn').onclick=function(){
+    if(window.__wbBossAuto.running){
+      __wbBossAutoStop();
+      this.textContent='?????芸?BOSS';
+      this.style.background='#0f3460';
+      var s=document.getElementById('__gmp_boss_auto_status');
+      if(s){s.textContent='?迫銝?;s.style.color='#888';}
+    } else {
+      __wbSyncAutoConfig();
+      __wbBossAutoStart();
+      this.textContent='???迫?芸?BOSS';
+      this.style.background='#e94560';
+      var s=document.getElementById('__gmp_boss_auto_status');
+      if(s){s.textContent='???芸?BOSS??銝?..';s.style.color='#4ade80';}
+    }
+  };
+
+  // BOSS status update loop
+  var __wbBossUpdTimer=null;
+  function __wbBossStartUpdater(){
+    if(__wbBossUpdTimer)return;
+    __wbBossUpdTimer=setInterval(function(){
+      if(activeTab==='boss')__wbUpdateBossStatus();
+    },500);
+  }
+  __wbBossStartUpdater();
+  
+
+  // === Test Reconnect button ===
+  document.getElementById('__gmp_farm_test_reconnect').onclick=function(){
+    var status=document.getElementById('__gmp_farm_status');
+    var charNameInput=document.getElementById('__gmp_farm_char_name');
+    var charName=charNameInput.value.trim()||'';
+    
+    if(!charName){
+      status.textContent='??隢?頛詨閫?迂';
+      status.style.color='#e94560';
+      return;
+    }
+    
+    status.textContent='?? 皜祈岫銝?..';
+    status.style.color='#ffd700';
+    
+    // 瑼Ｘ葫?臬?刻??脤??ｇ?瑼Ｘ葫 #slots ??.char-slot ?臬摮嚗?    var slotsDiv=document.getElementById('slots');
+    var charSlots=document.querySelectorAll('.char-slot');
+    var isOnCharSelect=slotsDiv!==null||charSlots.length>0;
+    
+    console.log('[GM] 皜祈岫?瑞????閫?迂 "'+charName+'"');
+    console.log('[GM] ?臬?刻??脤??ｇ?', isOnCharSelect);
+    console.log('[GM] ?曉', charSlots.length, '???脫局');
+    
+    if(isOnCharSelect){
+      status.textContent='?? 瑼Ｘ葫?啗??脤??ｇ??岫暺?...';
+      status.style.color='#fbbf24';
+      
+      // ?岫?曉?閫?迂??.char-slot 銝阡???      var clicked=false;
+      charSlots.forEach(function(slot, index){
+        console.log('[GM] 閫瑽?, index, 'HTML:', slot.innerHTML.substring(0, 200));
+        if(slot.innerHTML.indexOf(charName)>-1){
+          var emptyDiv=slot.querySelector('.empty');
+          if(!emptyDiv){
+            console.log('[GM] ?曉閫瑽?, index, '嚗??脣...');
+            slot.click();
+            clicked=true;
+            status.textContent='??撌脤????脫局 '+index+'嚗?;
+            status.style.color='#4ade80';
+          }
+        }
+      });
+      
+      if(!clicked){
+        status.textContent='???芣?啗???"'+charName+'" ?局雿?;
+        status.style.color='#e94560';
+        console.log('[GM] ?芣?啗??脫局');
+      }
+    } else {
+      status.textContent='??銝閫?豢??恍嚗虜?脫迤撣訾葉';
+      status.style.color='#4ade80';
+      console.log('[GM] 銝閫?豢??恍嚗虜?脫迤撣?);
+    }
+  };
+
+  // === Drag ===
+  var drag=false,ox,oy;
+  p.addEventListener('mousedown',function(e){
+    var tn=e.target.tagName;
+    if(tn==='INPUT'||tn==='SELECT'||tn==='BUTTON'||tn==='OPTION'||tn==='OPTGROUP')return;
+    drag=true;ox=e.clientX-p.offsetLeft;oy=e.clientY-p.offsetTop;
+  });
+  document.addEventListener('mousemove',function(e){if(drag){p.style.left=(e.clientX-ox)+'px';p.style.top=(e.clientY-oy)+'px';p.style.right='auto'}});
+  document.addEventListener('mouseup',function(){drag=false});
+
+  // === Status update ===
+  function upd(){
+    var pkts=(window.__battleStatus||{packets:[]}).packets;
+    var sp=pkts.filter(function(x){return x.type==='receive'&&x.data&&x.data.indexOf('"state"')>-1});
+    if(!sp.length)return;
+    try{
+      var d=JSON.parse(sp[sp.length-1].data.substring(2))[1];
+      var c=d.char;
+      if(!c)return;
+      if(document.getElementById('__gmp_name')){
+        document.getElementById('__gmp_name').textContent=c.name||'?';
+        document.getElementById('__gmp_info').textContent='Lv.'+(c.level||'?')+' | '+(d.zoneName||'');
+        document.getElementById('__gmp_hp_text').textContent=(c.hp||0)+'/'+(c.maxHp||0);
+        document.getElementById('__gmp_hp_bar').style.width=Math.round((c.hp||0)/(c.maxHp||1)*100)+'%';
+        document.getElementById('__gmp_mp_text').textContent=(c.mp||0)+'/'+(c.maxMp||0);
+        document.getElementById('__gmp_mp_bar').style.width=Math.round((c.mp||0)/(c.maxMp||1)*100)+'%';
+        document.getElementById('__gmp_exp_text').textContent=Math.round((c.exp||0)/(c.expToNext||1)*100)+'%';
+        document.getElementById('__gmp_exp_bar').style.width=Math.round((c.exp||0)/(c.expToNext||1)*100)+'%';
+        document.getElementById('__gmp_gold').textContent=(c.gold||0).toLocaleString();
+        document.getElementById('__gmp_online').textContent=window.__gmOnlineCount?(window.__gmOnlineCount+'鈭?):'--';
+        var h='';
+        if(d.monsters)d.monsters.forEach(function(m,i){if(m){var pct=Math.round(m.hp/m.maxHp*100);var col=pct>50?'#4ade80':pct>25?'#fbbf24':'#e94560';h+='<div>['+i+'] '+(m.n||'?')+' <span style="color:'+col+';">'+(m.hp||0)+'/'+(m.maxHp||0)+'</span></div>'}});
+        document.getElementById('__gmp_mobs').innerHTML=h||'<span style="color:#888;">none</span>';
+      }
+    }catch(e){}
+  }
+  setInterval(upd,500);
+  upd();
+
+  // === Load saved settings ===
+  loadFarmSettings(function(data){
+    if(!data)return;
+    if(data.farmZone){
+      var opt=document.querySelector('#__gmp_farm_zone option[value="'+data.farmZone+'"]');
+      if(opt)document.getElementById('__gmp_farm_zone').value=data.farmZone;
+    }
+    if(data.hpThresh)document.getElementById('__gmp_farm_hp').value=data.hpThresh;
+    if(data.mpThresh)document.getElementById('__gmp_farm_mp').value=data.mpThresh;
+    document.getElementById('__gmp_farm_hp_chk').checked=data.hpEnabled!==false;
+    document.getElementById('__gmp_farm_mp_chk').checked=data.mpEnabled!==false;
+    if(data.hpGtThresh)document.getElementById('__gmp_farm_hp_gt').value=data.hpGtThresh;
+    if(data.mpGtThresh)document.getElementById('__gmp_farm_mp_gt').value=data.mpGtThresh;
+    document.getElementById('__gmp_farm_hp_gt_chk').checked=data.hpGtEnabled||false;
+    document.getElementById('__gmp_farm_mp_gt_chk').checked=data.mpGtEnabled||false;
+    if(data.logicOp)document.getElementById('__gmp_farm_logic').value=data.logicOp;
+    document.getElementById('__gmp_farm_logic_chk').checked=data.logicEnabled!==false;
+    document.getElementById('__gmp_farm_atk').checked=data.autoAtk!==false;
+    // ?啣?嚗??交蝺???身摰?    if(data.charName)document.getElementById('__gmp_farm_char_name').value=data.charName;
+    document.getElementById('__gmp_farm_reconnect').checked=data.reconnectEnabled!==false;
+    if(data.reconnectInterval)document.getElementById('__gmp_farm_reconnect_interval').value=data.reconnectInterval;
+  });
+
+  // === Auto-save on change ===
+  var farmInputs=['__gmp_farm_zone','__gmp_farm_hp','__gmp_farm_mp','__gmp_farm_hp_chk','__gmp_farm_mp_chk',
+    '__gmp_farm_hp_gt','__gmp_farm_mp_gt','__gmp_farm_hp_gt_chk','__gmp_farm_mp_gt_chk',
+    '__gmp_farm_logic','__gmp_farm_logic_chk','__gmp_farm_atk',
+    '__gmp_farm_char_name','__gmp_farm_reconnect','__gmp_farm_reconnect_interval'];
+  farmInputs.forEach(function(id){
+    var el=document.getElementById(id);
+    if(el){
+      el.addEventListener('change',saveFarmSettings);
+      el.addEventListener('input',saveFarmSettings);
+    }
+  });
+}
+// === Debug log wrapper ===
+window.__gmDebugLog = true;
+function gmLog() {
+  if (window.__gmDebugLog) {
+    console.log.apply(console, arguments);
+  }
+}
+
+// === Dynamically add settings UI ===
+// Add debug log toggle to game tab
+var debugContainer = document.createElement('div');
+debugContainer.style.cssText = 'display:flex;align-items:center;gap:6px;margin-top:8px;margin-bottom:8px;';
+var debugChk = document.createElement('input');
+debugChk.type = 'checkbox';
+debugChk.id = '__gmp_debug_log';
+debugChk.checked = true;
+debugChk.style.cssText = 'width:14px;height:14px;cursor:pointer;';
+debugChk.onchange = function() {
+  window.__gmDebugLog = this.checked;
+};
+var debugLabel = document.createElement('label');
+debugLabel.htmlFor = '__gmp_debug_log';
+debugLabel.style.cssText = 'font-size:10px;color:#aaa;cursor:pointer;';
+debugLabel.textContent = '憿舐內銝餅?啣皜祆隤?;
+debugContainer.appendChild(debugChk);
+debugContainer.appendChild(debugLabel);
+
+// Add export button to game tab
+var exportBtn = document.createElement('button');
+exportBtn.id = '__gmp_export_log';
+exportBtn.textContent = '? ?臬撠???.log';
+exportBtn.style.cssText = 'width:100%;padding:6px;background:#0f3460;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;margin-bottom:8px;';
+exportBtn.onclick = function() {
+  // Export packet logs
+  var logs = [];
+  if (window.__battleStatus && window.__battleStatus.packets) {
+    logs = window.__battleStatus.packets.map(function(p) {
+      return JSON.stringify(p);
+    });
+  }
+  var content = logs.join('\n');
+  var blob = new Blob([content], {type: 'text/plain'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = '撠???_' + new Date().toISOString().slice(0,10) + '.log';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  alert('撌脣??' + logs.length + ' 蝑?????);
+};
+
+// Append to game tab
+setTimeout(function() {
+  var gameTab = document.getElementById('__gmp_tab_content_game');
+  if (gameTab) {
+    gameTab.appendChild(exportBtn);
+    gameTab.appendChild(debugContainer);
+  }
+}, 100);
+
+__gmBuildPanel();
+document.addEventListener('__gm_show_panel',function(){__gmBuildPanel()});
+console.log('[GM] Monitor injected '+ver);
+})();
