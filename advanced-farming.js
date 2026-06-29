@@ -85,18 +85,18 @@
 
   // ====== 技能設定存取（Skills Tab 寫入） ======
   var __gmSkillDB={
-    save:function(charName,skills){
+    save:function(charName,skills,skillNames){
       if(!charName)return Promise.resolve();
       return storageGet(SKILL_KEY).then(function(arr){
         arr=arr||[];
         var found=false;
         for(var i=0;i<arr.length;i++){
           if(arr[i].charName===charName){
-            arr[i]={charName:charName,updatedAt:Date.now(),skills:skills||{}};
+            arr[i]={charName:charName,updatedAt:Date.now(),skills:skills||{},skillNames:skillNames||arr[i].skillNames||{}};
             found=true;break;
           }
         }
-        if(!found)arr.push({charName:charName,updatedAt:Date.now(),skills:skills||{}});
+        if(!found)arr.push({charName:charName,updatedAt:Date.now(),skills:skills||{},skillNames:skillNames||{}});
         return storageSet(SKILL_KEY,arr);
       }).catch(function(e){console.warn('[AdvFarm] skillDB save error:',e)});
     },
@@ -445,13 +445,28 @@
     if(!dl)return;
     __gmSkillDB.getLatest().then(function(rec){
       var skills=rec&&rec.skills||{};
-      var keys=Object.keys(skills).sort();
-      dl.innerHTML=keys.map(function(k){
+      var skillNames=rec&&rec.skillNames||{};
+      // 收集所有獨特 skillId 值（skip 掉非技能的值如數字/布林）
+      var seen={};
+      var options=[];
+      Object.keys(skills).sort().forEach(function(k){
         var v=skills[k];
         var label=typeof v==='object'?(v.label||k):k;
         var val=typeof v==='object'?(v.value||k):v;
-        return '<option value="'+escapeHtml(val)+'">'+escapeHtml(label+' ('+val+')')+'</option>';
-      }).join('');
+        // 若 val 是 skillId 且有中文名稱定義，用中文名稱
+        var displayName=skillNames[val]||null;
+        if(displayName&&!seen[val]){
+          seen[val]=true;
+          options.push('<option value="'+escapeHtml(val)+'">'+escapeHtml(displayName)+' ('+escapeHtml(val)+')</option>');
+        } else if(!displayName){
+          // 一般設定值（數字、開關等）
+          if(!seen[k]){
+            seen[k]=true;
+            options.push('<option value="'+escapeHtml(val)+'">'+escapeHtml(label+' ('+val+')')+'</option>');
+          }
+        }
+      });
+      dl.innerHTML=options.join('');
     });
   }
 

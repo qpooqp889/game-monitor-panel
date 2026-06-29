@@ -602,11 +602,11 @@ function startFarming(){
     if(!d||!d.char){
       gmLog("[GM] loop: no lastState yet");
       window.__gmFarming.timer=setTimeout(loop,1000);
-    // 進階規則評估
+      return;
+    }
+    // 進階規則評估（每次 loop 都會執行，需有完整 state）
     if(window.__gmAdvanced&&window.__gmAdvanced.tick){
       try{window.__gmAdvanced.tick(d)}catch(e){}
-    }
-      return;
     }
     var c=d.char||{};
       var hp=c.hp||0,maxHp=c.maxHp||1;
@@ -1556,22 +1556,37 @@ function __gmBuildPanel(){
       if (sectionData.items.length > 0) window.__pmAuto.boxes.push(sectionData);
     });
 
+    // 建立技能 ID → 中文名稱映射（來自 select 選項的 text）
+    window.__pmSkillNames={};
+    boxes.forEach(function(box){
+      box.querySelectorAll('[data-k]').forEach(function(el){
+        if(el.tagName==='SELECT'){
+          [].forEach.call(el.options,function(o){
+            if(o.value&&o.textContent.trim()){
+              window.__pmSkillNames[o.value]=o.textContent.trim();
+            }
+          });
+        }
+      });
+    });
+
     var cnt = document.getElementById('__gmp_skill_count');
     if (cnt) cnt.textContent = total;
     if (status) { status.textContent = '已讀取 ' + total + ' 項'; status.style.color = '#4ade80'; }
     // 同時寫入 chrome.storage.local（供進階模組下拉使用）
     var skillData=JSON.parse(JSON.stringify(window.__pmAuto.all||{}));
+    var skillNames=JSON.parse(JSON.stringify(window.__pmSkillNames||{}));
     if(charName&&Object.keys(skillData).length){
       __gmStorageGet(['gmSkillSettings']).then(function(result){
         var arr=result&&result.gmSkillSettings||[];
         var found=false;
         for(var i=0;i<arr.length;i++){
           if(arr[i].charName===charName){
-            arr[i]={charName:charName,updatedAt:Date.now(),skills:skillData};
+            arr[i]={charName:charName,updatedAt:Date.now(),skills:skillData,skillNames:skillNames};
             found=true;break;
           }
         }
-        if(!found)arr.push({charName:charName,updatedAt:Date.now(),skills:skillData});
+        if(!found)arr.push({charName:charName,updatedAt:Date.now(),skills:skillData,skillNames:skillNames});
         return __gmStorageSet('gmSkillSettings',arr);
       }).catch(function(e){
         console.warn('[Skill Sync] storage save error:',e);
@@ -1579,7 +1594,7 @@ function __gmBuildPanel(){
     }
     // 若 advanced-farming.js 已載入，同步更新其快取
     if(typeof window.__gmAdvanced!=='undefined'&&window.__gmAdvanced.SkillDB){
-      window.__gmAdvanced.SkillDB.save(charName,skillData);
+      window.__gmAdvanced.SkillDB.save(charName,skillData,skillNames);
     }
     __pmRenderSkillList();
     console.log('[Skill Sync] Read', total, 'items — char:', charName, window.__pmAuto);
