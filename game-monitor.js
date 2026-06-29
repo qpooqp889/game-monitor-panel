@@ -953,23 +953,23 @@ function __gmBuildPanel(){
     // === SKILL TAB ===
     '<div id="__gmp_tab_content_skill" style="display:none;">'+
       '<div style="background:rgba(245,158,11,0.08);padding:8px;border-radius:6px;margin-bottom:8px;">'+
-        '<div style="font-size:11px;color:#f59e0b;font-weight:bold;margin-bottom:6px;">⚡ 自動施法同步</div>'+
-        '<div style="font-size:10px;color:#aaa;margin-bottom:6px;">從遊戲設定面板 (#panel-scroll) 讀取/寫入所有自動施法設定</div>'+
-        '<div style="display:flex;gap:4px;margin-bottom:6px;">'+
-          '<button id="__gmp_skill_read" style="flex:1;padding:8px;background:#1a3a1a;border:1px solid #4ade80;color:#4ade80;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">📥 從遊戲讀取</button>'+
-          '<button id="__gmp_skill_write" style="flex:1;padding:8px;background:#3a1a1a;border:1px solid #f59e0b;color:#f59e0b;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">📤 寫回遊戲</button>'+
+        '<div style="font-size:11px;color:#f59e0b;font-weight:bold;margin-bottom:6px;">⚡ 自動施法設定</div>'+
+        '<div style="font-size:10px;color:#aaa;margin-bottom:6px;">讀取遊戲設定面板內所有控制項，即時同步修改</div>'+
+        '<div style="display:flex;gap:4px;margin-bottom:4px;">'+
+          '<button id="__gmp_skill_read" style="flex:1;padding:8px;background:#1a3a1a;border:1px solid #4ade80;color:#4ade80;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">📥 讀取設定</button>'+
+          '<button id="__gmp_skill_open_panel" style="flex:1;padding:8px;background:#0f3460;border:1px solid #00d9ff;color:#00d9ff;border-radius:6px;cursor:pointer;font-size:12px;">🔓 開啟面板</button>'+
         '</div>'+
-        '<button id="__gmp_skill_open_panel" style="width:100%;padding:6px;background:#0f3460;border:1px solid #00d9ff;color:#00d9ff;border-radius:6px;cursor:pointer;font-size:11px;margin-bottom:4px;">🔓 開啟遊戲設定面板</button>'+
         '<button id="__gmp_skill_clear" style="width:100%;padding:5px;background:#333;border:1px solid #666;color:#aaa;border-radius:6px;cursor:pointer;font-size:10px;">🗑️ 清空</button>'+
       '</div>'+
       '<div style="background:rgba(0,0,0,0.2);padding:6px 8px;border-radius:6px;margin-bottom:6px;font-size:10px;">'+
-        '<span style="color:#888;">讀取狀態:</span> <span id="__gmp_skill_status" style="color:#fbbf24;">未讀取</span>'+
-        ' | <span style="color:#888;">已記錄:</span> <span id="__gmp_skill_count" style="color:#4ade80;">0</span> 項'+
+        '<span style="color:#888;">狀態:</span> <span id="__gmp_skill_status" style="color:#fbbf24;">未讀取</span>'+
+        ' | <span style="color:#888;">項目:</span> <span id="__gmp_skill_count" style="color:#4ade80;">0</span>'+
+        ' | <span style="color:#888;">角色:</span> <span id="__gmp_skill_char" style="color:#f59e0b;">--</span>'+
       '</div>'+
-      '<div id="__gmp_skill_list" style="background:rgba(0,0,0,0.3);padding:8px;border-radius:6px;max-height:320px;overflow-y:auto;font-family:monospace;font-size:10px;">'+
-        '<div style="color:#666;text-align:center;padding:20px;">尚無資料<br><span style="font-size:9px;">點擊「從遊戲讀取」開始</span></div>'+
+      '<div id="__gmp_skill_list" style="background:rgba(0,0,0,0.25);padding:6px 8px;border-radius:6px;max-height:360px;overflow-y:auto;font-size:11px;">'+
+        '<div id="__gmp_skill_empty" style="color:#555;text-align:center;padding:24px 0;">尚無資料<br><span style="font-size:9px;color:#444;">點「讀取設定」從遊戲面板抓取</span></div>'+
       '</div>'+
-    '</div>'+
+    '</div'>
 
     // === FARM TAB ===
     '<div id="__gmp_tab_content_farm" style="display:none;">'+
@@ -1379,143 +1379,270 @@ function __gmBuildPanel(){
   __pmUpdateUI();
 
   // ========== Skill Tab Logic ==========
-  // 從 #panel-scroll .auto-box 讀取所有 data-k / data-skill 設定
-  window.__pmAuto = {};  // 儲存讀取到的設定
+  // 從 #panel-scroll .auto-box 讀取所有 data-k / data-skill 設定，中文名稱 + 即時同步
+  window.__pmAuto = {boxes: [], all: {}, gameEls: {}};
 
-  function __pmReadFromGame(){
+  // 嘗試取得某元素的中文標籤
+  function __pmGetLabel(el) {
+    // 1. 找同一父容器內的前一個有文字的兄弟元素
+    var prev = el.previousElementSibling;
+    if (prev && prev.textContent.trim()) return prev.textContent.trim();
+    // 2. 找父層的上一個兄弟
+    var parent = el.parentElement;
+    if (parent) {
+      var pp = parent.previousElementSibling;
+      if (pp && pp.textContent.trim()) return pp.textContent.trim();
+    }
+    // 3. data-label 屬性
+    var dl = el.getAttribute('data-label');
+    if (dl) return dl;
+    // 4. 找父容器內第一個 .lb 或 label 文字
+    var container = el.closest('.auto-box') || parent;
+    if (container) {
+      var lb = container.querySelector('.lb');
+      if (lb && lb.textContent.trim()) return lb.textContent.trim();
+      var label = container.querySelector('label');
+      if (label && label.textContent.trim()) return label.textContent.trim();
+    }
+    return null; // 找不到時回傳 null，由 caller 處理
+  }
+
+  // 讀取遊戲面板
+  function __pmReadFromGame() {
     var panel = document.getElementById('panel-scroll');
     if (!panel) {
       alert('找不到遊戲設定面板 (#panel-scroll)。\n請先在遊戲內打開自動施法設定介面。');
-      return false;
+      return;
     }
-    var boxes = panel.querySelectorAll('.auto-box');
-    window.__pmAuto = {boxes: [], all: {}};
     var status = document.getElementById('__gmp_skill_status');
     if (status) { status.textContent = '讀取中...'; status.style.color = '#fbbf24'; }
 
-    boxes.forEach(function(box, bi){
+    // 讀取角色名稱
+    var charNameEl = document.getElementById('__gmp_name');
+    var charName = charNameEl ? charNameEl.textContent.replace('Loading...','').trim() : '?';
+    var charEl = document.getElementById('__gmp_skill_char');
+    if (charEl) charEl.textContent = charName;
+
+    var boxes = panel.querySelectorAll('.auto-box');
+    window.__pmAuto = {boxes: [], all: {}, gameEls: {}};
+    var total = 0;
+
+    boxes.forEach(function(box, bi) {
       var hdEl = box.querySelector('.hd');
-      var sectionName = hdEl ? hdEl.textContent.trim() : ('Section ' + (bi+1));
-      var sectionData = {name: sectionName, items: {}};
+      var sectionName = hdEl ? hdEl.textContent.trim() : ('區塊 ' + (bi + 1));
+      var sectionData = {name: sectionName, items: []};
 
-      // 收集所有有 data-k 的元素 (select/input)
-      box.querySelectorAll('[data-k]').forEach(function(el){
+      // data-k 元素（select / input）
+      box.querySelectorAll('[data-k]').forEach(function(el) {
         var k = el.getAttribute('data-k');
-        var val;
+        var label = __pmGetLabel(el) || k;
+        var item = {key: k, label: label, el: el};
+
         if (el.tagName === 'SELECT') {
-          val = el.value;
+          item.type = 'select';
+          item.value = el.value;
+          var opts = [];
+          [].forEach.call(el.options, function(o) {
+            opts.push({value: o.value, text: o.textContent.trim() || o.value});
+          });
+          item.options = opts;
+          window.__pmAuto.all[k] = el.value;
         } else if (el.tagName === 'INPUT') {
-          if (el.type === 'checkbox') val = el.checked;
-          else if (el.type === 'number') val = el.value;
-          else val = el.value;
+          if (el.type === 'checkbox') {
+            item.type = 'checkbox';
+            item.value = el.checked;
+            window.__pmAuto.all[k] = el.checked;
+          } else if (el.type === 'number') {
+            item.type = 'number';
+            item.value = el.value;
+            item.min = el.min || 0;
+            item.max = el.max || 9999;
+            item.step = el.step || 1;
+            window.__pmAuto.all[k] = el.value;
+          } else {
+            item.type = 'text';
+            item.value = el.value;
+            window.__pmAuto.all[k] = el.value;
+          }
         } else {
-          val = el.textContent.trim();
+          item.type = 'text';
+          item.value = el.textContent.trim();
+          window.__pmAuto.all[k] = el.textContent.trim();
         }
-        sectionData.items[k] = val;
-        window.__pmAuto.all[k] = val;
+
+        window.__pmAuto.gameEls[k] = el;
+        sectionData.items.push(item);
+        total++;
       });
 
-      // 收集所有 data-skill (狀態技能 checkbox)
-      box.querySelectorAll('[data-skill]').forEach(function(el){
+      // data-skill 元素（技能 checkbox）
+      box.querySelectorAll('[data-skill]').forEach(function(el) {
         var k = el.getAttribute('data-skill');
-        var val = el.checked;
-        sectionData.items[k] = val;
-        window.__pmAuto.all[k] = val;
+        var label = __pmGetLabel(el) || k;
+        var item = {key: k, label: label, el: el, type: 'checkbox', value: el.checked};
+        window.__pmAuto.all[k] = el.checked;
+        window.__pmAuto.gameEls[k] = el;
+        sectionData.items.push(item);
+        total++;
       });
 
-      window.__pmAuto.boxes.push(sectionData);
+      if (sectionData.items.length > 0) window.__pmAuto.boxes.push(sectionData);
     });
 
-    var total = Object.keys(window.__pmAuto.all).length;
     var cnt = document.getElementById('__gmp_skill_count');
     if (cnt) cnt.textContent = total;
     if (status) { status.textContent = '已讀取 ' + total + ' 項'; status.style.color = '#4ade80'; }
     __pmRenderSkillList();
-    console.log('[Skill Sync] Read', total, 'items from', boxes.length, 'sections', window.__pmAuto);
-    return true;
+    console.log('[Skill Sync] Read', total, 'items — char:', charName, window.__pmAuto);
   }
 
-  function __pmRenderSkillList(){
+  // 即時寫回遊戲 DOM（單一項目）
+  function __pmSyncToGame(key, newValue) {
+    var el = window.__pmAuto.gameEls[key];
+    if (!el) return;
+    window.__pmAuto.all[key] = newValue;
+
+    if (el.tagName === 'SELECT') {
+      if (el.value !== newValue) {
+        el.value = newValue;
+        el.dispatchEvent(new Event('change', {bubbles: true}));
+      }
+    } else if (el.tagName === 'INPUT') {
+      if (el.type === 'checkbox') {
+        if (el.checked !== newValue) {
+          el.checked = newValue;
+          el.dispatchEvent(new Event('change', {bubbles: true}));
+        }
+      } else {
+        if (el.value !== String(newValue)) {
+          el.value = newValue;
+          el.dispatchEvent(new Event('input', {bubbles: true}));
+        }
+      }
+    }
+    // 更新狀態
+    var status = document.getElementById('__gmp_skill_status');
+    if (status) { status.textContent = '已同步 ✓'; status.style.color = '#4ade80'; }
+    clearTimeout(window.__pmSyncTimer);
+    window.__pmSyncTimer = setTimeout(function(){
+      var s2 = document.getElementById('__gmp_skill_status');
+      if (s2) { s2.textContent = '已讀取 ' + Object.keys(window.__pmAuto.all).length + ' 項'; s2.style.color = '#4ade80'; }
+    }, 1500);
+  }
+
+  // 渲染技能清單（中文名稱 + 下拉/數值/核取方塊）
+  function __pmRenderSkillList() {
     var list = document.getElementById('__gmp_skill_list');
+    var empty = document.getElementById('__gmp_skill_empty');
     if (!list) return;
+
     if (!window.__pmAuto.boxes || !window.__pmAuto.boxes.length) {
-      list.innerHTML = '<div style="color:#666;text-align:center;padding:20px;">尚無資料<br><span style="font-size:9px;">點擊「從遊戲讀取」開始</span></div>';
+      list.innerHTML = '';
+      if (empty) empty.style.display = '';
       return;
     }
+    if (empty) empty.style.display = 'none';
+
     var html = '';
-    window.__pmAuto.boxes.forEach(function(sec){
-      html += '<div style="margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(245,158,11,0.3);">';
-      html += '<div style="color:#f59e0b;font-weight:bold;margin-bottom:4px;">📦 ' + sec.name + '</div>';
-      Object.keys(sec.items).forEach(function(k){
-        var v = sec.items[k];
-        var vs = (typeof v === 'boolean') ? (v ? '✅' : '❌') : ('<span style="color:#86c5ff;">' + String(v) + '</span>');
-        html += '<div style="display:flex;justify-content:space-between;padding:2px 4px;color:#ccc;">' +
-          '<span style="color:#aaa;">' + k + '</span>' +
-          '<span style="color:#4ade80;">' + vs + '</span>' +
-          '</div>';
+    window.__pmAuto.boxes.forEach(function(sec) {
+      html += '<div style="margin-bottom:10px;">';
+      html += '<div style="color:#f59e0b;font-size:10px;font-weight:bold;margin-bottom:4px;padding-bottom:3px;border-bottom:1px solid rgba(245,158,11,0.25);">📦 ' + escHtml(sec.name) + '</div>';
+
+      sec.items.forEach(function(item) {
+        var k = item.key;
+        var v = item.value;
+
+        if (item.type === 'select') {
+          // 下拉選單
+          var selOpts = item.options.map(function(o) {
+            var sel = (o.value === v) ? 'selected' : '';
+            return '<option value="' + escAttr(o.value) + '" ' + sel + '>' + escHtml(o.text) + '</option>';
+          }).join('');
+          html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 2px;border-radius:4px;transition:background 0.1s;" onmouseover="this.style.background=\'rgba(255,255,255,0.05)\'" onmouseout="this.style.background=\'\'" data-key="' + escAttr(k) + '">' +
+            '<span style="color:#ccc;font-size:11px;flex-shrink:0;margin-right:6px;">' + escHtml(item.label) + '</span>' +
+            '<select class="__gmp_sk_sel" data-key="' + escAttr(k) + '" style="max-width:55%;padding:3px 6px;background:#1a2a3a;border:1px solid #0f3460;border-radius:5px;color:#fff;font-size:11px;cursor:pointer;outline:none;">' +
+            selOpts + '</select>' +
+            '</div>';
+
+        } else if (item.type === 'number') {
+          // 數值輸入
+          html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 2px;border-radius:4px;transition:background 0.1s;" onmouseover="this.style.background=\'rgba(255,255,255,0.05)\'" onmouseout="this.style.background=\'\'" data-key="' + escAttr(k) + '">' +
+            '<span style="color:#ccc;font-size:11px;flex-shrink:0;margin-right:6px;">' + escHtml(item.label) + '</span>' +
+            '<input type="number" class="__gmp_sk_num" data-key="' + escAttr(k) + '" ' +
+            'value="' + escAttr(v) + '" min="' + escAttr(item.min) + '" max="' + escAttr(item.max) + '" step="' + escAttr(item.step) + '" ' +
+            'style="max-width:55%;padding:3px 6px;background:#1a2a3a;border:1px solid #0f3460;border-radius:5px;color:#00d9ff;font-size:11px;text-align:center;outline:none;">' +
+            '</div>';
+
+        } else if (item.type === 'checkbox') {
+          // 核取方塊（技能開關）
+          var chk = v ? 'checked' : '';
+          var chkClr = v ? '#4ade80' : '#555';
+          html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 2px;border-radius:4px;transition:background 0.1s;" onmouseover="this.style.background=\'rgba(255,255,255,0.05)\'" onmouseout="this.style.background=\'\'" data-key="' + escAttr(k) + '">' +
+            '<span style="color:' + chkClr + ';font-size:11px;flex:1;">' + escHtml(item.label) + '</span>' +
+            '<input type="checkbox" class="__gmp_sk_chk" data-key="' + escAttr(k) + '" ' + chk + ' ' +
+            'style="width:16px;height:16px;cursor:pointer;accent-color:#4ade80;">' +
+            '</div>';
+
+        } else {
+          // 文字輸入
+          html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 2px;" data-key="' + escAttr(k) + '">' +
+            '<span style="color:#aaa;font-size:11px;flex-shrink:0;margin-right:6px;">' + escHtml(item.label) + '</span>' +
+            '<input type="text" class="__gmp_sk_txt" data-key="' + escAttr(k) + '" ' +
+            'value="' + escAttr(v) + '" ' +
+            'style="max-width:55%;padding:3px 6px;background:#1a2a3a;border:1px solid #0f3460;border-radius:5px;color:#86c5ff;font-size:11px;outline:none;">' +
+            '</div>';
+        }
       });
       html += '</div>';
     });
+
     list.innerHTML = html;
+
+    // 绑定即时同步事件
+    list.querySelectorAll('.__gmp_sk_sel').forEach(function(sel) {
+      sel.addEventListener('change', function() { __pmSyncToGame(this.getAttribute('data-key'), this.value); });
+    });
+    list.querySelectorAll('.__gmp_sk_num').forEach(function(inp) {
+      inp.addEventListener('input', function() { __pmSyncToGame(this.getAttribute('data-key'), this.value); });
+      inp.addEventListener('change', function() { __pmSyncToGame(this.getAttribute('data-key'), this.value); });
+    });
+    list.querySelectorAll('.__gmp_sk_chk').forEach(function(chk) {
+      chk.addEventListener('change', function() { __pmSyncToGame(this.getAttribute('data-key'), this.checked); });
+    });
+    list.querySelectorAll('.__gmp_sk_txt').forEach(function(inp) {
+      inp.addEventListener('input', function() { __pmSyncToGame(this.getAttribute('data-key'), this.value); });
+    });
   }
 
-  function __pmWriteToGame(){
-    var panel = document.getElementById('panel-scroll');
-    if (!panel) {
-      alert('找不到遊戲設定面板。請先打開自動施法設定介面。');
-      return;
-    }
-    if (!window.__pmAuto.all || !Object.keys(window.__pmAuto.all).length) {
-      alert('請先點「從遊戲讀取」抓取當前設定。');
-      return;
-    }
-    var changed = 0;
-    // 寫回 data-k
-    panel.querySelectorAll('[data-k]').forEach(function(el){
-      var k = el.getAttribute('data-k');
-      if (window.__pmAuto.all.hasOwnProperty(k)) {
-        var v = window.__pmAuto.all[k];
-        if (el.tagName === 'SELECT') {
-          if (el.value !== v) { el.value = v; el.dispatchEvent(new Event('change', {bubbles: true})); changed++; }
-        } else if (el.tagName === 'INPUT') {
-          if (el.type === 'checkbox') {
-            if (el.checked !== v) { el.checked = v; el.dispatchEvent(new Event('change', {bubbles: true})); changed++; }
-          } else {
-            if (el.value !== String(v)) { el.value = v; el.dispatchEvent(new Event('input', {bubbles: true})); changed++; }
-          }
-        }
-      }
-    });
-    // 寫回 data-skill
-    panel.querySelectorAll('[data-skill]').forEach(function(el){
-      var k = el.getAttribute('data-skill');
-      if (window.__pmAuto.all.hasOwnProperty(k)) {
-        var v = window.__pmAuto.all[k];
-        if (el.checked !== v) { el.checked = v; el.dispatchEvent(new Event('change', {bubbles: true})); changed++; }
-      }
-    });
-    var status = document.getElementById('__gmp_skill_status');
-    if (status) { status.textContent = '已寫入 ' + changed + ' 項'; status.style.color = '#4ade80'; }
-    console.log('[Skill Sync] Wrote', changed, 'items back to game');
+  // HTML 跳脫
+  function escHtml(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function escAttr(s) {
+    if (!s) return '';
+    return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
 
-  document.getElementById('__gmp_tab_skill').onclick = function(){ switchTab('skill'); };
+  // 按鈕事件
+  document.getElementById('__gmp_tab_skill').onclick = function() { switchTab('skill'); };
   document.getElementById('__gmp_skill_read').onclick = __pmReadFromGame;
-  document.getElementById('__gmp_skill_write').onclick = __pmWriteToGame;
-  document.getElementById('__gmp_skill_clear').onclick = function(){
-    window.__pmAuto = {}; __pmRenderSkillList();
+  document.getElementById('__gmp_skill_clear').onclick = function() {
+    window.__pmAuto = {boxes: [], all: {}, gameEls: {}};
+    __pmRenderSkillList();
     var cnt = document.getElementById('__gmp_skill_count');
     if (cnt) cnt.textContent = '0';
     var status = document.getElementById('__gmp_skill_status');
     if (status) { status.textContent = '已清空'; status.style.color = '#888'; }
+    var charEl = document.getElementById('__gmp_skill_char');
+    if (charEl) charEl.textContent = '--';
   };
-  document.getElementById('__gmp_skill_open_panel').onclick = function(){
-    // 嘗試找到並點擊遊戲的設定按鈕
+  document.getElementById('__gmp_skill_open_panel').onclick = function() {
     var btns = document.querySelectorAll('button, .btn, [class*="setting"], [class*="auto"]');
     var found = false;
-    btns.forEach(function(b){
+    btns.forEach(function(b) {
       if (b.textContent && /設定|setting|auto|自動|施法/i.test(b.textContent)) {
-        console.log('[Skill Sync] Clicking:', b.textContent.trim().substring(0, 30));
+        console.log('[Skill] Opening panel:', b.textContent.trim().substring(0, 30));
         b.click(); found = true;
       }
     });
