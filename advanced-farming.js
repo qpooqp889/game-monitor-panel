@@ -1,6 +1,6 @@
 // advanced-farming.js
 // 進階掛機規則引擎 - 條件 → 動作
-// 資料儲存：IndexedDB (gm-panel-db / advanced_rules store)
+// 資料儲存：chrome.storage.local (取代 IndexedDB)
 // 規則評估：每 game-monitor loop tick (1s)
 // 通訊介面：window.__gmAdvanced
 
@@ -11,61 +11,74 @@
   }
   window.__gmAdvancedLoaded=true;
 
-  // ====== 設定 ======
-  var DB_NAME='gm-panel-db',DB_VERSION=3,STORE='advanced_rules',MSTORE='monsters',SSTORE='skill_settings';
-  var _dbPromise=null;
-  function openDB(){
-    if(_dbPromise)return _dbPromise;
-    _dbPromise=new Promise(function(resolve,reject){
-      var req=indexedDB.open(DB_NAME,DB_VERSION);
-      req.onupgradeneeded=function(e){
-        var db=e.target.result;
-        if(!db.objectStoreNames.contains(STORE)){
-          var os=db.createObjectStore(STORE,{keyPath:'id',autoIncrement:true});
-          os.createIndex('priority','priority',{unique:false});
-        }
-        // v2: monsters store for session-encountered monster names
-        if(!db.objectStoreNames.contains(MSTORE)){
-          db.createObjectStore(MSTORE,{keyPath:'name'});
-        }
-        // v3: skill_settings store for Skills Tab data
-        if(!db.objectStoreNames.contains(SSTORE)){
-          db.createObjectStore(SSTORE,{keyPath:'charName'});
-        }
-      };
-      req.onsuccess=function(e){resolve(e.target.result)};
-      req.onerror=function(e){reject(e.target.error)};
-    });
-    return _dbPromise;
+  // ====== chrome.storage.local keys ======
+  var RULE_KEY='gmAdvancedRules';
+  var MONSTER_KEY='gmMonsters';
+  var SKILL_KEY='gmSkillSettings';
+
+  // ====== 通用快取輔助 ======
+  function storageSet(key,data){return __gmStorageSet(key,data)}
+  function storageGet(key){return __gmStorageGet([key]).then(function(r){return r&&r[key]||null})}
+
+  // ====== 規則資料存取 ======
+  var _rulesCache=null;
+  function loadRules(){return storageGet(RULE_KEY).then(function(r){_rulesCache=r||[];return _rulesCache})}
+  function saveRules(){return storageSet(RULE_KEY,_rulesCache)}
+  function nextId(){
+    var max=0;
+    (_rulesCache||[]).forEach(function(r){if(r.id>max)max=r.id});
+    return max+1;
   }
-  function tx(mode,store){
-    return openDB().then(function(db){
-      return db.transaction(store||STORE,mode).objectStore(store||STORE);
-    });
-  }
-  function tx(mode){return openDB().then(function(db){return db.transaction(STORE,mode).objectStore(STORE)})}
-  function rp(req){return new Promise(function(r,j){req.onsuccess=function(){r(req.result)};req.onerror=function(){j(req.error)}})}
+
+  var AdvDB={
+    getAll:function(){
+      return loadRules().then(function(a){
+        return a.slice().sort(function(x,y){
+          return ((x.priority||0)-(y.priority||0))||(x.id-y.id);
+        });
+      });
+    },
+    save:function(rule){
+      return loadRules().then(function(){
+        if(rule.id){
+          var idx=-1;
+          for(var i=0;i<_rulesCache.length;i++){if(_rulesCache[i].id===rule.id){idx=i;break}}
+          if(idx>=0)_rulesCache[idx]=rule;else _rulesCache.push(rule);
+        }else{
+          rule.id=nextId();
+          _rulesCache.push(rule);
+        }
+        return saveRules();
+      });
+    },
+    delete:function(id){
+      return loadRules().then(function(){
+        _rulesCache=_rulesCache.filter(function(r){return r.id!==id});
+        return saveRules();
+      });
+    },
+    clear:function(){
+      return loadRules().then(function(){_rulesCache=[];return saveRules()});
+    }
+  };
 
   // ====== 怪物名稱自動收錄 ======
   var __gmMonsterDB={
     addAll:function(names){
       if(!names||!names.length)return Promise.resolve();
-      return tx('readwrite',MSTORE).then(function(s){
-        var p=Promise.resolve();
-        names.forEach(function(n){
-          if(!n)return;
-          p=p.then(function(){return rp(s.put({name:n}))});
-        });
-        return p;
+      return storageGet(MONSTER_KEY).then(function(existing){
+        var set={};
+        (existing||[]).forEach(function(n){set[n]=true});
+        names.forEach(function(n){if(n)set[n]=true});
+        var sorted=Object.keys(set).sort();
+        return storageSet(MONSTER_KEY,sorted);
       }).catch(function(e){console.warn('[AdvFarm] monsterDB addAll error:',e)});
     },
     getAllNames:function(){
-      return tx('readonly',MSTORE).then(function(s){return rp(s.getAll())}).then(function(a){
-        return a.map(function(x){return x.name;}).filter(Boolean).sort();
-      }).catch(function(){return[]});
+      return storageGet(MONSTER_KEY).then(function(a){return a||[]}).catch(function(){return[]});
     },
     clear:function(){
-      return tx('readwrite',MSTORE).then(function(s){return rp(s.clear())}).catch(function(){});
+      return storageSet(MONSTER_KEY,[]).catch(function(){});
     }
   };
 
@@ -73,23 +86,32 @@
   var __gmSkillDB={
     save:function(charName,skills){
       if(!charName)return Promise.resolve();
-      return tx('readwrite',SSTORE).then(function(s){
-        return rp(s.put({charName:charName,updatedAt:Date.now(),skills:skills||{}}));
+      return storageGet(SKILL_KEY).then(function(arr){
+        arr=arr||[];
+        var found=false;
+        for(var i=0;i<arr.length;i++){
+          if(arr[i].charName===charName){
+            arr[i]={charName:charName,updatedAt:Date.now(),skills:skills||{}};
+            found=true;break;
+          }
+        }
+        if(!found)arr.push({charName:charName,updatedAt:Date.now(),skills:skills||{}});
+        return storageSet(SKILL_KEY,arr);
       }).catch(function(e){console.warn('[AdvFarm] skillDB save error:',e)});
     },
     getLatest:function(){
-      return tx('readonly',SSTORE).then(function(s){return rp(s.getAll())}).then(function(a){
-        if(!a||!a.length)return null;
-        return a.sort(function(x,y){return(y.updatedAt||0)-(x.updatedAt||0)})[0];
+      return storageGet(SKILL_KEY).then(function(arr){
+        if(!arr||!arr.length)return null;
+        return arr.sort(function(x,y){return(y.updatedAt||0)-(x.updatedAt||0)})[0];
       }).catch(function(){return null});
     },
     getAllKeys:function(){
-      return tx('readonly',SSTORE).then(function(s){return rp(s.getAll())}).then(function(a){
-        return(a||[]).map(function(x){return x.charName;}).filter(Boolean).sort();
+      return storageGet(SKILL_KEY).then(function(arr){
+        return(arr||[]).map(function(x){return x.charName;}).filter(Boolean).sort();
       }).catch(function(){return[]});
     },
     clear:function(){
-      return tx('readwrite',SSTORE).then(function(s){return rp(s.clear())}).catch(function(){});
+      return storageSet(SKILL_KEY,[]).catch(function(){});
     }
   };
 
@@ -101,7 +123,7 @@
       __gmSkillDB.getLatest()
     ]).then(function(results){
       return{
-        version:1,
+        version:2,
         exportedAt:new Date().toISOString(),
         advanced_rules:results[0],
         monsters:results[1],
@@ -123,9 +145,7 @@
     }
     if(data.monsters&&Array.isArray(data.monsters)){
       p=p.then(function(){return __gmMonsterDB.clear()});
-      data.monsters.forEach(function(n){
-        p=p.then(function(){return tx('readwrite',MSTORE).then(function(s){return rp(s.put({name:n}))})});
-      });
+      p=p.then(function(){return __gmMonsterDB.addAll(data.monsters)});
     }
     if(data.skill_settings){
       p=p.then(function(){return __gmSkillDB.save(data.skill_settings.charName||'imported',data.skill_settings.skills||{})});
@@ -191,30 +211,7 @@
     'setAuto':{label:'設定自動技能',params:['skillId','autoType'],hint:'skillId / openSkill / atkSkill'}
   };
 
-  // ====== API ======
-  var AdvDB={
-    getAll: function() {
-      return tx('readonly')
-        .then(function(s) { return rp(s.getAll()); })
-        .then(function(a) {
-          return a.sort(function(x, y) {
-            return ((x.priority || 0) - (y.priority || 0)) || (x.id - y.id);
-          });
-        });
-    },
-    save: function(rule) {
-      if (rule.id) {
-        return tx('readwrite').then(function(s) { return rp(s.put(rule)); });
-      }
-      return tx('readwrite').then(function(s) { return rp(s.add(rule)); });
-    },
-    delete: function(id) {
-      return tx('readwrite').then(function(s) { return rp(s.delete(id)); });
-    },
-    clear: function() {
-      return tx('readwrite').then(function(s) { return rp(s.clear()); });
-    }
-  };
+  // ====== API (chrome.storage.local 實作, 見上方 preamble) ======
 
   // ====== 規則評估引擎 ======
   function evalRule(rule,state){
@@ -393,7 +390,7 @@
         '<div style="padding:12px 16px;border-bottom:1px solid #0f3460;display:flex;justify-content:space-between;align-items:center;">'+
           '<div>'+
             '<div style="font-size:14px;font-weight:bold;color:#ffd700;">⚙️ 進階掛機規則</div>'+
-            '<div style="font-size:10px;color:#888;margin-top:2px;">條件 → 動作（IndexedDB 持久化）</div>'+
+            '<div style="font-size:10px;color:#888;margin-top:2px;">條件 → 動作（自動儲存）</div>'+
           '</div>'+
           '<button id="__gmAdvClose" style="background:#e94560;border:none;color:#fff;width:24px;height:24px;border-radius:4px;cursor:pointer;font-size:14px;font-weight:bold;">×</button>'+
         '</div>'+

@@ -16,33 +16,41 @@ window.__battleStatus={packets:[]};window.__gmOnlineCount=null;
 window.__gmFarming={running:false,timer:null,returning:false,waitTimer:null};
 window.__gmLogoutModalVisible=false;
 window.__gmLogoutDayOffset=0; // 0=今天, 1=昨天, 2=前天...
-// ====== LogoutDB (IndexedDB) ======
+// ====== LogoutDB (chrome.storage.local) ======
 var LogoutDB=(function(){
-  var DB_NAME='gm-panel-db',DB_VERSION=1,STORE='logout_history';
-  var _dbPromise=null;
-  function openDB(){
-    if(_dbPromise)return _dbPromise;
-    _dbPromise=new Promise(function(resolve,reject){
-      var req=indexedDB.open(DB_NAME,DB_VERSION);
-      req.onupgradeneeded=function(e){
-        var db=e.target.result;
-        if(!db.objectStoreNames.contains(STORE)){
-          var os=db.createObjectStore(STORE,{keyPath:'id',autoIncrement:true});
-          os.createIndex('ts','ts',{unique:false});
-        }
-      };
-      req.onsuccess=function(e){resolve(e.target.result)};
-      req.onerror=function(e){reject(e.target.error)};
+  var KEY='gmLogoutHistory';
+  var _cache=null;_cacheLoaded=false;
+  function ensureLoaded(){
+    if(_cacheLoaded)return Promise.resolve();
+    return __gmStorageGet([KEY]).then(function(r){
+      _cache=r&&r[KEY]||[];
+      _cacheLoaded=true;
     });
-    return _dbPromise;
   }
-  function tx(mode){return openDB().then(function(db){return db.transaction(STORE,mode).objectStore(STORE)})}
-  function rp(req){return new Promise(function(r,j){req.onsuccess=function(){r(req.result)};req.onerror=function(){j(req.error)}})}
+  function saveCache(){
+    return __gmStorageSet(KEY,_cache);
+  }
+  function genId(){return Date.now()+'_'+Math.random().toString(36).slice(2,8)}
   return {
-    add:function(ts,mode){return tx('readwrite').then(function(s){return rp(s.add({ts:ts||Date.now(),mode:mode||'unknown'}))})},
-    getAll:function(){return tx('readonly').then(function(s){return rp(s.getAll())}).then(function(a){return a.sort(function(x,y){return y.ts-x.ts})})},
-    getBefore:function(b){var ts=b instanceof Date?b.getTime():b;return this.getAll().then(function(a){return a.filter(function(r){return r.ts<ts})})},
-    getAfter:function(a){var ts=a instanceof Date?a.getTime():a;return this.getAll().then(function(a){return a.filter(function(r){return r.ts>=ts})})},
+    add:function(ts,mode){
+      return ensureLoaded().then(function(){
+        _cache.push({id:genId(),ts:ts||Date.now(),mode:mode||'unknown'});
+        return saveCache();
+      });
+    },
+    getAll:function(){
+      return ensureLoaded().then(function(){
+        return _cache.slice().sort(function(x,y){return y.ts-x.ts});
+      });
+    },
+    getBefore:function(b){
+      var ts=b instanceof Date?b.getTime():b;
+      return this.getAll().then(function(a){return a.filter(function(r){return r.ts<ts})});
+    },
+    getAfter:function(a){
+      var ts=a instanceof Date?a.getTime():a;
+      return this.getAll().then(function(a){return a.filter(function(r){return r.ts>=ts})});
+    },
     getToday:function(){
       var now=new Date();
       var start=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime();
@@ -56,13 +64,25 @@ var LogoutDB=(function(){
       var end=start+86400000;
       return this.getAll().then(function(a){return a.filter(function(r){return r.ts>=start&&r.ts<end})});
     },
-    clearAll:function(){return tx('readwrite').then(function(s){return rp(s.clear())})},
-    clearBefore:function(b){var ts=b instanceof Date?b.getTime():b;var self=this;return self.getBefore(ts).then(function(old){return tx('readwrite').then(function(s){return Promise.all(old.map(function(r){return rp(s.delete(r.id))}))}).then(function(){return old.length})})},
-    count:function(){return tx('readonly').then(function(s){return rp(s.count())})},
-    last:function(){return this.getAll().then(function(a){return a[0]||null})}
+    clearAll:function(){return ensureLoaded().then(function(){_cache=[];return saveCache()})},
+    clearBefore:function(b){
+      var ts=b instanceof Date?b.getTime():b;
+      var self=this;
+      return self.getBefore(ts).then(function(old){
+        var ids={};
+        old.forEach(function(r){ids[r.id]=true});
+        _cache=_cache.filter(function(r){return!ids[r.id]});
+        return saveCache().then(function(){return old.length});
+      });
+    },
+    count:function(){return ensureLoaded().then(function(){return _cache.length})},
+    last:function(){return ensureLoaded().then(function(){return _cache.length?_cache[_cache.length-1]:null})},
+    // 匯出完整資料（供儲存輔助用）
+    exportCache:function(){return ensureLoaded().then(function(){return JSON.parse(JSON.stringify(_cache))})},
+    importCache:function(arr){_cache=Array.isArray(arr)?arr.slice():[];return saveCache()}
   };
 })();
-console.log('[LogoutDB] IndexedDB store loaded');
+console.log('[LogoutDB] Storage local store loaded');
 
 
 // ====== WB Boss Hook ======
@@ -253,6 +273,33 @@ function __gmRenderLogoutList(){
     listEl.innerHTML='<div style="text-align:center;color:#e94560;padding:20px;">載入失敗: '+e.message+'</div>';
   });
 }
+
+// ========== Storage Helper (chrome.storage.local via content.js relay) ==========
+var __gmStorageSeq=0;
+var __gmStorageCbs={};
+window.addEventListener('message',function(e){
+  if(e.data&&e.data.type==='GM_STORAGE_RESPONSE'&&e.data.seq!==undefined&&__gmStorageCbs[e.data.seq]){
+    __gmStorageCbs[e.data.seq](e.data.data||e.data);
+    delete __gmStorageCbs[e.data.seq];
+  }
+});
+// 儲存單一 key
+function __gmStorageSet(key,data){
+  return new Promise(function(resolve){
+    var seq=++__gmStorageSeq;
+    __gmStorageCbs[seq]=function(){resolve()};
+    window.postMessage({type:'GM_STORAGE_SET',key:key,data:data,seq:seq},'*');
+  });
+}
+// 讀取 key(s)，傳入單一字串回傳值，傳入陣列回傳物件
+function __gmStorageGet(keys){
+  return new Promise(function(resolve){
+    var seq=++__gmStorageSeq;
+    __gmStorageCbs[seq]=function(resp){resolve(resp)};
+    window.postMessage({type:'GM_STORAGE_GET',keys:Array.isArray(keys)?keys:[keys],seq:seq},'*');
+  });
+}
+// ========== End Storage Helper ==========
 
 // ========== Storage Functions ==========
 function saveFarmSettings(){
@@ -709,12 +756,12 @@ function startFarming(){
         window.__gmFarming.lastLogoutTime=Date.now();
         window.__gmFarming.__lastLogoutFlag=true;
         updateLogoutUI();
-        // 寫入 IndexedDB
+        // 寫入登出記錄 (chrome.storage.local)
         if(window.LogoutDB){
           LogoutDB.add(Date.now(),window.__gmFarming.charName||'').then(function(){
-            console.log('[GM] 登出事件已記錄到 IndexedDB');
+            console.log('[GM] 登出事件已記錄');
           }).catch(function(e){
-            console.warn('[GM] IndexedDB 寫入失敗:',e);
+            console.warn('[GM] 登出記錄寫入失敗:',e);
           });
         }
         var lastTime=new Date().toLocaleTimeString();
@@ -1506,7 +1553,7 @@ function __gmBuildPanel(){
     var cnt = document.getElementById('__gmp_skill_count');
     if (cnt) cnt.textContent = total;
     if (status) { status.textContent = '已讀取 ' + total + ' 項'; status.style.color = '#4ade80'; }
-    // 同時寫入 IndexedDB（供進階模組下拉使用）
+    // 同時寫入 chrome.storage.local（供進階模組下拉使用）
     if(typeof window.__gmAdvanced!=='undefined'&&window.__gmAdvanced.SkillDB){
       window.__gmAdvanced.SkillDB.save(charName, JSON.parse(JSON.stringify(window.__pmAuto.all||{})));
     }
@@ -1873,7 +1920,7 @@ function __gmBuildPanel(){
     if(window.__gmAdvanced&&window.__gmAdvanced.openModal){
       window.__gmAdvanced.openModal();
     } else {
-      // 先檢查 IndexedDB skill_settings 是否為空（從未讀取過技能）
+      // 先檢查 skill_settings 是否為空（從未讀取過技能）
       if(window.__gmAdvanced&&window.__gmAdvanced.SkillDB){
         window.__gmAdvanced.SkillDB.getLatest().then(function(rec){
           if(!rec||!rec.skills||!Object.keys(rec.skills).length){

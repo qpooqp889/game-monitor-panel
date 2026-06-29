@@ -18,10 +18,45 @@ chrome.runtime.sendMessage({action:'registerGameTab'}, function(resp) {
   }
 });
 
+// Storage 請求序號（用於配對回應）
+var __gmStorageSeq = 0;
+
 // 來自 game-monitor.js 的 relay 請求（MAIN world → content → background）
 window.addEventListener('message', function(e) {
   if (!e.data || !e.data.type) return;
 
+  // ---------- 通用 chrome.storage.local 讀寫（取代 IndexedDB） ----------
+  if (e.data.type === 'GM_STORAGE_GET') {
+    // e.data = {type: 'GM_STORAGE_GET', keys: ['key1','key2'], seq: N}
+    chrome.storage.local.get(e.data.keys || [], function(result) {
+      window.postMessage({
+        type: 'GM_STORAGE_RESPONSE',
+        keys: e.data.keys,
+        data: result,
+        seq: e.data.seq || 0
+      }, '*');
+    });
+    return;
+  }
+
+  if (e.data.type === 'GM_STORAGE_SET') {
+    // e.data = {type: 'GM_STORAGE_SET', key: 'xxx', data: {...}, seq: N}
+    var obj = {};
+    obj[e.data.key] = e.data.data;
+    chrome.storage.local.set(obj, function() {
+      if (e.data.seq !== undefined) {
+        window.postMessage({
+          type: 'GM_STORAGE_RESPONSE',
+          key: e.data.key,
+          success: true,
+          seq: e.data.seq
+        }, '*');
+      }
+    });
+    return;
+  }
+
+  // ---------- Legacy: 基本掛機設定 ----------
   if (e.data.type === 'GM_SAVE_SETTINGS' && e.data.data) {
     chrome.storage.local.set({gmFarmSettings: e.data.data}, function() {
       console.log('[GM] Settings saved');
@@ -37,7 +72,7 @@ window.addEventListener('message', function(e) {
     return;
   }
 
-  // 注入模組：game-monitor.js → content.js → background.js
+  // ---------- 注入模組 ----------
   if (e.data.type === 'GM_LOAD_ADVANCED' && e.data.src) {
     var scriptName = e.data.src;
     console.log('[GM Content] Relaying', scriptName, 'injection request');
