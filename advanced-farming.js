@@ -17,8 +17,9 @@
   var SKILL_KEY='gmSkillSettings';
 
   // ====== 通用快取輔助 ======
-  function storageSet(key,data){return __gmStorageSet(key,data)}
-  function storageGet(key){return __gmStorageGet([key]).then(function(r){return r&&r[key]||null})}
+  // 使用 window.__gmStorageSet/Get（game-monitor.js 掛載的 chrome.storage.local relay）
+  function storageSet(key,data){return window.__gmStorageSet(key,data)}
+  function storageGet(key){return window.__gmStorageGet([key]).then(function(r){return r&&r[key]||null})}
 
   // ====== 規則資料存取 ======
   var _rulesCache=null;

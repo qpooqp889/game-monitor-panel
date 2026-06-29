@@ -283,7 +283,7 @@ window.addEventListener('message',function(e){
     delete __gmStorageCbs[e.data.seq];
   }
 });
-// 儲存單一 key
+// 儲存單一 key（掛到 window 供 advanced-farming.js 使用）
 function __gmStorageSet(key,data){
   return new Promise(function(resolve){
     var seq=++__gmStorageSeq;
@@ -291,7 +291,7 @@ function __gmStorageSet(key,data){
     window.postMessage({type:'GM_STORAGE_SET',key:key,data:data,seq:seq},'*');
   });
 }
-// 讀取 key(s)，傳入單一字串回傳值，傳入陣列回傳物件
+// 讀取 key(s)，傳入單一字串回傳值，傳入陣列回傳物件（掛到 window 供 advanced-farming.js 使用）
 function __gmStorageGet(keys){
   return new Promise(function(resolve){
     var seq=++__gmStorageSeq;
@@ -299,6 +299,9 @@ function __gmStorageGet(keys){
     window.postMessage({type:'GM_STORAGE_GET',keys:Array.isArray(keys)?keys:[keys],seq:seq},'*');
   });
 }
+// 暴露到 window 讓獨立注入的 advanced-farming.js 也能使用
+window.__gmStorageSet=__gmStorageSet;
+window.__gmStorageGet=__gmStorageGet;
 // ========== End Storage Helper ==========
 
 // ========== Storage Functions ==========
