@@ -327,7 +327,10 @@ function saveFarmSettings(){
     reconnectInterval: parseInt(document.getElementById('__gmp_farm_reconnect_interval').value)||60,
     charSlot: parseInt(document.getElementById('__gmp_farm_char_slot').value)||0,
     hpAction: document.getElementById('__gmp_farm_hp_action')?document.getElementById('__gmp_farm_hp_action').value:'selectChar',
-    mpAction: document.getElementById('__gmp_farm_mp_action')?document.getElementById('__gmp_farm_mp_action').value:'selectChar'
+    mpAction: document.getElementById('__gmp_farm_mp_action')?document.getElementById('__gmp_farm_mp_action').value:'selectChar',
+    specifyTarget: document.getElementById('__gmp_farm_specify_target')?document.getElementById('__gmp_farm_specify_target').checked:false,
+    targetIndex: document.getElementById('__gmp_farm_target_index')?parseInt(document.getElementById('__gmp_farm_target_index').value)||1:1,
+    attackAll: document.getElementById('__gmp_farm_attack_all')?document.getElementById('__gmp_farm_attack_all').checked:false
   };
   window.postMessage({type:'GM_SAVE_SETTINGS',data:data},'*');
 }
@@ -653,6 +656,32 @@ function startFarming(){
             }
           }
         }
+      }
+
+      // 指定目標 + 攻擊全部
+      var elSpecify=document.getElementById('__gmp_farm_specify_target');
+      var elTargetIdx=document.getElementById('__gmp_farm_target_index');
+      var elAttackAll=document.getElementById('__gmp_farm_attack_all');
+      var specify=elSpecify?elSpecify.checked:false;
+      var tgtIdx=elTargetIdx?parseInt(elTargetIdx.value)||1:1;
+      var atkAll=elAttackAll?elAttackAll.checked:false;
+      // 指定目標：每5秒 send setTarget
+      if(specify&&window.__wbSocket&&window.__wbSocket.connected){
+        if(!window.__gmFarming.__lastSetTarget||(Date.now()-window.__gmFarming.__lastSetTarget)>=5000){
+          try{window.__wbSocket.emit('setTarget',tgtIdx);console.log('[GM] [WB-SEND] setTarget ['+tgtIdx+']')}catch(e){}
+          window.__gmFarming.__lastSetTarget=Date.now();
+        }
+      }
+      // 攻擊全部：對所有 HP>0 的怪物 send setTarget（每5秒）
+      if(atkAll&&d.monsters&&d.monsters.length>0&&
+         (!window.__gmFarming.__lastAttackAll||(Date.now()-window.__gmFarming.__lastAttackAll)>=5000)){
+        for(var ai=0;ai<d.monsters.length;ai++){
+          if(d.monsters[ai]&&d.monsters[ai].hp>0){
+            try{window.__wbSocket.emit('setTarget',ai)}catch(e){}
+          }
+        }
+        console.log('[GM] [WB-SEND] setTarget (攻擊全部) → '+d.monsters.length+' targets');
+        window.__gmFarming.__lastAttackAll=Date.now();
       }
 
       // Check HP/MP thresholds (return to lobby)
@@ -1110,9 +1139,25 @@ function __gmBuildPanel(){
       '檢測間隔 <input id="__gmp_farm_reconnect_interval" type="number" value="60" min="10" max="300" style="width:50px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;outline:none;text-align:center;"> 秒'+
     '</div>'+
     // Auto attack
-    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">'+
+    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
       '<input type="checkbox" id="__gmp_farm_atk" checked style="width:14px;height:14px;cursor:pointer;">'+
       '<span style="font-size:11px;color:#7bd14a;font-weight:bold;">⚔️ 自動攻擊</span>'+
+    '</div>'+
+    // 指定目標
+    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+
+      '<input type="checkbox" id="__gmp_farm_specify_target" style="width:14px;height:14px;cursor:pointer;">'+
+      '<span style="font-size:10px;color:#ffa500;">🎯 指定目標</span>'+
+      '<select id="__gmp_farm_target_index" style="padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;">'+
+        '<option value="0">目標 0</option><option value="1" selected>目標 1</option><option value="2">目標 2</option>'+
+        '<option value="3">目標 3</option><option value="4">目標 4</option><option value="5">目標 5</option>'+
+        '<option value="6">目標 6</option><option value="7">目標 7</option><option value="8">目標 8</option>'+
+        '<option value="9">目標 9</option><option value="10">目標 10</option>'+
+      '</select>'+
+    '</div>'+
+    // 攻擊全部
+    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">'+
+      '<input type="checkbox" id="__gmp_farm_attack_all" style="width:14px;height:14px;cursor:pointer;">'+
+      '<span style="font-size:10px;color:#ff6347;">🔥 攻擊全部 (一次送出 0,1,2)</span>'+
     '</div>'+
     // Status
     '<div id="__gmp_farm_status" style="font-size:10px;color:#888;margin-bottom:6px;text-align:center;">已停止</div>'+
@@ -2102,6 +2147,13 @@ function __gmBuildPanel(){
     if(data.logicOp)document.getElementById('__gmp_farm_logic').value=data.logicOp;
     document.getElementById('__gmp_farm_logic_chk').checked=data.logicEnabled!==false;
     document.getElementById('__gmp_farm_atk').checked=data.autoAtk!==false;
+    // 新增：指定目標 + 攻擊全部
+    var elSpecify=document.getElementById('__gmp_farm_specify_target');
+    var elTargetIdx=document.getElementById('__gmp_farm_target_index');
+    var elAttackAll=document.getElementById('__gmp_farm_attack_all');
+    if(elSpecify)elSpecify.checked=data.specifyTarget||false;
+    if(elTargetIdx)elTargetIdx.value=data.targetIndex||1;
+    if(elAttackAll)elAttackAll.checked=data.attackAll||false;
     // 新增：載入斷線重連設定
     if(data.charName)document.getElementById('__gmp_farm_char_name').value=data.charName;
     document.getElementById('__gmp_farm_reconnect').checked=data.reconnectEnabled!==false;
@@ -2119,6 +2171,7 @@ function __gmBuildPanel(){
   var farmInputs=['__gmp_farm_zone','__gmp_farm_hp','__gmp_farm_mp','__gmp_farm_hp_chk','__gmp_farm_mp_chk',
     '__gmp_farm_hp_gt','__gmp_farm_mp_gt','__gmp_farm_hp_gt_chk','__gmp_farm_mp_gt_chk',
     '__gmp_farm_logic','__gmp_farm_logic_chk','__gmp_farm_atk',
+    '__gmp_farm_specify_target','__gmp_farm_target_index','__gmp_farm_attack_all',
     '__gmp_farm_char_name','__gmp_farm_reconnect','__gmp_farm_reconnect_interval',
     '__gmp_farm_mp_reconnect','__gmp_farm_mp_reconnect_thresh','__gmp_farm_char_slot'];
   farmInputs.forEach(function(id){
