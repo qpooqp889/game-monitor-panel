@@ -5,26 +5,17 @@ window.__gmContentLoaded=true;
 
 window.__gmPanelVisible=false;
 
-// 緩存遊戲分頁 ID（background 回撥後更新）
+// 遊戲分頁 ID（盡早向 background 請求並快取）
 var __gmGameTabId = null;
 
-// 向 background 註冊自己
+// Pending injection requests (queued before tabId is known)
+var __gmPendingInjections = [];
+
+// 向 background 註冊自己並取得自己的 tabId
 chrome.runtime.sendMessage({action:'registerGameTab'}, function(resp) {
   if (resp && resp.registered) {
     console.log('[GM Content] Game tab registered');
   }
-});
-
-chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-  if (request.action === 'togglePanel') {
-    togglePanel();
-    sendResponse({visible: window.__gmPanelVisible});
-  } else if (request.action === 'tabIdInfo') {
-    // background 回撥 actual tabId
-    __gmGameTabId = request.tabId;
-    sendResponse({ok: true});
-  }
-  return true;
 });
 
 // 來自 game-monitor.js 的 relay 請求（MAIN world → content → background）
@@ -49,7 +40,7 @@ window.addEventListener('message', function(e) {
   // 注入模組：game-monitor.js → content.js → background.js
   if (e.data.type === 'GM_LOAD_ADVANCED' && e.data.src) {
     var scriptName = e.data.src;
-    console.log('[GM Content] Relaying', scriptName, 'injection to background');
+    console.log('[GM Content] Relaying', scriptName, 'injection request');
 
     function doInject(tabId) {
       chrome.runtime.sendMessage(
@@ -59,8 +50,8 @@ window.addEventListener('message', function(e) {
             console.log('[GM Content] ' + scriptName + ' injected');
             window.postMessage({type: 'GM_ADVANCED_LOADED', src: scriptName}, '*');
           } else {
-            console.error('[GM Content] Failed to inject ' + scriptName, response);
-            // Retry once after 500ms
+            console.error('[GM Content] Failed to inject ' + scriptName, response && response.error);
+            // Retry once after 800ms
             setTimeout(function() {
               chrome.runtime.sendMessage(
                 {action: 'injectScript', scriptName: scriptName, tabId: tabId},
@@ -69,30 +60,42 @@ window.addEventListener('message', function(e) {
                     console.log('[GM Content] ' + scriptName + ' injected (retry)');
                     window.postMessage({type: 'GM_ADVANCED_LOADED', src: scriptName}, '*');
                   } else {
-                    console.error('[GM Content] Retry failed for ' + scriptName, resp2);
+                    console.error('[GM Content] Retry failed for ' + scriptName, resp2 && resp2.error);
                   }
                 }
               );
-            }, 500);
+            }, 800);
           }
         }
       );
     }
 
-    // 有快取的 tabId 就直接用，否則向 background 請求
+    // 立即嘗試讀取快取（registerGameTab 的 callback 已經更新了 __gmGameTabId）
     if (__gmGameTabId) {
       doInject(__gmGameTabId);
     } else {
+      // 還不知道 tabId：向 background 查詢，等回應後再注射
       chrome.runtime.sendMessage({action: 'getGameTabId'}, function(info) {
         if (info && info.tabId) {
           __gmGameTabId = info.tabId;
           doInject(__gmGameTabId);
         } else {
-          console.error('[GM Content] Cannot determine game tabId for injection');
+          console.error('[GM Content] Cannot determine game tabId — game tab may not be registered yet. Retry later.');
         }
       });
     }
   }
+});
+
+chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+  if (request.action === 'togglePanel') {
+    togglePanel();
+    sendResponse({visible: window.__gmPanelVisible});
+  } else if (request.action === 'tabIdInfo') {
+    __gmGameTabId = request.tabId;
+    sendResponse({ok: true});
+  }
+  return true;
 });
 
 function togglePanel() {

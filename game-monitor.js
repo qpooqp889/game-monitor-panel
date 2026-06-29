@@ -1087,13 +1087,20 @@ function __gmBuildPanel(){
     '</div>'+
     // Test Reconnect button
     '<button id="__gmp_farm_test_reconnect" style="width:100%;padding:6px;background:#2a2a4a;border:1px solid #ffd700;color:#ffd700;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;margin-bottom:4px;">🧪 測試斷線重連</button>'+
-    '</div>'+
-  '</div>';
+    '</div>'+  // closes inner farm content div
+  '</div>'; // closes farm tab content div
+  '</div>'; // closes __gmp_content wrapper
   document.body.appendChild(p);
 
   // === Populate farm zone select ===
   var farmSel=document.getElementById('__gmp_farm_zone');
   var farmSearch=document.getElementById('__gmp_farm_search');
+  if(!farmSel||!farmSearch){
+    console.error('[GM] Farm elements missing from DOM. farmSel='+(!!farmSel)+' farmSearch='+(!!farmSearch));
+    // Debug: log the innerHTML of the panel
+    var panel=document.getElementById('__gmp');
+    if(panel)console.log('[GM] Panel innerHTML snippet:',panel.innerHTML.substring(0,500));
+  }
   function populateFarmZones(filter){
     if(!farmSel)return;
     var f=(filter||'').toLowerCase();
@@ -1119,7 +1126,7 @@ function __gmBuildPanel(){
     });
   }
   populateFarmZones('');
-  farmSearch.addEventListener('input',function(){populateFarmZones(this.value)});
+  if(farmSearch) farmSearch.addEventListener('input',function(){populateFarmZones(this.value)});
 
   // === Zone tab functions ===
   function buildZoneItem(z){
