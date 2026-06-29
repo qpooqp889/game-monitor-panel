@@ -1865,7 +1865,7 @@ function __gmBuildPanel(){
 
   document.getElementById('__gmp_export_all').onclick=function(){
     if(!window.__gmAdvanced){
-      __gmShowIdbStatus('⚠️ 請先在掛機Tab點一次進階設定，初始化資料庫','#fbbf24');
+      __gmShowIdbStatus('⚠️ 進階模組尚未載入，請稍候再試','#fbbf24');
       return;
     }
     window.__gmAdvanced.exportAll().then(function(data){
@@ -1895,7 +1895,7 @@ function __gmBuildPanel(){
       try{
         var data=JSON.parse(ev.target.result);
         if(!window.__gmAdvanced){
-          __gmShowIdbStatus('⚠️ 請先在掛機Tab點一次進階設定，初始化資料庫','#fbbf24');
+          __gmShowIdbStatus('⚠️ 進階模組尚未載入，請稍候再試','#fbbf24');
           return;
         }
         window.__gmAdvanced.importAll(data).then(function(){
@@ -1917,20 +1917,29 @@ function __gmBuildPanel(){
   document.getElementById('__gmp_farm_logout_history').onclick=__gmOpenLogoutHistory;
   var advBtn=document.getElementById('__gmp_farm_advanced_settings');
   if(advBtn)advBtn.onclick=function(){
-    if(window.__gmAdvanced&&window.__gmAdvanced.openModal){
-      window.__gmAdvanced.openModal();
+    if(window.__gmAdvanced&&typeof window.__gmAdvanced.openModal==='function'){
+      try{
+        window.__gmAdvanced.openModal();
+      }catch(e){
+        console.warn('[GM] openModal error:',e);
+        alert('❌ 進階模組發生錯誤:\n'+e.message+'\n\n請重新整理頁面重試。');
+      }
+    } else if(window.__gmAdvanced){
+      // window.__gmAdvanced 已載入但沒有 openModal
+      console.warn('[GM] openModal not available, __gmAdvanced keys:',Object.keys(window.__gmAdvanced));
+      alert('⚠️ 進階模組載入不完全（openModal 方法遺失）\n\n請重新整理頁面重試。');
     } else {
-      // 先檢查 skill_settings 是否為空（從未讀取過技能）
-      if(window.__gmAdvanced&&window.__gmAdvanced.SkillDB){
-        window.__gmAdvanced.SkillDB.getLatest().then(function(rec){
-          if(!rec||!rec.skills||!Object.keys(rec.skills).length){
-            alert('⚠️ 尚未初始化資料\n\n請依序操作：\n1️⃣ 進入遊戲，切換到「設定」頁面\n2️⃣ 點擊上方「⚡技能」Tab\n3️⃣ 點「讀取設定」按鈕\n\n讀取完成後，再回來點「進階設定」即可。');
-          } else {
-            alert('進階模組尚未完全載入，請稍候再試（可嘗試重新整理頁面）');
+      // 檢查進階模組是否正在載入中
+      var waitDialog=document.getElementById('__gmAdvModal');
+      if(!waitDialog){
+        // 顯示載入中提示，再等 5 秒重試
+        alert('🔄 進階模組載入中...\n\n請稍候再點一次。\n若持續無法載入，請重新整理頁面。');
+        // 延時重試一次
+        setTimeout(function(){
+          if(window.__gmAdvanced&&typeof window.__gmAdvanced.openModal==='function'){
+            try{window.__gmAdvanced.openModal();}catch(e){}
           }
-        });
-      } else {
-        alert('⚠️ 進階模組尚未載入\n\n請依序操作：\n1️⃣ 進入遊戲，切換到「設定」頁面\n2️⃣ 點擊上方「⚡技能」Tab\n3️⃣ 點「讀取設定」按鈕\n\n讀取完成後，再回來點「進階設定」即可。');
+        },3000);
       }
     }
   };
