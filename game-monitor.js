@@ -927,8 +927,8 @@ function __gmBuildPanel(){
         '<button id="__gmp_import_all" style="flex:1;padding:5px 4px;background:#0f3460;border:1px solid #fbbf24;color:#fbbf24;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">📤 匯入設定</button>'+
         '<input type="file" id="__gmp_import_file" accept=".json" style="display:none;">'+
       '</div>'+
-      '<div id="__gmp_idb_status" style="font-size:10px;color:#555;margin-top:3px;text-align:center;"></div>'+
-    '</div>'>
+      '<div id="__gmp_idb_status" style="font-size:10px;color:#555;margin-top:3px;text-align:center;"></div>'+ 
+    '</div>'+ 
     '</div>'+
     // === MONITOR TAB ===
     '<div id="__gmp_tab_content_monitor" style="display:none;">'+
@@ -1086,10 +1086,10 @@ function __gmBuildPanel(){
       '</select>'+
     '</div>'+
     // Test Reconnect button
-    '<button id="__gmp_farm_test_reconnect" style="width:100%;padding:6px;background:#2a2a4a;border:1px solid #ffd700;color:#ffd700;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;margin-bottom:4px;">🧪 測試斷線重連</button>'+
+    '<button id="__gmp_farm_test_reconnect" style="width:100%;padding:6px;background:#2a2a4a;border:1px solid #ffd700;color:#ffd700;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;margin-bottom:4px;">🧪 測試斷線重連</button>'+ 
     '</div>'+  // closes inner farm content div
-  '</div>'; // closes farm tab content div
-  '</div>'; // closes __gmp_content wrapper
+    '</div>'+ // closes farm tab content div
+    '</div>'; // closes __gmp_content wrapper
   document.body.appendChild(p);
 
   // === Populate farm zone select ===
