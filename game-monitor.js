@@ -1889,7 +1889,13 @@ function __gmBuildPanel(){
       __gmShowIdbStatus('⚠️ 進階模組尚未載入，請稍候再試','#fbbf24');
       return;
     }
-    window.__gmAdvanced.exportAll().then(function(data){
+    // 同時匯出進階資料 + 登出歷史
+    Promise.all([
+      window.__gmAdvanced.exportAll(),
+      LogoutDB.exportCache()
+    ]).then(function(results){
+      var data=results[0];
+      data.logout_history=results[1];
       var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
       var url=URL.createObjectURL(blob);
       var a=document.createElement('a');
@@ -1897,7 +1903,7 @@ function __gmBuildPanel(){
       document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
       var ruleCount=data.advanced_rules?data.advanced_rules.length:0;
       var monsterCount=data.monsters?data.monsters.length:0;
-      __gmShowIdbStatus('✅ 匯出成功：'+ruleCount+' 規則 / '+monsterCount+' 怪物 / 技能設定','#4ade80');
+      __gmShowIdbStatus('✅ 匯出成功：'+ruleCount+' 規則 / '+monsterCount+' 怪物 / 技能設定 / '+data.logout_history.length+' 登入紀錄','#4ade80');
     }).catch(function(e){
       __gmShowIdbStatus('❌ 匯出失敗：'+e.message,'#e94560');
     });
@@ -1923,6 +1929,10 @@ function __gmBuildPanel(){
           __gmShowIdbStatus('✅ 匯入成功，請重新開啟進階設定查看','#4ade80');
           if(window.__gmAdvanced.refreshMonsterDatalist)window.__gmAdvanced.refreshMonsterDatalist();
           if(window.__gmAdvanced.refreshSkillDatalist)window.__gmAdvanced.refreshSkillDatalist();
+          // 匯入登出歷史
+          if(data.logout_history&&Array.isArray(data.logout_history)){
+            LogoutDB.importCache(data.logout_history);
+          }
         }).catch(function(err){
           __gmShowIdbStatus('❌ 匯入失敗：'+err.message,'#e94560');
         });
