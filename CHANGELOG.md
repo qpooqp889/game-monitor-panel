@@ -1,5 +1,39 @@
 # 異動說明 (CHANGELOG)
 
+## [v2.06] - 2026-06-29
+
+### 🎯 怪物下拉自動收錄（Monster Datalist）
+
+#### 1️⃣ IndexedDB 新增 `monsters` Store（v2 schema）
+- 新 store `monsters`，以怪物名稱（`name`）為 keyPath，去重儲存
+- 升級時自動 migration，不影響既有的 `advanced_rules` 資料
+
+#### 2️⃣ 自動收錄怪物名稱
+- `tick()` 每次被呼叫時（遊戲 loop 每秒），掃描 `state.monsters`
+- 所有存活的怪物（`m.hp > 0`）名稱自動寫入 `monsters` store
+- 同一場戰鬥中遇到的新怪物，2 秒後自動出現在下拉選項裡
+
+#### 3️⃣ 指定目標下拉改為可搜尋 datalist
+- `setTarget` 參數 input 掛上 `list="__gmAdvMonsterList"`（HTML5 datalist）
+- 支援**直接打字搜尋**（打字時自動過濾）
+- 支援**直接輸入數字索引**（仍可正常運作）
+- Modal 開啟時自動從 IndexedDB 載入所有已記錄的怪物名稱
+
+#### 4️⃣ 清除怪物紀錄按鈕
+- Modal 工具列新增「🗑 清除怪物紀錄」按鈕
+- 可選擇性清除怪物名稱庫，不影響規則設定
+
+### 📁 異動檔案
+
+| 檔案 | 變更類型 | 說明 |
+|------|---------|------|
+| `advanced-farming.js` | 修改 | v1.2 → v1.3；DB schema v2；`__gmMonsterDB` API；datalist 下拉；tick 自動收錄 |
+| `game-monitor.js` | 修改 | 版本 v2.05 → v2.06 |
+| `manifest.json` | 修改 | 版本 v2.05 → v2.06 |
+| `CHANGELOG.md` | 修改 | 新增本版異動記錄 |
+
+---
+
 ## [v2.05] - 2026-06-29
 
 ### ⚙️ 進階規則引擎強化 (Advanced Rules Engine Enhancement)

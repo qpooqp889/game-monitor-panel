@@ -12,7 +12,7 @@
   window.__gmAdvancedLoaded=true;
 
   // ====== 設定 ======
-  var DB_NAME='gm-panel-db',DB_VERSION=1,STORE='advanced_rules';
+  var DB_NAME='gm-panel-db',DB_VERSION=2,STORE='advanced_rules',MSTORE='monsters';
   var _dbPromise=null;
   function openDB(){
     if(_dbPromise)return _dbPromise;
@@ -24,14 +24,46 @@
           var os=db.createObjectStore(STORE,{keyPath:'id',autoIncrement:true});
           os.createIndex('priority','priority',{unique:false});
         }
+        // v2: monsters store for session-encountered monster names
+        if(!db.objectStoreNames.contains(MSTORE)){
+          db.createObjectStore(MSTORE,{keyPath:'name'});
+        }
       };
       req.onsuccess=function(e){resolve(e.target.result)};
       req.onerror=function(e){reject(e.target.error)};
     });
     return _dbPromise;
   }
+  function tx(mode,store){
+    return openDB().then(function(db){
+      return db.transaction(store||STORE,mode).objectStore(store||STORE);
+    });
+  }
   function tx(mode){return openDB().then(function(db){return db.transaction(STORE,mode).objectStore(STORE)})}
   function rp(req){return new Promise(function(r,j){req.onsuccess=function(){r(req.result)};req.onerror=function(){j(req.error)}})}
+
+  // ====== 怪物名稱自動收錄 ======
+  var __gmMonsterDB={
+    addAll:function(names){
+      if(!names||!names.length)return Promise.resolve();
+      return tx('readwrite',MSTORE).then(function(s){
+        var p=Promise.resolve();
+        names.forEach(function(n){
+          if(!n)return;
+          p=p.then(function(){return rp(s.put({name:n}))});
+        });
+        return p;
+      }).catch(function(e){console.warn('[AdvFarm] monsterDB addAll error:',e)});
+    },
+    getAllNames:function(){
+      return tx('readonly',MSTORE).then(function(s){return rp(s.getAll())}).then(function(a){
+        return a.map(function(x){return x.name;}).filter(Boolean).sort();
+      }).catch(function(){return[]});
+    },
+    clear:function(){
+      return tx('readwrite',MSTORE).then(function(s){return rp(s.clear())}).catch(function(){});
+    }
+  };
 
   // ====== 規則類型定義 ======
   var CONDITION_TYPES={
@@ -221,17 +253,37 @@
 
   // ====== 對外 API ======
   window.__gmAdvanced={
-    version:'1.1',
+    version:'1.3',
     CONDITION_TYPES:CONDITION_TYPES,
     OPERATORS:OPERATORS,
     ACTION_TYPES:ACTION_TYPES,
     AdvDB:AdvDB,
+    MonsterDB:__gmMonsterDB,
     evalRule:evalRule,
     triggerRule:triggerRule,
     // 由 game-monitor.js loop() 呼叫
     tick:function(state){
       if(!state)return;
       var self=this;
+      // 自動收錄遇到過的怪物名稱（去重）
+      var monsters=state&&state.monsters;
+      if(monsters&&monsters.length){
+        var names=[];
+        monsters.forEach(function(m){
+          if(m&&m.n&&m.hp>0&&names.indexOf(m.n)===-1)names.push(m.n);
+        });
+        if(names.length){
+          __gmMonsterDB.addAll(names).then(function(){
+            // Modal 開著的話自動刷新下拉（計時器延後，避免每幀都刷新）
+            if(!window.__gmAdvDlTimer){
+              window.__gmAdvDlTimer=setTimeout(function(){
+                window.__gmAdvDlTimer=null;
+                refreshMonsterDatalist();
+              },2000);
+            }
+          });
+        }
+      }
       AdvDB.getAll().then(function(rules){
         rules.forEach(function(rule){
           if(evalRule(rule,state)){
@@ -263,8 +315,11 @@
           '<button id="__gmAdvAdd" style="padding:5px 10px;background:#4ade80;border:none;color:#0f0f23;border-radius:4px;font-size:11px;font-weight:bold;cursor:pointer;">+ 新增規則</button>'+
           '<button id="__gmAdvExport" style="padding:5px 10px;background:#0f3460;border:1px solid #7bd14a;border-radius:4px;color:#7bd14a;font-size:11px;font-weight:bold;cursor:pointer;">📥 匯出</button>'+
           '<button id="__gmAdvImport" style="padding:5px 10px;background:#0f3460;border:1px solid #7bd14a;border-radius:4px;color:#7bd14a;font-size:11px;font-weight:bold;cursor:pointer;">📤 匯入</button>'+
+          '<button id="__gmAdvClearMonsters" style="padding:5px 8px;background:#0f3460;border:1px solid #fbbf24;border-radius:4px;color:#fbbf24;font-size:11px;font-weight:bold;cursor:pointer;">🗑 清除怪物紀錄</button>'+
           '<button id="__gmAdvClear" style="padding:5px 10px;background:#e94560;border:none;color:#fff;border-radius:4px;font-size:11px;font-weight:bold;cursor:pointer;margin-left:auto;">⚠️ 全部清除</button>'+
         '</div>'+
+        // hidden datalist — 供所有 setTarget 下拉使用
+        '<datalist id="__gmAdvMonsterList"></datalist>'+
         '<div id="__gmAdvList" style="padding:12px 16px;overflow-y:auto;flex:1;"></div>'+
         '<div id="__gmAdvStatus" style="padding:8px 12px;border-top:1px solid #0f3460;font-size:10px;color:#888;text-align:center;"></div>'+
       '</div>';
@@ -277,8 +332,26 @@
       if(!confirm('確定清除所有規則？'))return;
       AdvDB.clear().then(function(){renderList();showStatus('已清除所有規則','#e94560')});
     };
+    document.getElementById('__gmAdvClearMonsters').onclick=function(){
+      if(!confirm('清除所有已記錄的怪物名稱？'))return;
+      __gmMonsterDB.clear().then(function(){
+        refreshMonsterDatalist();
+        showStatus('已清除怪物紀錄','#fbbf24');
+      });
+    };
     m.onclick=function(e){if(e.target===m)m.remove()};
+    refreshMonsterDatalist();
     renderList();
+  }
+
+  function refreshMonsterDatalist(){
+    var dl=document.getElementById('__gmAdvMonsterList');
+    if(!dl)return;
+    __gmMonsterDB.getAllNames().then(function(names){
+      dl.innerHTML=names.map(function(n){
+        return '<option value="'+escapeHtml(n)+'">';
+      }).join('');
+    });
   }
 
   function showStatus(msg,color){
@@ -369,10 +442,14 @@
             opts+='<option value="'+k+'" '+(a.type===k?'selected':'')+'>'+ACTION_TYPES[k].label+'</option>';
           });
           var p1=a.skillId||a.potionType||a.itemId||a.targetValue||'';
-          var placeholder=a.type==='setTarget'?'怪物名稱（部分匹配）或索引':a.type==='castSkill'?'例: strike, heal':a.type==='usePotion'?'例: potion_heal':'參數';
+          var placeholder=a.type==='setTarget'?'選擇或輸入怪物名稱 / 索引':a.type==='castSkill'?'例: strike, heal':a.type==='usePotion'?'例: potion_heal':'參數';
+          // setTarget 使用 datalist 下拉（可搜尋、從 IndexedDB 讀取已遇過的怪物）
+          var paramInput=a.type==='setTarget'
+            ?'<input data-af="param" list="__gmAdvMonsterList" type="text" value="'+escapeHtml(p1)+'" placeholder="'+placeholder+'" autocomplete="off" style="flex:1;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;padding:3px;font-size:10px;">'
+            :'<input data-af="param" type="text" value="'+escapeHtml(p1)+'" placeholder="'+placeholder+'" style="flex:1;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;padding:3px;font-size:10px;">';
           return '<div data-act-i="'+i+'" style="display:flex;gap:4px;align-items:center;margin-bottom:4px;">'+
             '<select data-af="type" style="flex:1;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;padding:3px;font-size:10px;">'+opts+'</select>'+
-            '<input data-af="param" type="text" value="'+escapeHtml(p1)+'" placeholder="'+placeholder+'" style="flex:1;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;padding:3px;font-size:10px;">'+
+            paramInput+
             '<button data-af="del" style="background:#666;border:none;color:#fff;width:22px;height:22px;border-radius:4px;cursor:pointer;font-size:11px;">×</button>'+
           '</div>';
         }).join('')+
