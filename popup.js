@@ -54,7 +54,7 @@ document.getElementById('btnInject').addEventListener('click', function() {
     
     chrome.scripting.executeScript({
       target: {tabId: tab.id},
-      files: ['game-monitor.js'],
+      files: ['game-monitor.js', 'advanced-farming.js'],
       world: 'MAIN'
     }, function(results) {
       if (chrome.runtime.lastError) {

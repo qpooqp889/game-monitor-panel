@@ -9,9 +9,12 @@ if(window.__gmInjected){
 window.__gmInjected=true;
 window.__gmVer=ver;
 
-// 載入進階模組（透過 content script 注入，因為主世界沒有 chrome.runtime）
-window.postMessage({type:'GM_LOAD_ADVANCED',src:'advanced-farming.js'},'*');
-console.log('[GM] Requested advanced-farming.js via content script');
+// 載入進階模組（若尚未載入，透過 content script relay）
+// 現在 popup.js 會一次注入兩個腳本，這行僅作為兼容備援
+if(!window.__gmAdvanced){
+  window.postMessage({type:'GM_LOAD_ADVANCED',src:'advanced-farming.js'},'*');
+  console.log('[GM] Requested advanced-farming.js via content script');
+}
 window.__battleStatus={packets:[]};window.__gmOnlineCount=null;
 window.__gmFarming={running:false,timer:null,returning:false,waitTimer:null};
 window.__gmLogoutModalVisible=false;
