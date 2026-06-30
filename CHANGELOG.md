@@ -1,5 +1,44 @@
 # 異動說明 (CHANGELOG)
 
+## [v2.23] - 2026-06-30
+
+### 🆕 世界王列表監控（每 60 秒自動刷新）
+
+#### Socket.IO Hook 拓寬
+- 攔截**所有** RECV 事件寫入 `window.__wbAllEvents`（滾動 buffer，最多 500 筆）
+- 被動偵測：事件名含 `respawn`/`worldBoss`/`bossList`/`RefreshBoss`/`getBoss` 或 payload 含 `hp`+`maxHp`+`name` → 自動寫入 `__wbWorldBossCache`
+- 每次偵測到世界王事件時，通知所有訂閱者 (`__wbSubscribeWorldBoss` 回調)
+
+#### 主動查詢（每 60 秒一次）
+- 嘗試發送常見世界王事件名：`worldBoss`、`getBossInfo`、`bossInfo`、`world_boss`、`bossList`、`getBoss`、`RefreshBoss`、`getBossList`、`wbBoss`
+- 第一個成功發出的作為已確認事件名，寫入 `__wbWorldBossEvtName`
+
+#### 世界王列表 UI（Boss Tab 頂端）
+- 顯示：名稱 / 等級 / HP+最大HP / 存活條 / 重生倒數 / 狀態（存活/死亡/等待）
+- 左側色彩邊框：HP>60% 紅色、>30% 橙色、≤30% 深紅
+- 刷新按鈕：手動立即查詢
+- 每 60s 自動 checkbox：開/關自動查詢
+- 事件名顯示：當前已確認的事件名
+- 「事件候選」按鈕：查看自動偵測到的 Top 10 世界王相關事件
+
+#### 通用解析器 (`__wbParseWorldBossData`)
+- 支援格式：`[{...}]`、`{list:[...]}`、`{bosses:[...]}`、`{data:[...]}`、`{data:{...}}`
+- 標準化欄位：`name`、`lv`、`hp`、`maxHp`、`respawn`、`status`、`index`
+
+#### 整合
+- `switchTab('boss')` 時同步刷新世界王 UI
+- `__wbUpdateBossStatus()`（戰鬥 BOSS 狀態）不受影響
+- `__wbWorldBossDetectTimer`：每 5 秒自動偵測新事件
+
+### 📁 異動檔案
+
+| 檔案 | 變更 |
+|------|------|
+| `game-monitor.js` | v2.23；Socket hook 拓寬；世界王查詢/UI/計時器 |
+| `manifest.json` | v2.22 → v2.23 |
+
+---
+
 ## [v2.22] - 2026-06-30
 
 ### 🐛 修復：storage fallback + castSkill DOM 瞄準修正

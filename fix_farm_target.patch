@@ -1,0 +1,31 @@
+*** Begin Patch
+*** Update File: game-monitor.js
+@@ -1107,14 +1107,36 @@
+     // Auto attack
+     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">'+
+       '<input type="checkbox" id="__gmp_farm_atk" checked style="width:14px;height:14px;cursor:pointer;">'+
+-      '<span style="font-size:11px;color:#7bd14a;font-weight:bold;">⚔️ 自動攻擊</span>'+
+-    '</div>'+
+-    // Status
++      '<span style="font-size:11px;color:#7bd14a;font-weight:bold;">⚔️ 自動攻擊</span>'+
++    '</div>'+
++    // 指定目標
++    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+
++      '<input type="checkbox" id="__gmp_farm_specify_target" style="width:14px;height:14px;cursor:pointer;">'+
++      '<span style="font-size:10px;color:#ffa500;">🎯 指定目標</span>'+
++      '<select id="__gmp_farm_target_index" style="padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;">'+
++        '<option value="0">目標 0</option><option value="1" selected>目標 1</option><option value="2">目標 2</option>'+
++        '<option value="3">目標 3</option><option value="4">目標 4</option><option value="5">目標 5</option>'+
++        '<option value="6">目標 6</option><option value="7">目標 7</option><option value="8">目標 8</option>'+
++        '<option value="9">目標 9</option><option value="10">目標 10</option>'+
++      '</select>'+
++    '</div>'+
++    // 攻擊全部
++    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">'+
++      '<input type="checkbox" id="__gmp_farm_attack_all" style="width:14px;height:14px;cursor:pointer;">'+
++      '<span style="font-size:10px;color:#ff6347;">🔥 攻擊全部 (一次送出 0,1,2)</span>'+
++    '</div>'+
++    // Status
+     '<div id="__gmp_farm_status" style="font-size:10px;color:#888;margin-bottom:6px;text-align:center;">已停止</div>'+
+ 
+*** End Patch

@@ -1,5 +1,5 @@
 (function(){
-var ver='v2.22';
+var ver='v2.23';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -119,11 +119,27 @@ window.lastState=null;  // 初始化全域 lastState
         if(!window.__wbSocket)window.__wbSocket=this;
         if(p&&p.data&&p.data[0]){
           var evtName=p.data[0];
+          var payload=JSON.stringify(p.data).slice(0,2000);
           window.__sioPackets=window.__sioPackets||[];
-          window.__sioPackets.push({t:Date.now(),dir:'EVENT',evt:evtName,args:JSON.stringify(p.data).slice(0,500)});
+          window.__sioPackets.push({t:Date.now(),dir:'EVENT',evt:evtName,args:payload});
           // 解析 state 事件並更新 window.lastState
           if(evtName==='state'&&p.data[1]){
             window.lastState=p.data[1];
+          }
+          // 捕捉所有事件 → 世界王快取 + 事件列表
+          window.__wbAllEvents=window.__wbAllEvents||[];
+          var rec={t:Date.now(),evt:evtName,payload:payload};
+          window.__wbAllEvents.push(rec);
+          if(window.__wbAllEvents.length>500)window.__wbAllEvents.shift();
+          // 被動偵測：含 respawn / worldBoss / bossList / hp+maxHp+name 即為世界王候選
+          if(/respawn|worldBoss|bossList|world_boss|getBoss|RefreshBoss/i.test(evtName)||
+             (p.data.length>1&&/respawn|hp|maxHp|worldBoss|bossLv|lv|name/i.test(JSON.stringify(p.data[1])))){
+            window.__wbWorldBossCache=window.__wbWorldBossCache||{data:null,ts:0};
+            window.__wbWorldBossCache.data=p.data;
+            window.__wbWorldBossCache.ts=Date.now();
+            console.log('[WB] WorldBoss event captured:',evtName,JSON.stringify(p.data[1]).slice(0,200));
+            // 通知所有訂閱者
+            (window.__wbBossEvtSubscribers||[]).forEach(function(fn){try{fn(evtName,p.data);}catch(e){}});
           }
         }
         if(_oe)_oe.call(this,p);
@@ -138,6 +154,140 @@ function __wbSend(action){if(!window.__wbSocket||!window.__wbSocket.emit){setTim
 function __wbSendPotion(type){if(!window.__wbSocket)return;try{window.__wbSocket.emit('usePotion',{type:type||'potion_heal'});}catch(e){}}
 function __wbCastSkill(id,target){if(!window.__wbSocket)return;try{var p={id:id};if(target)p.target=target;window.__wbSocket.emit('castSkill',p);}catch(e){}}
 function __wbSetBossSet(s){if(!window.__wbSocket)return;try{window.__wbSocket.emit('setBossSet',s);}catch(e){}}
+function __wbEmit(evt,data){if(!window.__wbSocket||!window.__wbSocket.emit)return;try{window.__wbSocket.emit(evt,data);console.log('[WB-Emit]',evt,JSON.stringify(data).slice(0,200));}catch(e){console.warn('[WB-Emit] failed',e);}}
+
+// ====== World Boss 監控 ======
+// 快取：最近一次含世界王資訊的 socket 事件
+window.__wbWorldBossCache={data:null,ts:0};
+window.__wbBossEvtSubscribers=[];
+// 已確認的世界王事件名（由使用者或自動偵測確認後寫入）
+window.__wbWorldBossEvtName=null;
+// 自動查詢計時器 handle
+window.__wbWorldBossTimer=null;
+// 訂閱特定世界王事件（用於 UI 即時更新）
+function __wbSubscribeWorldBoss(fn){if(window.__wbBossEvtSubscribers.indexOf(fn)<0)window.__wbBossEvtSubscribers.push(fn);}
+// 手動查詢世界王（嘗試常見事件名）
+function __wbQueryWorldBoss(){
+  var names=['worldBoss','getBossInfo','bossInfo','world_boss','bossList','getBoss','RefreshBoss','getBossList','wbBoss'];
+  var found=false;
+  names.forEach(function(n){if(found)return;try{if(window.__wbSocket&&window.__wbSocket.emit){window.__wbSocket.emit(n);console.log('[WB-Query] emit:',n);found=true;}}catch(e){}});
+  if(!found)console.log('[WB-Query] no socket, will retry on next state');
+  return found;
+}
+// 自動查詢：每 60 秒執行一次
+function __wbStartWorldBossTimer(){
+  if(window.__wbWorldBossTimer)clearInterval(window.__wbWorldBossTimer);
+  __wbQueryWorldBoss();
+  window.__wbWorldBossTimer=setInterval(function(){
+    if(!window.__wbSocket){__wbQueryWorldBoss();return;}
+    __wbQueryWorldBoss();
+    __wbUpdateWorldBossUI();
+  },60000);
+  console.log('[WB-WorldBoss] timer started, interval=60s');
+}
+function __wbStopWorldBossTimer(){
+  if(window.__wbWorldBossTimer){clearInterval(window.__wbWorldBossTimer);window.__wbWorldBossTimer=null;}
+}
+// 解析世界王資料（通用格式，嘗試多種結構）
+function __wbParseWorldBossData(raw){
+  if(!raw)return[];
+  var arr=[];
+  // 嘗試常見包裝格式
+  if(Array.isArray(raw))arr=raw;
+  else if(raw&&raw.list)arr=raw.list;
+  else if(raw&&raw.bosses)arr=raw.bosses;
+  else if(raw&&raw.data)arr=Array.isArray(raw.data)?raw.data:[raw.data];
+  else if(typeof raw==='object')arr=[raw];
+  // 過濾：每項須有 name
+  arr=arr.filter(function(it){return it&&(it.name||it.n||it.bossName);});
+  // 標準化欄位
+  return arr.map(function(it){
+    return{
+      name:it.name||it.n||it.bossName||it.boss_name||'?'+
+      lv:it.lv||it.level||it.bossLv||it.boss_level||0,
+      hp:it.hp||it.HP||0,
+      maxHp:it.maxHp||it.maxHP||it['max-hp']||it.max_hp||0,
+      respawn:it.respawn||it.respawnTime||it.respawn_time||it.nextSpawn||it.cd||it.cooldown||null,
+      status:it.status||it.state||'unknown',
+      index:it.index||it.id||null
+    };
+  });
+}
+// 更新世界王 UI（顯示在 BOSS Tab 頂端）
+function __wbUpdateWorldBossUI(){
+  var el=document.getElementById('__gmp_wb_list');
+  var timerEl=document.getElementById('__gmp_wb_timer');
+  var countEl=document.getElementById('__gmp_wb_count');
+  if(!el)return;
+  var cache=window.__wbWorldBossCache||{};
+  var age=cache.ts?(Date.now()-cache.ts)/1000:null;
+  // 更新倒數計時
+  if(timerEl){
+    if(age!==null){
+      var rem=Math.max(0,60-Math.floor(age));
+      timerEl.textContent='自動刷新 '+rem+'s';
+      timerEl.style.color='#888';
+    } else {
+      timerEl.textContent='等待資料...';
+      timerEl.style.color='#555';
+    }
+  }
+  // 解析並顯示
+  var parsed=__wbParseWorldBossData(cache.data&&cache.data.length>1?cache.data[1]:null);
+  if(parsed.length){
+    if(countEl)countEl.textContent=parsed.length+' 隻';
+    el.innerHTML=parsed.map(function(b){
+      var pct=b.maxHp>0?Math.round(b.hp/b.maxHp*100):100;
+      var hpColor=pct>60?'#e94560':pct>30?'#fbbf24':'#dc2626';
+      var rsStr=b.respawn!==null?'重生:'+b.respawn+'s':'--';
+      var statusLabel={alive:'&#x1F7E2; 存活',dead:'&#x1F534; 死亡',waiting:'&#x1F7E1; 等待',unknown:'?'};
+      return '<div style="display:flex;align-items:center;gap:6px;padding:5px 6px;background:rgba(233,69,96,0.06);border-radius:5px;margin-bottom:3px;border-left:3px solid '+hpColor+';">'+
+        '<span style="font-size:10px;color:#e94560;min-width:70px;">'+b.name+'</span>'+
+        '<span style="font-size:9px;color:#aaa;">Lv.'+b.lv+'</span>'+
+        '<span style="font-size:9px;color:'+hpColor+';min-width:55px;">'+b.hp+'/'+b.maxHp+'</span>'+
+        '<div style="flex:1;background:#2a2a4a;border-radius:3px;height:6px;"><div style="width:'+pct+'%;background:'+hpColor+';height:100%;border-radius:3px;"></div></div>'+
+        '<span style="font-size:9px;color:#ffd700;min-width:65px;">'+rsStr+'</span>'+
+        '<span style="font-size:9px;color:#aaa;">'+statusLabel[b.status]||'?'+'</span>'+
+      '</div>';
+    }).join('');
+  } else {
+    if(countEl)countEl.textContent='--';
+    el.innerHTML='<div style="font-size:10px;color:#555;padding:8px;text-align:center;">尚無世界王資料<br><span style="font-size:9px;">等待 socket 事件...</span></div>';
+  }
+}
+// 嘗試自動偵測世界王事件（每 5 秒檢查最近捕獲的事件）
+function __wbDetectWorldBossEvt(){
+  var evts=window.__wbAllEvents||[];
+  var candidates={};
+  evts.slice(-100).forEach(function(e){
+    if(/respawn|worldBoss|bossList|world_boss|RefreshBoss|getBoss/i.test(e.evt)){
+      candidates[e.evt]=(candidates[e.evt]||0)+1;
+    }
+  });
+  var sorted=Object.keys(candidates).sort(function(a,b){return candidates[b]-candidates[a]});
+  if(sorted.length){
+    console.log('[WB-WorldBoss] detected candidates:',sorted.slice(0,5).map(function(k){return k+' x'+candidates[k];}).join(', '));
+    return sorted[0];
+  }
+  return null;
+}
+// 初次啟動偵測
+setTimeout(function(){
+  var detected=__wbDetectWorldBossEvt();
+  if(detected){
+    window.__wbWorldBossEvtName=detected;
+    console.log('[WB-WorldBoss] confirmed event:',detected);
+  }
+  __wbStartWorldBossTimer();
+  // 每 5 秒偵測新事件
+  window.__wbWorldBossDetectTimer=setInterval(function(){
+    if(!window.__wbWorldBossEvtName){
+      var d=__wbDetectWorldBossEvt();
+      if(d){window.__wbWorldBossEvtName=d;console.log('[WB-WorldBoss] auto-detected:',d);}
+    }
+    __wbUpdateWorldBossUI();
+  },5000);
+},5000);
 
 // ====== Boss Auto ======
 window.__wbBossAuto={running:false,timer:null,config:{pot:true,heal:false,barrier:false,atk:false,hpPct:50,barrierPct:30}};
@@ -973,6 +1123,28 @@ function __gmBuildPanel(){
       '<div style="background:#3a1a1a;border-radius:4px;height:14px;"><div id="__gmp_boss_hp_bar" style="width:0%;background:#e94560;height:100%;border-radius:4px;transition:width 0.3s;"></div></div></div>'+
       '<div id="__gmp_boss_buffs" style="font-size:10px;color:#86c5ff;margin-top:4px;"></div>'+
     '</div>'+
+    // === 世界王列表（每分鐘自動刷新）===
+    '<div style="background:rgba(233,69,96,0.06);padding:8px;border-radius:6px;margin-bottom:8px;border:1px solid rgba(233,69,96,0.3);">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'+
+        '<span style="font-size:11px;color:#e94560;font-weight:bold;">&#x1F3C5; 世界王列表</span>'+
+        '<div style="display:flex;gap:4px;align-items:center;">'+
+          '<span id="__gmp_wb_count" style="font-size:9px;color:#888;">--</span>'+
+          '<span id="__gmp_wb_timer" style="font-size:9px;color:#888;">初始化中...</span>'+
+          '<button id="__gmp_wb_refresh" style="padding:2px 6px;background:#0f3460;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:9px;font-weight:bold;">&#x1F504; 刷新</button>'+
+        '</div>'+
+      '</div>'+
+      '<div id="__gmp_wb_list" style="font-size:10px;color:#555;padding:6px;text-align:center;">等待 socket 事件...</div>'+
+      '<div style="margin-top:5px;padding-top:5px;border-top:1px solid rgba(233,69,96,0.2);display:flex;gap:4px;flex-wrap:wrap;align-items:center;">'+
+        '<span style="font-size:9px;color:#555;">自動:</span>'+
+        '<label style="display:flex;align-items:center;gap:3px;cursor:pointer;">'+
+          '<input type="checkbox" id="__gmp_wb_auto" checked style="width:11px;height:11px;cursor:pointer;">'+
+          '<span style="font-size:9px;color:#888;">每 60s 查詢</span>'+
+        '</label>'+
+        '<span style="font-size:9px;color:#444;margin-left:4px;">| 事件:</span>'+
+        '<span id="__gmp_wb_evt_name" style="font-size:9px;color:#ffd700;">auto-detecting...</span>'+
+        '<button id="__gmp_wb_show_detected" style="margin-left:auto;padding:2px 6px;background:#2a2a4a;border:1px solid #555;color:#aaa;border-radius:4px;cursor:pointer;font-size:9px;">? 事件候選</button>'+
+      '</div>'+
+    '</div>'+
     '<div style="margin-bottom:8px;">'+'<div style="font-size:10px;color:#888;margin-bottom:4px;">冷卻計時</div>'+
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">'+'<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">💊</span> 藥水 <span id="__gmp_cd_pot" style="color:#4ade80;float:right;">就緒</span></div>'+
       '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">⚔️</span> 攻擊 <span id="__gmp_cd_atk" style="color:#4ade80;float:right;">就緒</span></div>'+
@@ -1295,7 +1467,7 @@ function __gmBuildPanel(){
       }
     });
     if(tab==='zone')renderZones(activeZoneTab);
-    if(tab==='boss')__wbUpdateBossStatus();
+    if(tab==='boss'){__wbUpdateBossStatus();__wbUpdateWorldBossUI();}
   }
   document.getElementById('__gmp_tab_game').onclick=function(){switchTab('game')};
   document.getElementById('__gmp_tab_zone').onclick=function(){switchTab('zone')};
@@ -1921,6 +2093,44 @@ function __gmBuildPanel(){
       this.parentElement.parentElement.style.border='none';
     }
   };
+
+  // === 世界王列表 - 按鈕監聽 ===
+  document.getElementById('__gmp_wb_refresh').onclick=function(){
+    __wbQueryWorldBoss();
+    __wbUpdateWorldBossUI();
+    this.textContent='已刷新!';
+    setTimeout(function(){var b=document.getElementById('__gmp_wb_refresh');if(b)b.textContent='\u21BB 刷新';},1000);
+  };
+  document.getElementById('__gmp_wb_auto').onchange=function(){
+    if(this.checked){
+      __wbStartWorldBossTimer();
+    } else {
+      __wbStopWorldBossTimer();
+    }
+  };
+  document.getElementById('__gmp_wb_show_detected').onclick=function(){
+    var evts=window.__wbAllEvents||[];
+    var candidates={};
+    evts.slice(-200).forEach(function(e){
+      if(/respawn|worldBoss|bossList|world_boss|RefreshBoss|getBoss/i.test(e.evt)){
+        candidates[e.evt]=(candidates[e.evt]||0)+1;
+      }
+    });
+    var sorted=Object.keys(candidates).sort(function(a,b){return candidates[b]-candidates[a]});
+    if(sorted.length){
+      var list=sorted.slice(0,10).map(function(k,i){return(i+1)+'. '+k+' (x'+candidates[k]+')';}).join('\n');
+      console.log('[WB] Event candidates:\n'+list);
+      alert('事件候選 (查看 console 更多):\n'+sorted.slice(0,5).join('\n'));
+    } else {
+      alert('尚無偵測到世界王相關事件。請確認 Monitor 已在運行且有收到封包。');
+    }
+  };
+  // 世界王 UI 更新訂閱（cache 更新時即時刷新）
+  __wbSubscribeWorldBoss(function(evtName,data){
+    __wbUpdateWorldBossUI();
+    var evtEl=document.getElementById('__gmp_wb_evt_name');
+    if(evtEl)evtEl.textContent=evtName||'unknown';
+  });
 
   // Auto boss
   function __wbSyncAutoConfig(){
