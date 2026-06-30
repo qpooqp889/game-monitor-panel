@@ -250,9 +250,23 @@ function __wbDetectWorldBossEvt(){
 
 function __wbBossLoop(){if(!window.__wbBossAuto.running)return;var ls=window.lastState||{};var ch=ls.char||{};var boss=ls.boss||{};var cd=boss.cd||{};var cfg=window.__wbBossAuto.config;var hpPct=ch.maxHp>0?ch.hp/ch.maxHp:1;try{if(cfg.pot&&hpPct<(cfg.hpPct/100)&&cd.pot<0.05)__wbSend('pot');if(cfg.heal&&cd.heal<0.05)__wbSend('heal');if(cfg.barrier&&boss.hp>0&&boss.maxHp>0&&(boss.hp/boss.maxHp)<(cfg.barrierPct/100)&&cd.barrier<0.05&&boss.barrierHas)__wbSend('barrier');if(cfg.atk&&ls.mode==='bosscombat'&&cd.atk<0.05)__wbSend('atk');}catch(e){}window.__wbBossAuto.timer=setTimeout(__wbBossLoop,500);}
 
-function __wbBossAutoStart(){window.__wbBossAuto.running=true;__wbBossLoop();}
+function __wbBossAutoStart(){
+  window.__wbBossAuto.running=true;
+  __wbBossLoop();
+  var ss=document.getElementById('__gmp_boss_auto_status_short');
+  if(ss){ss.textContent='\u26A1 \u81EA\u52A8BOSS\u8FD0\u884C\u4E2D...';ss.style.color='#4ade80';}
+  var ce=document.getElementById('__gmp_boss_auto_enable');
+  if(ce)ce.checked=true;
+}
 
-function __wbBossAutoStop(){window.__wbBossAuto.running=false;if(window.__wbBossAuto.timer)clearTimeout(window.__wbBossAuto.timer);}
+function __wbBossAutoStop(){
+  window.__wbBossAuto.running=false;
+  if(window.__wbBossAuto.timer)clearTimeout(window.__wbBossAuto.timer);
+  var ss=document.getElementById('__gmp_boss_auto_status_short');
+  if(ss){ss.textContent='\u505C\u6B62\u4E2D';ss.style.color='#888';}
+  var ce=document.getElementById('__gmp_boss_auto_enable');
+  if(ce)ce.checked=false;
+}
 
 
 // ====== Cooldown Bypass ======

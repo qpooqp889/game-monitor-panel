@@ -1077,7 +1077,15 @@ function __gmBuildPanel(){
     // === BOSS TAB ===
     '<div id="__gmp_tab_content_boss" style="display:none;">'+
     // === 當前 BOSS 戰鬥 ===
-    '<div style="background:rgba(255,255,255,0.06);padding:8px;border-radius:6px;margin-bottom:8px;">'+
+    // === BOSS 自動開關 ===
+'<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:8px;background:rgba(233,69,96,0.12);border-radius:6px;">'+
+'<input type="checkbox" id="__gmp_boss_auto_enable" style="width:16px;height:16px;cursor:pointer;">'+
+'<label for="__gmp_boss_auto_enable" style="font-size:12px;color:#e94560;font-weight:bold;cursor:pointer;">\u2694\uFE0F 自動BOSS</label>'+
+'<span id="__gmp_boss_auto_status_short" style="font-size:10px;color:#888;">停止中</span>'+
+'<div style="flex:1;"></div>'+
+'<button id="__gmp_boss_auto_config_btn" style="padding:4px 8px;background:#0f3460;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:10px;">\u2699 進階設定</button>'+
+'</div>'+
+'<div style="background:rgba(255,255,255,0.06);padding:8px;border-radius:6px;margin-bottom:8px;">'+
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">'+
         '<span id="__gmp_boss_name" style="font-weight:bold;color:#e94560;font-size:12px;">--</span>'+
         '<span id="__gmp_boss_lv" style="font-size:11px;color:#aaa;"></span>'+
@@ -1151,31 +1159,44 @@ function __gmBuildPanel(){
       '<div style="font-size:10px;color:#555;padding-left:22px;">&#x26A0;&#xFE0F; 伺服器仍會驗證冷卻</div>'+
     '</div>'+
     // === 自動掛機 BOSS ===
-    '<div style="margin-bottom:8px;">'+
-      '<div style="font-size:10px;color:#888;margin-bottom:4px;">自動掛機</div>'+
-      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+
-        '<input type="checkbox" id="__gmp_boss_auto_pot" style="width:13px;height:13px;cursor:pointer;">'+
-        '<label for="__gmp_boss_auto_pot" style="font-size:10px;color:#4ade80;cursor:pointer;">&#x1F48A; HP&lt;</label>'+
-        '<input id="__gmp_boss_auto_hp" type="number" value="50" min="1" max="100" style="width:45px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;text-align:center;">'+
-        '<span style="font-size:10px;color:#555;">%</span>'+
-      '</div>'+
-      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+
-        '<input type="checkbox" id="__gmp_boss_auto_heal" style="width:13px;height:13px;cursor:pointer;">'+
-        '<label for="__gmp_boss_auto_heal" style="font-size:10px;color:#86efac;cursor:pointer;">&#x1F49A; 自動治療魔法</label>'+
-      '</div>'+
-      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+
-        '<input type="checkbox" id="__gmp_boss_auto_barrier" style="width:13px;height:13px;cursor:pointer;">'+
-        '<label for="__gmp_boss_auto_barrier" style="font-size:10px;color:#818cf8;cursor:pointer;">&#x1F6E1;&#xFE0F; Boss HP&lt;</label>'+
-        '<input id="__gmp_boss_auto_barrier_pct" type="number" value="30" min="1" max="100" style="width:45px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;text-align:center;">'+
-        '<span style="font-size:10px;color:#555;">%</span>'+
-      '</div>'+
-      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
-        '<input type="checkbox" id="__gmp_boss_auto_atk" style="width:13px;height:13px;cursor:pointer;">'+
-        '<label for="__gmp_boss_auto_atk" style="font-size:10px;color:#f87171;cursor:pointer;">&#x2694;&#xFE0F; 自動攻擊</label>'+
-      '</div>'+
-      '<div id="__gmp_boss_auto_status" style="font-size:10px;color:#888;text-align:center;margin-bottom:6px;">停止中</div>'+
-      '<button id="__gmp_boss_auto_btn" style="width:100%;padding:8px;background:#0f3460;border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:12px;font-weight:bold;">&#x25B6; 啟動自動BOSS</button>'+
-    '</div>'+
+// === BOSS 自動設定 Modal ===
+'<div id="__gmp_boss_auto_modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9999;justify-content:center;align-items:center;">'+
+'<div style="background:#1a1a2e;border:2px solid #0f3460;border-radius:10px;padding:16px;width:350px;max-height:80vh;overflow-y:auto;">'+
+'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">'+
+'<span style="font-size:14px;color:#e94560;font-weight:bold;">\u2694\uFE0F BOSS 自動掛機設定</span>'+
+'<button id="__gmp_boss_auto_modal_close" style="background:transparent;border:none;color:#888;font-size:18px;cursor:pointer;">\u2716</button>'+
+'</div>'+
+'<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">'+
+'<input type="checkbox" id="__gmp_boss_auto_pot" style="width:13px;height:13px;cursor:pointer;">'+
+'<label for="__gmp_boss_auto_pot" style="font-size:11px;color:#4ade80;cursor:pointer;">\u1F48A HP&lt;</label>'+
+'<input id="__gmp_boss_auto_hp" type="number" value="50" min="1" max="100" style="width:50px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;text-align:center;">'+
+'<span style="font-size:10px;color:#555;">%</span>'+
+'</div>'+
+'<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">'+
+'<input type="checkbox" id="__gmp_boss_auto_heal" style="width:13px;height:13px;cursor:pointer;">'+
+'<label for="__gmp_boss_auto_heal" style="font-size:11px;color:#86efac;cursor:pointer;">\u1F49A 自動治療魔法</label>'+
+'</div>'+
+'<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">'+
+'<input type="checkbox" id="__gmp_boss_auto_barrier" style="width:13px;height:13px;cursor:pointer;">'+
+'<label for="__gmp_boss_auto_barrier" style="font-size:11px;color:#818cf8;cursor:pointer;">\u1F6E1\uFE0F Boss HP&lt;</label>'+
+'<input id="__gmp_boss_auto_barrier_pct" type="number" value="30" min="1" max="100" style="width:50px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;text-align:center;">'+
+'<span style="font-size:10px;color:#555;">%</span>'+
+'</div>'+
+'<div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;">'+
+'<input type="checkbox" id="__gmp_boss_auto_atk" style="width:13px;height:13px;cursor:pointer;">'+
+'<label for="__gmp_boss_auto_atk" style="font-size:11px;color:#f87171;cursor:pointer;">\u2694\uFE0F 自動攻擊</label>'+
+'</div>'+
+'<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:8px;background:rgba(255,215,0,0.05);border-radius:4px;">'+
+'<input type="checkbox" id="__gmp_boss_bypass" style="width:14px;height:14px;cursor:pointer;">'+
+'<label for="__gmp_boss_bypass" style="font-size:11px;color:#ffd700;cursor:pointer;">\u1F513 解除冷卻限制</label>'+
+'</div>'+
+'<div style="text-align:center;margin-top:4px;">'+
+'<span id="__gmp_boss_auto_status" style="font-size:11px;color:#888;display:block;margin-bottom:8px;">停止中</span>'+
+'<button id="__gmp_boss_auto_btn" style="width:100%;padding:10px;background:#e94560;border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:13px;font-weight:bold;">\u25B6 啟動自動BOSS</button>'+
+'</div>'+
+'</div>'+
+'</div>'+
+
     // === Socket 狀態 + 匯入匯出 ===
     '<div style="margin-bottom:6px;">'+
       '<div style="font-size:10px;color:#888;margin-bottom:4px;">&#x1F4E1; Socket.IO 狀態</div>'+
@@ -2186,6 +2207,35 @@ function __gmBuildPanel(){
   document.getElementById('__gmp_boss_auto_heal').addEventListener('change',__wbSyncAutoConfig);
   document.getElementById('__gmp_boss_auto_barrier').addEventListener('change',__wbSyncAutoConfig);
   document.getElementById('__gmp_boss_auto_atk').addEventListener('change',__wbSyncAutoConfig);
+  // === BOSS auto enable/config handlers ===
+  document.getElementById('__gmp_boss_auto_enable').onchange=function(){
+    if(this.checked){
+      __wbSyncAutoConfig();
+      __wbBossAutoStart();
+      var btn=document.getElementById('__gmp_boss_auto_btn');
+      if(btn){btn.textContent='\u25A0 停止自動BOSS';btn.style.background='#e94560';}
+      var s=document.getElementById('__gmp_boss_auto_status');
+      if(s){s.textContent='\u26A1 自動BOSS運行中...';s.style.color='#4ade80';}
+      var ss=document.getElementById('__gmp_boss_auto_status_short');
+      if(ss){ss.textContent='\u26A1 自動BOSS運行中...';ss.style.color='#4ade80';}
+    } else {
+      __wbBossAutoStop();
+      var btn=document.getElementById('__gmp_boss_auto_btn');
+      if(btn){btn.textContent='\u25B6 啟動自動BOSS';btn.style.background='#0f3460';}
+      var s=document.getElementById('__gmp_boss_auto_status');
+      if(s){s.textContent='停止中';s.style.color='#888';}
+      var ss=document.getElementById('__gmp_boss_auto_status_short');
+      if(ss){ss.textContent='停止中';ss.style.color='#888';}
+    }
+  };
+  document.getElementById('__gmp_boss_auto_config_btn').onclick=function(){
+    var modal=document.getElementById('__gmp_boss_auto_modal');
+    if(modal){modal.style.display='flex';}
+  };
+  document.getElementById('__gmp_boss_auto_modal_close').onclick=function(){
+    var modal=document.getElementById('__gmp_boss_auto_modal');
+    if(modal){modal.style.display='none';}
+  };
   document.getElementById('__gmp_boss_auto_hp').addEventListener('input',__wbSyncAutoConfig);
   document.getElementById('__gmp_boss_auto_barrier_pct').addEventListener('input',__wbSyncAutoConfig);
 
@@ -2195,14 +2245,12 @@ function __gmBuildPanel(){
       this.textContent='▶ 啟動自動BOSS';
       this.style.background='#0f3460';
       var s=document.getElementById('__gmp_boss_auto_status');
-      if(s){s.textContent='停止中';s.style.color='#888';}
+      if(s){s.textContent='停止中';s.style.color='#888';}var ce=document.getElementById('__gmp_boss_auto_enable');if(ce)ce.checked=false;var ss=document.getElementById('__gmp_boss_auto_status_short');if(ss){ss.textContent='停止中';ss.style.color='#888';}
     } else {
       __wbSyncAutoConfig();
       __wbBossAutoStart();
       this.textContent='■ 停止自動BOSS';
-      this.style.background='#e94560';
-      var s=document.getElementById('__gmp_boss_auto_status');
-      if(s){s.textContent='⚡ 自動BOSS運行中...';s.style.color='#4ade80';}
+      this.style.background='#e94560';var ce=document.getElementById('__gmp_boss_auto_enable');if(ce)ce.checked=true;var ss=document.getElementById('__gmp_boss_auto_status_short');if(ss){ss.textContent='⚡ 自動BOSS運行中...';ss.style.color='#4ade80';}
     }
   };
 
