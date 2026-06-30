@@ -202,14 +202,14 @@
   };
 
   var ACTION_TYPES={
-    'castSkill':{label:'施放技能',params:['skillId'],hint:'技能 ID 例: strike, area_slash, heal'},
+    'castSkill':{label:'攻擊技能',params:['skillId'],hint:'從 gmSkillSettings 取技能，送 setAuto atkSkill'},
     'usePotion':{label:'使用藥水',params:['potionType'],hint:'potion_heal / strong_heal / ult_heal / mana / haste / brave'},
     'equipWeapon':{label:'裝備武器',params:['itemId'],hint:'武器物品 ID'},
     'equipArmor':{label:'裝備防具',params:['itemId'],hint:'防具物品 ID'},
     'attack':{label:'一般攻擊',params:[],hint:''},
     'toLobby':{label:'返回大廳',params:[],hint:''},
     'setTarget':{label:'指定目標',params:['targetValue'],hint:'怪物名稱（部分匹配）或索引數字'},
-    'setAuto':{label:'設定自動技能',params:['skillId','autoType'],hint:'openSkill=開怪技能 / atkSkill=攻擊技能'}
+    'setAuto':{label:'開怪技能',params:['skillId'],hint:'從 gmSkillSettings 取技能，送 setAuto openSkill'}
   };
 
   // ====== API (chrome.storage.local 實作, 見上方 preamble) ======
@@ -256,8 +256,12 @@
       if(!atype)return;
       switch(a.type){
         case 'castSkill':
-          window.__wbSocket.emit('castSkill',{id:a.skillId||'strike'});
-          console.log('[AdvFarm] castSkill:',a.skillId);
+          // 送出 setAuto atkSkill（與進階設定「攻擊技能」行為一致）
+          (function(){
+            var skillId=a.skillId||'strike';
+            window.__wbSocket.emit('setAuto',[{atkSkill:skillId}]);
+            console.log('[AdvFarm] castSkill→setAuto atkSkill:',skillId);
+          })();
           break;
         case 'usePotion':
           window.__wbSocket.emit('usePotion',{type:a.potionType||'potion_heal'});
@@ -304,15 +308,11 @@
           }
           break;
         case 'setAuto':
-          // autoType: 'openSkill' | 'atkSkill'，預設 'atkSkill'
-          // skillId: 技能 ID 如 sk_fireball, strike 等
+          // 固定送 setAuto openSkill（對應「開怪技能」）
           (function(){
-            var autoType=a.autoType||'atkSkill';
             var skillId=a.skillId||'strike';
-            var payload={};
-            payload[autoType]=skillId;
-            window.__wbSocket.emit('setAuto',[payload]);
-            console.log('[AdvFarm] setAuto:',autoType,skillId);
+            window.__wbSocket.emit('setAuto',[{openSkill:skillId}]);
+            console.log('[AdvFarm] setAuto openSkill:',skillId);
           })();
           break;
       }
@@ -558,15 +558,17 @@
             opts+='<option value="'+k+'" '+(a.type===k?'selected':'')+'>'+ACTION_TYPES[k].label+'</option>';
           });
           var p1=a.skillId||a.potionType||a.itemId||a.targetValue||'';
-          var p2=a.autoType||'atkSkill';
-          var placeholder=a.type==='setTarget'?'選擇或輸入怪物名稱 / 索引':a.type==='castSkill'?'例: strike, heal':a.type==='usePotion'?'例: potion_heal':'參數';
-          // setTarget / setAuto 使用 datalist 下拉
+          var placeholder=a.type==='setTarget'?'選擇或輸入怪物名稱 / 索引':a.type==='usePotion'?'例: potion_heal':'選擇技能';
+          // setTarget / 攻擊技能 / 開怪技能：datalist 下拉（技能中文名）
           var paramInput='';
           if(a.type==='setTarget'){
             paramInput='<input data-af="param" list="__gmAdvMonsterList" type="text" value="'+escapeHtml(p1)+'" placeholder="選擇或輸入怪物名稱 / 索引" autocomplete="off" style="flex:1;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;padding:3px;font-size:10px;">';
-          } else if(a.type==='setAuto'){
-            paramInput='<input data-af="skillId" list="__gmAdvSkillList" type="text" value="'+escapeHtml(p1)+'" placeholder="選擇或輸入技能ID (sk_fireball)" autocomplete="off" style="flex:1;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;padding:3px;font-size:10px;">'+
-              '<select data-af="autoType" style="background:#1a2a3a;border:1px solid #0f3460;border-radius:4px;color:#ffd700;padding:3px;font-size:10px;"><option value="openSkill" '+(p2==='openSkill'?'selected':'')+'>開怪技能</option><option value="atkSkill" '+(p2==='atkSkill'?'selected':'')+'>攻擊技能</option></select>';
+          } else if(a.type==='castSkill'||a.type==='setAuto'){
+            // 攻擊技能(castSkill) → setAuto atkSkill；開怪技能(setAuto) → setAuto openSkill
+            paramInput='<input data-af="skillId" list="__gmAdvSkillList" type="text" value="'+escapeHtml(p1)+'" placeholder="'+placeholder+'" autocomplete="off" style="flex:1;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;padding:3px;font-size:10px;">'+
+              (a.type==='castSkill'
+                ?'<span style="font-size:9px;color:#4ade80;white-space:nowrap;padding:0 3px;">攻</span>'
+                :'<span style="font-size:9px;color:#fbbf24;white-space:nowrap;padding:0 3px;">開</span>');
           } else {
             paramInput='<input data-af="param" type="text" value="'+escapeHtml(p1)+'" placeholder="'+placeholder+'" style="flex:1;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;padding:3px;font-size:10px;">';
           }
@@ -626,7 +628,6 @@
             else if(t==='setTarget')a.targetValue=(skEl||pEl).value;
             else if(t==='setAuto'){
               a.skillId=(skEl||pEl).value;
-              a.autoType=atEl?atEl.value:'atkSkill';
             } else a[(skEl||pEl).getAttribute('data-af')==='param'?'potionType':'skillId']=(skEl||pEl).value;
             rule.actions.push(a);
           });
