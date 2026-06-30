@@ -1,5 +1,14 @@
 ﻿# 異動說明 (CHANGELOG)
 
+## [2.29] - 2026-06-30
+### BOSS Tab 重構：討伐清單 + 可縮放捲軸
+- 世界王列表改為可縮放容器（點擊標題列展開/收合，預設展開），max-height:300px + overflow-y:auto
+- 新增「優先討伐清單」區塊（可縮放，max-height:300px），儲存至 chrome.storage.local (wb_priority_list)
+- 世界王每隻前方有 [+ ] 按鈕，點擊加入優先討伐清單，已加入顯示 ✓
+- 討伐清單每隻前方有 [x] 按鈕，點擊移除
+- 抽離世界王中文名稱邏輯（優先讀取 text node、移除 Lv. 後綴）
+- 新增輔助函數：__wbLoadHuntList / __wbGetHuntList / __wbSaveHuntList / __wbAddToHuntList / __wbRemoveFromHuntList / __wbUpdateHuntListUI / __wbInitHuntToggle
+
 ## [2.28] - 2026-06-30
 ### WorldBoss DOM 讀取重構
 - 世界王列表改為讀取遊戲 DOM (.wb-card[data-boss])，放棄 Socket 封包攔截

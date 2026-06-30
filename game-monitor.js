@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v2.28';
+var ver='v2.29';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -226,22 +226,30 @@ function __wbUpdateWorldBossUI(){
   if(!el)return;
 
   if(timerEl){
-    timerEl.textContent='每 60s 自動刷新';
+    timerEl.textContent='每 60s';
     timerEl.style.color='#888';
   }
 
+  // === 讀取遊戲 DOM ===
   var cards=document.querySelectorAll('.wb-card[data-boss]');
   var bossList=[];
   cards.forEach(function(card){
     var bossId=card.getAttribute('data-boss');
     var subEl=document.querySelector('.wb-sub[data-boss="'+bossId+'"]');
     var nameSpan=card.querySelector('.wb-r1>span:first-child');
-    var name=nameSpan?(nameSpan.firstChild?nameSpan.firstChild.textContent.trim():'?'):'?';
+    var name='?';
+    if(nameSpan){
+      if(nameSpan.firstChild && nameSpan.firstChild.nodeType===3){
+        name=nameSpan.firstChild.textContent.trim().replace(/\s*Lv\..*$/,'');
+      }else{
+        name=nameSpan.textContent.trim().replace(/\s*Lv\..*$/,'');
+      }
+    }
     var lvSpan=nameSpan?nameSpan.querySelector('.dim'):null;
-    var lv=lvSpan?parseInt((lvSpan.textContent.match(/\d+/)||[0])[0],10):0;
+    var lv=lvSpan?parseInt((lvSpan.textContent.match(/\d+/)||[0])[0],10)||0:0;
     var subText=subEl?subEl.textContent.trim():'';
 
-    var status='unknown',respawn=null;
+    var status='unknown',respawn=null,respawnMin=null;
     if(subText.indexOf('已被擊敗')!==-1||subText.indexOf('已被征服')!==-1){
       status='dead';
       var m=subText.match(/(\d{1,2}):(\d{2})/);
@@ -251,6 +259,7 @@ function __wbUpdateWorldBossUI(){
         var target=new Date(now.getFullYear(),now.getMonth(),now.getDate(),h,min,0);
         if(target<=now)target.setDate(target.getDate()+1);
         respawn=Math.round((target-now)/1000);
+        respawnMin=Math.ceil(respawn/60);
       }
     } else if(subText.indexOf('存活')!==-1||subText.indexOf('戰鬥中')!==-1||subText.indexOf('HP')!==-1){
       status='alive';
@@ -258,25 +267,34 @@ function __wbUpdateWorldBossUI(){
       status='waiting';
     }
 
-    bossList.push({id:bossId,name:name,lv:lv,hp:status==='alive'?1:0,maxHp:1,respawn:respawn,status:status});
+    bossList.push({id:bossId,name:name,lv:lv,hp:status==='alive'?1:0,maxHp:1,respawn:respawn,respawnMin:respawnMin,status:status});
   });
 
-  if(bossList.length){
-    if(countEl)countEl.textContent=bossList.length+' 隻';
-    el.innerHTML=bossList.map(function(b){
-      var rsStr=b.respawn!==null?'重生:'+Math.floor(b.respawn/60)+'m '+String((b.respawn%60)+'s').padStart(3,'0'):(b.status==='alive'?'存活中':'--');
-      var sc={alive:'#4ade80',dead:'#888',waiting:'#fbbf24',unknown:'#555'};
-      return '<div style="display:flex;align-items:center;gap:6px;padding:5px 6px;background:rgba(233,69,96,0.06);border-radius:5px;margin-bottom:3px;border-left:3px solid #4ade80;">'+
-        '<span style="font-size:10px;color:#e94560;min-width:70px;">'+b.name+'</span>'+
-        '<span style="font-size:9px;color:#aaa;">Lv.'+b.lv+'</span>'+
-        '<div style="flex:1;"></div>'+
-        '<span style="font-size:9px;color:'+sc[b.status]+';min-width:70px;">'+rsStr+'</span>'+
-      '</div>';
-    }).join('');
-  } else {
-    if(countEl)countEl.textContent='--';
-    el.innerHTML='<div style="font-size:10px;color:#888;padding:8px;text-align:center;">世界王列表為空<br><span style="font-size:9px;color:#555;">請先切換到「狩獵場 → 世界王」分頁</span></div>';
-  }
+  // === 讀取優先討伐清單 ===
+  __wbLoadHuntList(function(huntIds){
+    if(bossList.length){
+      if(countEl)countEl.textContent=bossList.length+' 隻';
+      var html=bossList.map(function(b){
+        var rsStr=b.respawn!==null?'\u91cd\u751f:'+Math.floor(b.respawn/60)+'m '+String((b.respawn%60)+'s').padStart(3,'0'):(b.status==='alive'?'\u5b58\u6d3b\u4e2d':'--');
+        var sc={alive:'#4ade80',dead:'#888',waiting:'#fbbf24',unknown:'#555'};
+        var inHunt=huntIds.indexOf(b.id)!==-1;
+        var addBtn=inHunt?'<span style="color:#4caf50;font-size:11px;min-width:18px;">\u2713</span>':'<span onclick="__wbAddToHuntList(\''+b.id+'\',\''+b.name+'\','+b.lv+')" style="color:#4caf50;font-size:14px;cursor:pointer;min-width:18px;text-align:center;">[+]</span>';
+        return '<div style="display:flex;align-items:center;gap:4px;padding:4px 6px;background:rgba(233,69,96,0.06);border-radius:5px;margin-bottom:2px;border-left:3px solid '+sc[b.status]+';">'+
+          addBtn+
+          '<span style="font-size:10px;color:#e94560;min-width:70px;">'+b.name+'</span>'+
+          '<span style="font-size:9px;color:#aaa;">Lv.'+b.lv+'</span>'+
+          '<div style="flex:1;"></div>'+
+          '<span style="font-size:9px;color:'+sc[b.status]+';min-width:70px;">'+rsStr+'</span>'+
+        '</div>';
+      }).join('');
+      el.innerHTML=html;
+    } else {
+      if(countEl)countEl.textContent='--';
+      el.innerHTML='<div style="font-size:10px;color:#888;padding:8px;text-align:center;">\u4e16\u754c\u738b\u5217\u8868\u4e3a\u7a7a<br><span style="font-size:9px;color:#555;">\u8bf7\u5148\u5207\u6362\u5230\u300c\u72e9\u7315\u573a \u2192 \u4e16\u754c\u738b\u300d\u5206\u9875</span></div>';
+    }
+    // 同步更新優先討伐清單 UI
+    __wbUpdateHuntListUI();
+  });
 }
 // 嘗試自動偵測世界王事件（每 5 秒檢查最近捕獲的事件）
 function __wbDetectWorldBossEvt(){
@@ -1139,76 +1157,58 @@ function __gmBuildPanel(){
     '</div>'+
     // === BOSS TAB ===
     '<div id="__gmp_tab_content_boss" style="display:none;">'+
+    // === 當前 BOSS 戰鬥 ===
     '<div style="background:rgba(255,255,255,0.06);padding:8px;border-radius:6px;margin-bottom:8px;">'+
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">'+'<span id="__gmp_boss_name" style="font-weight:bold;color:#e94560;font-size:12px;">--</span>'+
-      '<span id="__gmp_boss_lv" style="font-size:11px;color:#aaa;"></span></div>'+
-      '<div style="margin-bottom:4px;"><div style="display:flex;justify-content:space-between;font-size:10px;color:#888;margin-bottom:2px;"><span>BOSS HP</span><span id="__gmp_boss_hp_text" style="color:#e94560;">--/--</span></div>'+
-      '<div style="background:#3a1a1a;border-radius:4px;height:14px;"><div id="__gmp_boss_hp_bar" style="width:0%;background:#e94560;height:100%;border-radius:4px;transition:width 0.3s;"></div></div></div>'+
-      '<div id="__gmp_boss_buffs" style="font-size:10px;color:#86c5ff;margin-top:4px;"></div>'+
-    '</div>'+
-    // === 世界王列表（每分鐘自動刷新）===
-    '<div style="background:rgba(233,69,96,0.06);padding:8px;border-radius:6px;margin-bottom:8px;border:1px solid rgba(233,69,96,0.3);">'+
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'+
-        '<span style="font-size:11px;color:#e94560;font-weight:bold;">&#x1F3C5; 世界王列表</span>'+
-        '<div style="display:flex;gap:4px;align-items:center;">'+
-          '<span id="__gmp_wb_count" style="font-size:9px;color:#888;">--</span>'+
-          '<span id="__gmp_wb_timer" style="font-size:9px;color:#888;">初始化中...</span>'+
-          '<button id="__gmp_wb_refresh" style="padding:2px 6px;background:#0f3460;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:9px;font-weight:bold;">&#x1F504; 刷新</button>'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">'+
+        '<span id="__gmp_boss_name" style="font-weight:bold;color:#e94560;font-size:12px;">--</span>'+
+        '<span id="__gmp_boss_lv" style="font-size:11px;color:#aaa;"></span>'+
+      '</div>'+
+      '<div style="margin-bottom:4px;">'+
+        '<div style="display:flex;justify-content:space-between;font-size:10px;color:#888;margin-bottom:2px;">'+
+          '<span>BOSS HP</span><span id="__gmp_boss_hp_text" style="color:#e94560;">--/--</span>'+
+        '</div>'+
+        '<div style="background:#3a1a1a;border-radius:4px;height:14px;">'+
+          '<div id="__gmp_boss_hp_bar" style="width:0%;background:#e94560;height:100%;border-radius:4px;transition:width 0.3s;"></div>'+
         '</div>'+
       '</div>'+
-      '<div id="__gmp_wb_list" style="font-size:10px;color:#555;padding:6px;text-align:center;">等待 socket 事件...</div>'+
-      '<div style="margin-top:5px;padding-top:5px;border-top:1px solid rgba(233,69,96,0.2);display:flex;gap:4px;flex-wrap:wrap;align-items:center;">'+
-        '<span style="font-size:9px;color:#555;">自動:</span>'+
-        '<label style="display:flex;align-items:center;gap:3px;cursor:pointer;">'+
-          '<input type="checkbox" id="__gmp_wb_auto" checked style="width:11px;height:11px;cursor:pointer;">'+
-          '<span style="font-size:9px;color:#888;">每 60s 查詢</span>'+
-        '</label>'+
-        '<span style="font-size:9px;color:#444;margin-left:4px;">| 事件:</span>'+
-        '<span id="__gmp_wb_evt_name" style="font-size:9px;color:#ffd700;">DOM 即時讀取</span>'+
-        '<button id="__gmp_wb_show_detected" style="margin-left:auto;padding:2px 6px;background:#2a2a4a;border:1px solid #555;color:#aaa;border-radius:4px;cursor:pointer;font-size:9px;">? 事件候選</button>'+
-        '<button id="__gmp_wb_export_all" onclick="__gmExportSioEvents()" style="padding:2px 6px;background:#1a3a1a;border:1px solid #4ade80;color:#4ade80;border-radius:4px;cursor:pointer;font-size:9px;">&#x1F4CB; 匯出</button>'+
+      '<div id="__gmp_boss_buffs" style="font-size:10px;color:#86c5ff;margin-top:4px;"></div>'+
+    '</div>'+
+    // === 世界王列表（每分鐘自動刷新，可縮放）===
+    '<div style="background:rgba(233,69,96,0.06);padding:0;border-radius:6px;margin-bottom:8px;border:1px solid rgba(233,69,96,0.3);">'+
+      // 標題列（可點擊縮放）
+      '<div id="__gmp_wb_toggle" style="display:flex;justify-content:space-between;align-items:center;padding:8px;cursor:pointer;user-select:none;">'+
+        '<span style="font-size:11px;color:#e94560;font-weight:bold;">&#x1F3C5; 世界王列表 <span id="__gmp_wb_count" style="font-size:9px;color:#888;">--</span></span>'+
+        '<div style="display:flex;gap:4px;align-items:center;">'+
+          '<span id="__gmp_wb_timer" style="font-size:9px;color:#888;">每 60s</span>'+
+          '<button id="__gmp_wb_refresh" style="padding:2px 6px;background:#0f3460;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:9px;font-weight:bold;">&#x2699; 刷新</button>'+
+          '<button id="__gmp_wb_show_detected" style="padding:2px 6px;background:#2a2a4a;border:1px solid #555;color:#aaa;border-radius:4px;cursor:pointer;font-size:9px;">? 事件</button>'+
+          '<button id="__gmp_wb_export_all" onclick="__gmExportSioEvents()" style="padding:2px 6px;background:#1a3a1a;border:1px solid #4ade80;color:#4ade80;border-radius:4px;cursor:pointer;font-size:9px;">&#x1F4CB; 匯出</button>'+
+        '</div>'+
+      '</div>'+
+      // 可捲動清單（預設 300px，可點擊標題列縮放）
+      '<div id="__gmp_wb_body" style="max-height:300px;overflow-y:auto;padding:0 6px 6px 6px;">'+
+        '<div id="__gmp_wb_list" style="font-size:10px;color:#555;padding:6px;text-align:center;">DOM 讀取中...</div>'+
       '</div>'+
     '</div>'+
-    '<div style="margin-bottom:8px;">'+'<div style="font-size:10px;color:#888;margin-bottom:4px;">冷卻計時</div>'+
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">'+'<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">💊</span> 藥水 <span id="__gmp_cd_pot" style="color:#4ade80;float:right;">就緒</span></div>'+
-      '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">⚔️</span> 攻擊 <span id="__gmp_cd_atk" style="color:#4ade80;float:right;">就緒</span></div>'+
-      '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">💚</span> 治療 <span id="__gmp_cd_heal" style="color:#4ade80;float:right;">就緒</span></div>'+
-      '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">🔄</span> 轉換 <span id="__gmp_cd_convert" style="color:#4ade80;float:right;">就緒</span></div>'+
-      '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">🛡️</span> 屏障 <span id="__gmp_cd_barrier" style="color:#4ade80;float:right;">就緒</span></div>'+
-    '</div></div>'+
-    '<div style="margin-bottom:8px;">'+'<div style="font-size:10px;color:#888;margin-bottom:4px;">手動指令（直接發送）</div>'+
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">'+'<button id="__gmp_boss_pot" style="padding:8px;background:#1a4a1a;border:1px solid #2a6a2a;color:#4ade80;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">💊 藥水</button>'+
-      '<button id="__gmp_boss_atk" style="padding:8px;background:#2a1a1a;border:1px solid #6a2a2a;color:#f87171;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">⚔️ 攻擊</button>'+
-      '<button id="__gmp_boss_heal" style="padding:8px;background:#1a2a1a;border:1px solid #2a5a2a;color:#86efac;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">💚 治療</button>'+
-      '<button id="__gmp_boss_convert" style="padding:8px;background:#1a1a4a;border:1px solid #2a2a7a;color:#a5b4fc;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">🔄 轉換</button>'+
-      '<button id="__gmp_boss_barrier" style="padding:8px;background:#1a1a3a;border:1px solid #3a3a8a;color:#818cf8;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">🛡️ 屏障</button>'+
-      '<button id="__gmp_boss_holy" style="padding:8px;background:#2a1a2a;border:1px solid #6a2a6a;color:#d8b4fe;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">✨ 神聖</button>'+
-    '</div></div>'+
-    '<div style="margin-bottom:8px;">'+'<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">'+'<input type="checkbox" id="__gmp_boss_bypass" style="width:14px;height:14px;cursor:pointer;">'+'<label for="__gmp_boss_bypass" style="font-size:11px;color:#ffd700;cursor:pointer;">🔓 解除冷卻限制（按了直接發送，無視按鈕鎖定）</label></div>'+
-      '<div style="font-size:10px;color:#555;padding-left:22px;">⚠️ 伺服器仍會驗證冷卻，客戶端 bypass 讓按鈕可以一直按</div>'+
-    '</div>'+
-    '<div style="margin-bottom:8px;">'+'<div style="font-size:10px;color:#888;margin-bottom:4px;">自動掛機</div>'+
-      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+'<input type="checkbox" id="__gmp_boss_auto_pot" style="width:13px;height:13px;cursor:pointer;">'+'<label for="__gmp_boss_auto_pot" style="font-size:10px;color:#4ade80;cursor:pointer;">💊 HP&lt;</label>'+
-      '<input id="__gmp_boss_auto_hp" type="number" value="50" min="1" max="100" style="width:45px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;text-align:center;">'+'<span style="font-size:10px;color:#555;">%</span></div>'+
-      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+'<input type="checkbox" id="__gmp_boss_auto_heal" style="width:13px;height:13px;cursor:pointer;">'+'<label for="__gmp_boss_auto_heal" style="font-size:10px;color:#86efac;cursor:pointer;">💚 自動治療魔法</label></div>'+
-      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+'<input type="checkbox" id="__gmp_boss_auto_barrier" style="width:13px;height:13px;cursor:pointer;">'+'<label for="__gmp_boss_auto_barrier" style="font-size:10px;color:#818cf8;cursor:pointer;">🛡️ Boss HP&lt;</label>'+
-      '<input id="__gmp_boss_auto_barrier_pct" type="number" value="30" min="1" max="100" style="width:45px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;text-align:center;">'+'<span style="font-size:10px;color:#555;">%</span></div>'+
-      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+'<input type="checkbox" id="__gmp_boss_auto_atk" style="width:13px;height:13px;cursor:pointer;">'+'<label for="__gmp_boss_auto_atk" style="font-size:10px;color:#f87171;cursor:pointer;">⚔️ 自動攻擊</label></div>'+
-      '<div id="__gmp_boss_auto_status" style="font-size:10px;color:#888;text-align:center;margin-bottom:6px;">停止中</div>'+
-      '<button id="__gmp_boss_auto_btn" style="width:100%;padding:8px;background:#0f3460;border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:12px;font-weight:bold;">▶ 啟動自動BOSS</button>'+
-    '</div>'+
-    '<div style="margin-bottom:6px;">'+'<div style="font-size:10px;color:#888;margin-bottom:4px;">📡 Socket.IO 狀態</div>'+
-      '<div style="display:flex;gap:6px;margin-bottom:4px;">'+'<span style="font-size:10px;color:#888;">連接: </span><span id="__gmp_sock_status" style="font-size:10px;color:#ffd700;">檢測中...</span></div>'+
-      '<div style="font-size:10px;color:#888;">已捕獲: <span id="__gmp_sock_sent" style="color:#4ade80;">0</span> 發送 / <span id="__gmp_sock_evts" style="color:#00d9ff;">0</span> 事件</div>'+
-      '<div style="margin-top:8px;display:flex;gap:4px;">'+
-        '<button id="__gmp_export_all" style="flex:1;padding:5px 4px;background:#0f3460;border:1px solid #7bd14a;color:#7bd14a;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">📥 匯出設定</button>'+
-        '<button id="__gmp_import_all" style="flex:1;padding:5px 4px;background:#0f3460;border:1px solid #fbbf24;color:#fbbf24;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">📤 匯入設定</button>'+
-        '<input type="file" id="__gmp_import_file" accept=".json" style="display:none;">'+
+    // === 優先討伐清單（可縮放）===
+    '<div style="background:rgba(76,175,80,0.06);padding:0;border-radius:6px;margin-bottom:8px;border:1px solid rgba(76,175,80,0.3);">'+
+      // 標題列（可點擊縮放）
+      '<div id="__gmp_hunt_toggle" style="display:flex;justify-content:space-between;align-items:center;padding:8px;cursor:pointer;user-select:none;">'+
+        '<span style="font-size:11px;color:#4caf50;font-weight:bold;">&#x1F3AF; 優先討伐清單 <span id="__gmp_hunt_count" style="font-size:9px;color:#888;"></span></span>'+
+        '<div style="display:flex;gap:4px;align-items:center;">'+
+          '<span id="__gmp_hunt_timer" style="font-size:9px;color:#888;"></span>'+
+        '</div>'+
       '</div>'+
-      '<div id="__gmp_idb_status" style="font-size:10px;color:#555;margin-top:3px;text-align:center;"></div>'+ 
-    '</div>'+ 
+      // 可捲動清單（預設 300px）
+      '<div id="__gmp_hunt_body" style="max-height:300px;overflow-y:auto;padding:0 6px 6px 6px;">'+
+        '<div id="__gmp_hunt_list" style="font-size:10px;color:#555;padding:6px;text-align:center;">點選上方世界王 [+ ] 加入</div>'+
+      '</div>'+
     '</div>'+
-    // === MONITOR TAB ===
+    // === 底部狀態列 ===
+    '<div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;padding:4px 6px;background:rgba(0,0,0,0.15);border-radius:4px;">'+
+      '<span style="font-size:9px;color:#555;">事件:</span>'+
+      '<span id="__gmp_wb_evt_name" style="font-size:9px;color:#ffd700;">DOM 即時讀取</span>'+
+    '</div>'+// === MONITOR TAB ===
     '<div id="__gmp_tab_content_monitor" style="display:none;">'+
       '<div style="background:rgba(74,222,128,0.08);padding:8px;border-radius:6px;margin-bottom:8px;">'+
         '<div style="font-size:11px;color:#4ade80;font-weight:bold;margin-bottom:6px;">📡 封包監控 (Packet Monitor)</div>'+
@@ -1491,7 +1491,7 @@ function __gmBuildPanel(){
       }
     });
     if(tab==='zone')renderZones(activeZoneTab);
-    if(tab==='boss'){__wbUpdateBossStatus();__wbUpdateWorldBossUI();}
+    if(tab==='boss'){__wbInitHuntToggle();__wbUpdateBossStatus();__wbUpdateWorldBossUI();}
   }
   document.getElementById('__gmp_tab_game').onclick=function(){switchTab('game')};
   document.getElementById('__gmp_tab_zone').onclick=function(){switchTab('zone')};
@@ -2206,6 +2206,8 @@ function __gmBuildPanel(){
     if(__wbBossUpdTimer)return;
     __wbBossUpdTimer=setInterval(function(){
       if(activeTab==='boss')__wbUpdateBossStatus();
+          __wbInitHuntToggle();
+          __wbUpdateHuntListUI();
     },500);
   }
   __wbBossStartUpdater();
@@ -2459,6 +2461,100 @@ function __gmBuildPanel(){
 }
 // === Debug log wrapper ===
 window.__gmDebugLog = true;
+// ========== 優先討伐清單管理 ==========
+function __wbLoadHuntList(callback){
+  if(typeof chrome==='undefined'||!chrome.storage){if(callback)callback([]);return;}
+  chrome.storage.local.get('wb_priority_list',function(r){
+    var list=r.wb_priority_list||[];
+    var ids=list.map(function(i){return i.id;});
+    if(callback)callback(ids);
+  });
+}
+
+function __wbGetHuntList(callback){
+  if(typeof chrome==='undefined'||!chrome.storage){callback([]);return;}
+  chrome.storage.local.get('wb_priority_list',function(r){
+    callback(r.wb_priority_list||[]);
+  });
+}
+
+function __wbSaveHuntList(list){
+  if(typeof chrome==='undefined'||!chrome.storage)return;
+  chrome.storage.local.set({wb_priority_list:list},function(){
+    __wbUpdateHuntListUI();
+    __wbUpdateWorldBossUI();
+  });
+}
+
+function __wbAddToHuntList(bossId,bossName,bossLv){
+  __wbGetHuntList(function(list){
+    // 檢查是否已存在
+    if(list.some(function(i){return i.id===bossId;}))return;
+    list.push({id:bossId,name:bossName,lv:bossLv,addedAt:Date.now()});
+    __wbSaveHuntList(list);
+  });
+}
+
+function __wbRemoveFromHuntList(bossId){
+  __wbGetHuntList(function(list){
+    list=list.filter(function(i){return i.id!==bossId;});
+    __wbSaveHuntList(list);
+  });
+}
+
+function __wbUpdateHuntListUI(){
+  var el=document.getElementById('__gmp_hunt_list');
+  var countEl=document.getElementById('__gmp_hunt_count');
+  if(!el)return;
+  __wbGetHuntList(function(list){
+    if(countEl)countEl.textContent=list.length+' \u53ea';
+    if(list.length){
+      el.innerHTML=list.map(function(i){
+        return '<div style="display:flex;align-items:center;gap:4px;padding:4px 6px;background:rgba(76,175,80,0.08);border-radius:5px;margin-bottom:2px;border-left:3px solid #4caf50;">'+
+          '<span style="font-size:10px;color:#4caf50;min-width:18px;cursor:pointer;" onclick="__wbRemoveFromHuntList(\''+i.id+'\')">[x]</span>'+
+          '<span style="font-size:10px;color:#4caf50;min-width:70px;">'+i.name+'</span>'+
+          '<span style="font-size:9px;color:#aaa;">Lv.'+i.lv+'</span>'+
+        '</div>';
+      }).join('');
+    } else {
+      el.innerHTML='<div style="font-size:10px;color:#888;padding:6px;text-align:center;">\u70b9\u9009\u4e0a\u65b9\u4e16\u754c\u738b [+ ] \u52a0\u5165</div>';
+    }
+  });
+}
+
+// 初始載入優先討伐清單
+function __wbInitHuntToggle(){
+  // 世界王清單折疊
+  var wbToggle=document.getElementById('__gmp_wb_toggle');
+  var wbBody=document.getElementById('__gmp_wb_body');
+  if(wbToggle&&wbBody){
+    wbToggle.onclick=function(){
+      if(wbBody.style.display!=='none'){
+        wbBody.style.display='none';
+        wbToggle.style.borderBottom='none';
+      }else{
+        wbBody.style.display='block';
+        wbToggle.style.borderBottom='1px solid rgba(233,69,96,0.2)';
+      }
+    };
+  }
+  // 討伐清單折疊
+  var huntToggle=document.getElementById('__gmp_hunt_toggle');
+  var huntBody=document.getElementById('__gmp_hunt_body');
+  if(huntToggle&&huntBody){
+    huntToggle.onclick=function(){
+      if(huntBody.style.display!=='none'){
+        huntBody.style.display='none';
+        huntToggle.style.borderBottom='none';
+      }else{
+        huntBody.style.display='block';
+        huntToggle.style.borderBottom='1px solid rgba(76,175,80,0.2)';
+      }
+    };
+  }
+  __wbUpdateHuntListUI();
+}
+
 function gmLog() {
   if (window.__gmDebugLog) {
     console.log.apply(console, arguments);
@@ -2587,5 +2683,6 @@ console.log('[GM] Monitor injected '+ver);
       document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
     };
   }
-
+
+
 })();
