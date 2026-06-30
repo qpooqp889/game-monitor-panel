@@ -208,7 +208,7 @@
     'equipArmor':{label:'裝備防具',params:['itemId'],hint:'防具物品 ID'},
     'attack':{label:'一般攻擊',params:[],hint:''},
     'toLobby':{label:'返回大廳',params:[],hint:''},
-    'setTarget':{label:'指定目標',params:['targetValue'],hint:'怪物名稱（部分匹配）或索引數字'},
+    'setTarget':{label:'指定目標',params:['targetValue','targetAll'],hint:'怪物名稱（部分匹配）或索引數字；勾「全部」→同時指定0,1,2'},
     'setAuto':{label:'開怪技能',params:['skillId'],hint:'從 gmSkillSettings 取技能，送 setAuto openSkill'}
   };
 
@@ -315,28 +315,36 @@
           console.log('[AdvFarm] toLobby');
           break;
         case 'setTarget':
-          // targetValue: 數字 → 直接用數字索引；文字 → 在 d.monsters 中找名稱匹配的第一隻
-          var tv = a.targetValue;
-          var targetIdx = null;
-          if (/^\d+$/.test(String(tv).trim())) {
-            targetIdx = parseInt(tv);
-          } else if (tv) {
-            var name = String(tv).toLowerCase().trim();
-            var monsters = (context && context.state && context.state.monsters) || [];
-            for (var mi = 0; mi < monsters.length; mi++) {
-              var m = monsters[mi];
-              if (m && m.n && m.hp > 0 && m.n.toLowerCase().indexOf(name) > -1) {
-                targetIdx = mi;
-                break;
+          (function(){
+            var tv=a.targetValue;
+            var monsters=(context&&context.state&&context.state.monsters)||[];
+            // 找出所有活著的怪物索引
+            var alive=monsters.map(function(m,i){return{m:m,i:i}}).filter(function(x){return x.m&&x.m.hp>0});
+            // 全部模式：送所有活著的怪物
+            if(a.targetAll){
+              alive.forEach(function(x){
+                window.__wbSocket.emit('setTarget',x.i);
+              });
+              console.log('[AdvFarm] setTarget ALL:',alive.map(function(x){return x.i+'('+x.m.n+')'}).join(', '));
+              return;
+            }
+            // 單一目標
+            var targetIdx=null;
+            if(/^\d+$/.test(String(tv).trim())){
+              targetIdx=parseInt(tv);
+            } else if(tv){
+              var name=String(tv).toLowerCase().trim();
+              for(var mi=0;mi<alive.length;mi++){
+                if(alive[mi].m.n.toLowerCase().indexOf(name)>-1){targetIdx=alive[mi].i;break;}
               }
             }
-          }
-          if (targetIdx !== null) {
-            window.__wbSocket.emit('setTarget', targetIdx);
-            console.log('[AdvFarm] setTarget:', targetIdx, tv);
-          } else {
-            console.warn('[AdvFarm] setTarget: no matching monster for "' + tv + '"');
-          }
+            if(targetIdx!==null){
+              window.__wbSocket.emit('setTarget',targetIdx);
+              console.log('[AdvFarm] setTarget:',targetIdx,tv);
+            } else {
+              console.warn('[AdvFarm] setTarget: no matching monster for "'+tv+'"');
+            }
+          })();
           break;
         case 'setAuto':
           (function(){
@@ -410,6 +418,12 @@
       var self=this;
       // 自動收錄遇到過的怪物名稱（去重）
       var monsters=state&&state.monsters;
+      // 儲存當前怪物供 UI 使用
+      window.__gmCurrentMonsters=monsters?(monsters.map(function(m,i){return m&&m.hp>0?{i:i,n:m.n||'',hp:m.hp}:null}).filter(function(x){return x})):[];
+      // 即時更新 Modal 狀態列
+      if(document.getElementById('__gmAdvModal')&&document.getElementById('__gmAdvMonsterBar')){
+        updateMonsterBar();
+      }
       if(monsters&&monsters.length){
         var names=[];
         monsters.forEach(function(m){
@@ -465,6 +479,7 @@
         '<datalist id="__gmAdvMonsterList"></datalist>'+
         '<datalist id="__gmAdvSkillList"></datalist>'+
         '<div id="__gmAdvList" style="padding:12px 16px;overflow-y:auto;flex:1;"></div>'+
+        '<div id="__gmAdvMonsterBar" style="padding:6px 12px;background:#0a0a18;border-top:1px solid #0f3460;min-height:28px;line-height:1.8;"><span style="font-size:10px;color:#888;">載入中怪物...</span></div>'+
         '<div id="__gmAdvStatus" style="padding:8px 12px;border-top:1px solid #0f3460;font-size:10px;color:#888;text-align:center;"></div>'+
       '</div>';
     document.body.appendChild(m);
@@ -486,6 +501,7 @@
     m.onclick=function(e){if(e.target===m)m.remove()};
     refreshMonsterDatalist();
     refreshSkillDatalist();
+    updateMonsterBar();
     renderList();
   }
 
@@ -543,7 +559,20 @@
         }
       }
     });
-  }  function showStatus(msg,color){
+  }  function updateMonsterBar(){
+    var el=document.getElementById('__gmAdvMonsterBar');
+    if(!el)return;
+    var mobs=window.__gmCurrentMonsters||[];
+    if(!mobs.length){
+      el.innerHTML='<span style="font-size:10px;color:#888;">無怪物</span>';
+      return;
+    }
+    el.innerHTML=mobs.map(function(m){
+      return'<span style="display:inline-block;margin:2px 4px;padding:2px 7px;background:#1a1a2e;border:1px solid #4ade80;border-radius:4px;font-size:10px;color:#4ade80;cursor:default;" title="索引:'+m.i+'">['+m.i+'] '+escapeHtml(m.n||'怪物')+'</span>';
+    }).join('');
+  }
+
+  function showStatus(msg,color){
     var el=document.getElementById('__gmAdvStatus');
     if(el){el.textContent=msg;el.style.color=color||'#4ade80';}
   }
@@ -555,7 +584,7 @@
       priority:10,
       cooldownMs:3000,
       conditions:[{type:'monsterCount',op:'>',value:'0'}],
-      actions:[{type:'setTarget',targetValue:'0'}]
+      actions:[{type:'setTarget',targetValue:'0',targetAll:false}]
     };
     AdvDB.save(rule).then(function(){renderList()});
   }
@@ -635,7 +664,8 @@
           // setTarget / 攻擊技能 / 開怪技能：datalist 下拉（技能中文名）
           var paramInput='';
           if(a.type==='setTarget'){
-            paramInput='<input data-af="param" list="__gmAdvMonsterList" type="text" value="'+escapeHtml(p1)+'" placeholder="選擇或輸入怪物名稱 / 索引" autocomplete="off" style="flex:1;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;padding:3px;font-size:10px;">';
+            paramInput='<input data-af="param" list="__gmAdvMonsterList" type="text" value="'+escapeHtml(p1)+'" placeholder="選擇或輸入怪物名稱 / 索引" autocomplete="off" style="flex:1;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;padding:3px;font-size:10px;">'+
+              '<label style="display:inline-flex;align-items:center;gap:3px;white-space:nowrap;font-size:10px;color:#fbbf24;cursor:pointer;padding:0 4px;"><input data-af="targetAll" type="checkbox" '+(a.targetAll?'checked':'')+' style="cursor:pointer;">全部</label>';
           } else if(a.type==='castSkill'||a.type==='setAuto'){
             // 攻擊技能(castSkill) → setAuto atkSkill；開怪技能(setAuto) → setAuto openSkill
             paramInput='<input data-af="skillId" list="__gmAdvSkillList" type="text" value="'+escapeHtml(p1)+'" placeholder="'+placeholder+'" autocomplete="off" style="flex:1;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;padding:3px;font-size:10px;">'+
@@ -698,8 +728,11 @@
             if(t==='castSkill')a.skillId=(skEl||pEl).value;
             else if(t==='usePotion')a.potionType=(skEl||pEl).value;
             else if(t==='equipWeapon'||t==='equipArmor')a.itemId=(skEl||pEl).value;
-            else if(t==='setTarget')a.targetValue=(skEl||pEl).value;
-            else if(t==='setAuto'){
+            else if(t==='setTarget'){
+              a.targetValue=(skEl||pEl).value;
+              var taEl=row.querySelector('[data-af="targetAll"]');
+              a.targetAll=taEl?taEl.checked:false;
+            } else if(t==='setAuto'){
               a.skillId=(skEl||pEl).value;
             } else a[(skEl||pEl).getAttribute('data-af')==='param'?'potionType':'skillId']=(skEl||pEl).value;
             rule.actions.push(a);
