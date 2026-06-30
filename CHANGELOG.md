@@ -1,5 +1,12 @@
 # 異動說明 (CHANGELOG)
 
+## [v2.25] - 2026-06-30
+
+### 🐛 Fix: Unexpected identifier 'lv'
+- `'?'` 後缺少逗號 → 補充 `,`
+
+---
+
 ## [v2.24] - 2026-06-30
 
 ### 🐛 Fix: SyntaxError (Unexpected token ':')
