@@ -1,5 +1,13 @@
 # 異動說明 (CHANGELOG)
 
+## [v2.24] - 2026-06-30
+
+### 🐛 Fix: SyntaxError (Unexpected token ':')
+- `__wbParseWorldBossData` 物件 literal 多了 errant `'+'` → 修復為 `'?',`
+- 原因：字串 `'?'` 後多了 `+` 與下一行的 `lv:` 屬性相連，導致 JS 解析失敗
+
+---
+
 ## [v2.23] - 2026-06-30
 
 ### 🆕 世界王列表監控（每 60 秒自動刷新）
