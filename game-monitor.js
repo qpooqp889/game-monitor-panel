@@ -279,8 +279,8 @@ setTimeout(function(){
 },5000);
 
 // ====== Boss Auto ======
-window.__wbBossAuto={running:false,timer:null,config:{pot:true,heal:false,barrier:false,atk:false,hpPct:50,barrierPct:30}};
-function __wbBossLoop(){if(!window.__wbBossAuto.running)return;var ls=window.lastState||{};var ch=ls.char||{};var boss=ls.boss||{};var cd=boss.cd||{};var cfg=window.__wbBossAuto.config;var hpPct=ch.maxHp>0?ch.hp/ch.maxHp:1;try{if(cfg.pot&&hpPct<(cfg.hpPct/100)&&cd.pot<0.05)__wbSend('pot');if(cfg.heal&&cd.heal<0.05)__wbSend('heal');if(cfg.barrier&&boss.hp>0&&boss.maxHp>0&&(boss.hp/boss.maxHp)<(cfg.barrierPct/100)&&cd.barrier<0.05&&boss.barrierHas)__wbSend('barrier');if(cfg.atk&&ls.mode==='bosscombat'&&cd.atk<0.05)__wbSend('atk');}catch(e){}window.__wbBossAuto.timer=setTimeout(__wbBossLoop,500);}
+window.__wbBossAuto={running:false,timer:null,config:{pot:true,heal:false,barrier:false,atk:false,hpPct:50,barrierPct:30,atkCondEnabled:false,atkHpPct:50,atkLogic:'AND',atkOnline:1}};
+function __wbBossLoop(){if(!window.__wbBossAuto.running)return;var ls=window.lastState||{};var ch=ls.char||{};var boss=ls.boss||{};var cd=boss.cd||{};var cfg=window.__wbBossAuto.config;var hpPct=ch.maxHp>0?ch.hp/ch.maxHp:1;try{if(cfg.pot&&hpPct<(cfg.hpPct/100)&&cd.pot<0.05)__wbSend('pot');if(cfg.heal&&cd.heal<0.05)__wbSend('heal');if(cfg.barrier&&boss.hp>0&&boss.maxHp>0&&(boss.hp/boss.maxHp)<(cfg.barrierPct/100)&&cd.barrier<0.05&&boss.barrierHas)__wbSend('barrier');if(cfg.atk&&ls.mode==='bosscombat'){var _atkOk=true;if(cfg.atkCondEnabled&&boss.maxHp>0){var _bh=boss.hp/boss.maxHp;var _hpC=_bh<(cfg.atkHpPct/100);var _olC=(window.__gmOnlineCount||9999)>cfg.atkOnline;if(cfg.atkLogic==='AND')_atkOk=_hpC&&_olC;else if(cfg.atkLogic==='OR')_atkOk=_hpC||_olC;else if(cfg.atkLogic==='NOT')_atkOk=!_hpC&&_olC;}if(_atkOk&&cd.atk<0.05)__wbSend('atk');}}catch(e){}window.__wbBossAuto.timer=setTimeout(__wbBossLoop,500);}
 function __wbBossAutoStart(){window.__wbBossAuto.running=true;__wbBossLoop();}
 function __wbBossAutoStop(){window.__wbBossAuto.running=false;if(window.__wbBossAuto.timer)clearTimeout(window.__wbBossAuto.timer);}
 
@@ -1185,6 +1185,38 @@ function __gmBuildPanel(){
 '<div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;">'+
 '<input type="checkbox" id="__gmp_boss_auto_atk" style="width:13px;height:13px;cursor:pointer;">'+
 '<label for="__gmp_boss_auto_atk" style="font-size:11px;color:#f87171;cursor:pointer;">\u2694\uFE0F 自動攻擊</label>'+
+'</div>'+
+'<div style="display:flex;align-items:center;gap:4px;margin-bottom:12px;padding:8px;background:rgba(248,113,113,0.08);border-radius:4px;">'+
+'<input type="checkbox" id="__gmp_boss_auto_atk_cond_enable" style="width:13px;height:13px;cursor:pointer;">'+
+'<span style="font-size:10px;color:#f87171;">BOSS HP&lt;</span>'+
+'<input id="__gmp_boss_auto_atk_hp_pct" type="number" value="50" min="1" max="100" style="width:40px;padding:2px 4px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;text-align:center;">'+
+'<span style="font-size:10px;color:#555;">%</span>'+
+'<select id="__gmp_boss_auto_atk_logic" style="padding:2px 4px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;">'+
+'<option value="AND">AND</option><option value="OR">OR</option><option value="NOT">NOT</option>'+
+'</select>'+
+'<span style="font-size:10px;color:#888;">人數&gt;</span>'+
+'<select id="__gmp_boss_auto_atk_online" style="padding:2px 4px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;">'+
+'<option value="1" selected>1</option>'+
+'<option value="2">2</option>'+
+'<option value="3">3</option>'+
+'<option value="4">4</option>'+
+'<option value="5">5</option>'+
+'<option value="6">6</option>'+
+'<option value="7">7</option>'+
+'<option value="8">8</option>'+
+'<option value="9">9</option>'+
+'<option value="10">10</option>'+
+'<option value="11">11</option>'+
+'<option value="12">12</option>'+
+'<option value="13">13</option>'+
+'<option value="14">14</option>'+
+'<option value="15">15</option>'+
+'<option value="16">16</option>'+
+'<option value="17">17</option>'+
+'<option value="18">18</option>'+
+'<option value="19">19</option>'+
+'<option value="20">20</option>'+
+'</select>'+
 '</div>'+
 '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:8px;background:rgba(255,215,0,0.05);border-radius:4px;">'+
 '<input type="checkbox" id="__gmp_boss_bypass" style="width:14px;height:14px;cursor:pointer;">'+
@@ -2199,7 +2231,7 @@ function __gmBuildPanel(){
     cfg.pot=document.getElementById('__gmp_boss_auto_pot').checked;
     cfg.heal=document.getElementById('__gmp_boss_auto_heal').checked;
     cfg.barrier=document.getElementById('__gmp_boss_auto_barrier').checked;
-    cfg.atk=document.getElementById('__gmp_boss_auto_atk').checked;
+    cfg.atk=document.getElementById('__gmp_boss_auto_atk').checked;cfg.atkCondEnabled=document.getElementById('__gmp_boss_auto_atk_cond_enable').checked;cfg.atkHpPct=parseInt(document.getElementById('__gmp_boss_auto_atk_hp_pct').value)||50;cfg.atkLogic=document.getElementById('__gmp_boss_auto_atk_logic').value;cfg.atkOnline=parseInt(document.getElementById('__gmp_boss_auto_atk_online').value)||1;
     cfg.hpPct=parseInt(document.getElementById('__gmp_boss_auto_hp').value)||50;
     cfg.barrierPct=parseInt(document.getElementById('__gmp_boss_auto_barrier_pct').value)||30;
   }
@@ -2238,6 +2270,47 @@ function __gmBuildPanel(){
   };
   document.getElementById('__gmp_boss_auto_hp').addEventListener('input',__wbSyncAutoConfig);
   document.getElementById('__gmp_boss_auto_barrier_pct').addEventListener('input',__wbSyncAutoConfig);
+
+  // === BOSS config save/load ===
+  function __wbSaveBossConfig(){
+    if(typeof window.__gmStorageSet==='undefined')return;
+    var cfg=window.__wbBossAuto.config;
+    window.__gmStorageSet('wb_boss_config',JSON.parse(JSON.stringify(cfg))).catch(function(){});
+  }
+  function __wbLoadBossConfig(){
+    if(typeof window.__gmStorageGet==='undefined')return Promise.resolve();
+    return window.__gmStorageGet(['wb_boss_config']).then(function(r){
+      var saved=r&&r.wb_boss_config||null;
+      if(saved){
+        Object.assign(window.__wbBossAuto.config,saved);
+        __wbApplyBossConfigUI();
+      }
+    }).catch(function(){});
+  }
+  function __wbApplyBossConfigUI(){
+    var cfg=window.__wbBossAuto.config;
+    var el=document.getElementById('__gmp_boss_auto_pot');if(el)el.checked=cfg.pot;
+    el=document.getElementById('__gmp_boss_auto_heal');if(el)el.checked=cfg.heal;
+    el=document.getElementById('__gmp_boss_auto_barrier');if(el)el.checked=cfg.barrier;
+    el=document.getElementById('__gmp_boss_auto_atk');if(el)el.checked=cfg.atk;
+    el=document.getElementById('__gmp_boss_auto_hp');if(el)el.value=cfg.hpPct;
+    el=document.getElementById('__gmp_boss_auto_barrier_pct');if(el)el.value=cfg.barrierPct;
+    el=document.getElementById('__gmp_boss_auto_atk_cond_enable');if(el)el.checked=cfg.atkCondEnabled;
+    el=document.getElementById('__gmp_boss_auto_atk_hp_pct');if(el)el.value=cfg.atkHpPct||50;
+    el=document.getElementById('__gmp_boss_auto_atk_logic');if(el)el.value=cfg.atkLogic||'AND';
+    el=document.getElementById('__gmp_boss_auto_atk_online');if(el)el.value=cfg.atkOnline||1;
+  }
+  // Auto-save on any change
+  ['__gmp_boss_auto_pot','__gmp_boss_auto_heal','__gmp_boss_auto_barrier','__gmp_boss_auto_atk',
+   '__gmp_boss_auto_hp','__gmp_boss_auto_barrier_pct','__gmp_boss_auto_atk_hp_pct',
+   '__gmp_boss_auto_atk_logic','__gmp_boss_auto_atk_online','__gmp_boss_auto_atk_cond_enable',
+  ].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el)el.addEventListener('change',function(){setTimeout(__wbSaveBossConfig,100);});
+    if(el&&el.tagName==='INPUT'&&el.type==='number')el.addEventListener('input',function(){setTimeout(__wbSaveBossConfig,100);});
+  });
+  // Load saved config
+  setTimeout(__wbLoadBossConfig,300);
 
   document.getElementById('__gmp_boss_auto_btn').onclick=function(){
     if(window.__wbBossAuto.running){
