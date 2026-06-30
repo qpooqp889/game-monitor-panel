@@ -1,5 +1,153 @@
 # 異動說明 (CHANGELOG)
 
+## [v2.22] - 2026-06-30
+
+### 🐛 修復：storage fallback + castSkill DOM 瞄準修正
+
+#### storageGet / storageSet fallback
+- `window.__gmStorageGet/Set` 未就緒時，直接走 `chrome.storage.local`
+- 避免 `renderList()` Promise 鏈燒不掉、Modal 卡在「載入中」
+
+#### castSkill / setAuto 直接改遊戲 DOM
+- `castSkill`（攻擊技能）→ 瞄準 `data-k="atkSkill"` select，賦值後觸發 `change` 事件
+- `setAuto`（開怪技能）→ 瞄準 `data-k="openSkill"` select
+- 找不到時 fallback 先切「設定」Tab 再找，終極 fallback 才發 socket
+- socket 封包：`castSkill` → `setAuto openSkill`，`setAuto` → `setAuto openSkill`（已修正）
+
+### 🆕 怪物狀態列（Modal 即時顯示）
+- Modal 底部新增 `__gmAdvMonsterBar`，每次 `tick()` 更新
+- 顯示所有活著的怪物：`[0] 哥布林  [1] 多眼怪  [2] 史萊姆`
+- 綠色標籤，滑鼠移上去顯示「索引:X」
+
+### 🎯 setTarget「全部」模式
+- 勾選「全部」→ 對畫面所有存活的怪物同時發送 `setTarget 0`、`setTarget 1`、`setTarget 2`
+- `targetAll` 參數寫入規則並持久化
+
+### 📁 異動檔案
+
+| 檔案 | 變更 |
+|------|------|
+| `advanced-farming.js` | v1.5；storage fallback；DOM 瞄準修正；怪物狀態列；setTarget targetAll |
+| `manifest.json` | v2.21 → v2.22 |
+
+---
+
+## [v2.20] - 2026-06-30
+
+### 🐛 修復：castSkill / setAuto 正確發送 socket 封包
+
+- `castSkill`（攻擊技能）→ 發 `setAuto openSkill`（非 `atkSkill`）
+- `setAuto`（開怪技能）→ 發 `setAuto openSkill`
+- `setAuto` → 改為發 `setAuto openSkill`（原本錯誤發 `atkSkill`）
+
+---
+
+## [v2.19] - 2026-06-30
+
+### 🐛 修復：gmSkillSettings 寫入中文技能名
+
+- 從 `#panel-scroll [data-k]` select 的 option text 建立 `__pmSkillNames`（skillId → 顯示名）
+- `gmSkillSettings` 寫入時一併儲存 `skillNames` 欄位
+- 供進階規則下拉顯示「燃燒的火球 (sk_fireball)」格式
+
+---
+
+## [v2.18] - 2026-06-30
+
+### 🐛 修復：gmSkillSettings 技能中文名寫入格式
+
+- `__pmSkillNames` 正確建立（從 checkbox key/label、select option text）
+- 去除「（MP14）」等 MP 註記，只留技能名
+
+---
+
+## [v2.17] - 2026-06-30
+
+### ⚙️ 進階設定 setAuto 下拉標籤修正
+
+- `ACTION_TYPES.setAuto.hint` 更新：openSkill=開怪技能 / atkSkill=攻擊技能
+- `refreshSkillDatalist` 重構：統一 `seen` 邏輯、明確跳過非技能值
+
+---
+
+## [v2.16] - 2026-06-30
+
+### 🆕 掛機 Tab 新增：指定目標 + 攻擊全部
+
+- 「指定目標」：checkbox + 下拉（0-10）+ 按鈕
+- 「攻擊全部」：checkbox，一次送出 `setTarget 0,1,2`
+- `saveFarmSettings` / `loadFarmSettings` 對應擴充
+
+---
+
+## [v2.15] - 2026-06-30
+
+### 🐛 修復：怪物收錄 + 技能下拉中文名
+
+- `tick()` 中 `tick(d)` 自 `if(!d||!d.char)` 短路區塊移出，`gmMonsters` 開始正常收錄
+- Skills Tab 擷取 `select option` 建立 `__pmSkillNames` 映射，存入 `gmSkillSettings.skillNames`
+- `refreshSkillDatalist` 優先顯示中文名稱
+
+---
+
+## [v2.14] - 2026-06-29
+
+### ⚙️ popup.js 單次注入兩個腳本
+
+- `advanced-farming.js` 注入鏈過長（postMessage→content→background→executeScript），容易失敗
+- 改為 `popup.js` 直接一次 `executeScript({files:['game-monitor.js','advanced-farming.js']})`
+
+---
+
+## [v2.13] - 2026-06-29
+
+### 🐛 修復：匯出 / 匯入補上 LogoutDB
+
+- `__gmExportAll` / `__gmImportAll` 補上 `logout_history` 欄位
+- 支援完整 IDB 資料匯出 / 匯入
+
+---
+
+## [v2.12] - 2026-06-29
+
+### 🐛 修復：gmSkillSettings 寫入路徑
+
+- `__gmAdvanced.SkillDB` 依賴鏈鬆動，改為 `game-monitor.js` 直接寫 `chrome.storage.local`
+- `__gmStorageSet('gmSkillSettings', arr)` 繞過 `window.__gmAdvanced` 依賴
+
+---
+
+## [v2.11] - 2026-06-29
+
+### 🐛 修復：__gmStorageSet/Get 掛到 window
+
+- `__gmStorageGet` / `__gmStorageSet` 定義在 `game-monitor.js` IIFE 內，`advanced-farming.js` 存取不到
+- 改為直接掛到 `window` 物件
+
+---
+
+## [v2.09] - 2026-06-29
+
+### ♻️ 全面從 IndexedDB 遷移到 chrome.storage.local
+
+- `LogoutDB`（game-monitor.js）→ `chrome.storage.local`
+- `gm-panel-db/advanced_rules`（advanced-farming.js）→ `chrome.storage.local`
+- `gm-panel-db/monsters` → `gmMonsters`（chrome.storage.local）
+- `GM_Panel_DB/skill_settings`（game-monitor.js skills tab）→ `chromeSkillSettings`（chrome.storage.local）
+- 匯出 / 匯入改為 JSON 格式，統一用 `__gmExportAll` / `__gmImportAll`
+
+---
+
+## [v2.08] - 2026-06-29
+
+### 🔧 HTML innerHTML 結構校正
+
+- Monitor Tab syntax error：結尾 `</div>'>` 修復
+- Farm Tab `__gmp_content` wrapper 正確關閉（三個 `</div>` 全部在字串內）
+- 縮排統一
+
+---
+
 ## [v2.07] - 2026-06-29
 
 ### ⚡ Skills Tab → IndexedDB 同步
