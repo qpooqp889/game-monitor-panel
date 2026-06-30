@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v2.29';
+var ver='v2.30';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -1173,10 +1173,9 @@ function __gmBuildPanel(){
       '</div>'+
       '<div id="__gmp_boss_buffs" style="font-size:10px;color:#86c5ff;margin-top:4px;"></div>'+
     '</div>'+
-    // === 世界王列表（每分鐘自動刷新，可縮放）===
+    // === 世界王列表（可縮放 300px）===
     '<div style="background:rgba(233,69,96,0.06);padding:0;border-radius:6px;margin-bottom:8px;border:1px solid rgba(233,69,96,0.3);">'+
-      // 標題列（可點擊縮放）
-      '<div id="__gmp_wb_toggle" style="display:flex;justify-content:space-between;align-items:center;padding:8px;cursor:pointer;user-select:none;">'+
+      '<div id="__gmp_wb_toggle" style="display:flex;justify-content:space-between;align-items:center;padding:8px;cursor:pointer;user-select:none;border-bottom:1px solid rgba(233,69,96,0.2);">'+
         '<span style="font-size:11px;color:#e94560;font-weight:bold;">&#x1F3C5; 世界王列表 <span id="__gmp_wb_count" style="font-size:9px;color:#888;">--</span></span>'+
         '<div style="display:flex;gap:4px;align-items:center;">'+
           '<span id="__gmp_wb_timer" style="font-size:9px;color:#888;">每 60s</span>'+
@@ -1185,30 +1184,103 @@ function __gmBuildPanel(){
           '<button id="__gmp_wb_export_all" onclick="__gmExportSioEvents()" style="padding:2px 6px;background:#1a3a1a;border:1px solid #4ade80;color:#4ade80;border-radius:4px;cursor:pointer;font-size:9px;">&#x1F4CB; 匯出</button>'+
         '</div>'+
       '</div>'+
-      // 可捲動清單（預設 300px，可點擊標題列縮放）
-      '<div id="__gmp_wb_body" style="max-height:300px;overflow-y:auto;padding:0 6px 6px 6px;">'+
+      '<div id="__gmp_wb_body" style="max-height:300px;overflow-y:auto;padding:6px;">'+
         '<div id="__gmp_wb_list" style="font-size:10px;color:#555;padding:6px;text-align:center;">DOM 讀取中...</div>'+
       '</div>'+
     '</div>'+
-    // === 優先討伐清單（可縮放）===
+    // === 優先討伐清單（可縮放 300px）===
     '<div style="background:rgba(76,175,80,0.06);padding:0;border-radius:6px;margin-bottom:8px;border:1px solid rgba(76,175,80,0.3);">'+
-      // 標題列（可點擊縮放）
-      '<div id="__gmp_hunt_toggle" style="display:flex;justify-content:space-between;align-items:center;padding:8px;cursor:pointer;user-select:none;">'+
+      '<div id="__gmp_hunt_toggle" style="display:flex;justify-content:space-between;align-items:center;padding:8px;cursor:pointer;user-select:none;border-bottom:1px solid rgba(76,175,80,0.2);">'+
         '<span style="font-size:11px;color:#4caf50;font-weight:bold;">&#x1F3AF; 優先討伐清單 <span id="__gmp_hunt_count" style="font-size:9px;color:#888;"></span></span>'+
         '<div style="display:flex;gap:4px;align-items:center;">'+
           '<span id="__gmp_hunt_timer" style="font-size:9px;color:#888;"></span>'+
         '</div>'+
       '</div>'+
-      // 可捲動清單（預設 300px）
-      '<div id="__gmp_hunt_body" style="max-height:300px;overflow-y:auto;padding:0 6px 6px 6px;">'+
-        '<div id="__gmp_hunt_list" style="font-size:10px;color:#555;padding:6px;text-align:center;">點選上方世界王 [+ ] 加入</div>'+
+      '<div id="__gmp_hunt_body" style="max-height:300px;overflow-y:auto;padding:6px;">'+
+        '<div id="__gmp_hunt_list" style="font-size:10px;color:#555;padding:6px;text-align:center;">點選上方世界王 [+] 加入</div>'+
       '</div>'+
     '</div>'+
-    // === 底部狀態列 ===
+    // === 冷卻計時 ===
+    '<div style="margin-bottom:8px;">'+
+      '<div style="font-size:10px;color:#888;margin-bottom:4px;">冷卻計時</div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">'+
+        '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">&#x1F48A;</span> 藥水 <span id="__gmp_cd_pot" style="color:#4ade80;float:right;">就緒</span></div>'+
+        '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">&#x2694;&#xFE0F;</span> 攻擊 <span id="__gmp_cd_atk" style="color:#4ade80;float:right;">就緒</span></div>'+
+        '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">&#x1F49A;</span> 治療 <span id="__gmp_cd_heal" style="color:#4ade80;float:right;">就緒</span></div>'+
+        '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">&#x1F504;</span> 轉換 <span id="__gmp_cd_convert" style="color:#4ade80;float:right;">就緒</span></div>'+
+        '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">&#x1F6E1;&#xFE0F;</span> 屏障 <span id="__gmp_cd_barrier" style="color:#4ade80;float:right;">就緒</span></div>'+
+      '</div>'+
+    '</div>'+
+    // === 手動指令 ===
+    '<div style="margin-bottom:8px;">'+
+      '<div style="font-size:10px;color:#888;margin-bottom:4px;">手動指令（直接發送）</div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">'+
+        '<button id="__gmp_boss_pot" style="padding:8px;background:#1a4a1a;border:1px solid #2a6a2a;color:#4ade80;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">&#x1F48A; 藥水</button>'+
+        '<button id="__gmp_boss_atk" style="padding:8px;background:#2a1a1a;border:1px solid #6a2a2a;color:#f87171;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">&#x2694;&#xFE0F; 攻擊</button>'+
+        '<button id="__gmp_boss_heal" style="padding:8px;background:#1a2a1a;border:1px solid #2a5a2a;color:#86efac;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">&#x1F49A; 治療</button>'+
+        '<button id="__gmp_boss_convert" style="padding:8px;background:#1a1a4a;border:1px solid #2a2a7a;color:#a5b4fc;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">&#x1F504; 轉換</button>'+
+        '<button id="__gmp_boss_barrier" style="padding:8px;background:#1a1a3a;border:1px solid #3a3a8a;color:#818cf8;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">&#x1F6E1;&#xFE0F; 屏障</button>'+
+        '<button id="__gmp_boss_holy" style="padding:8px;background:#2a1a2a;border:1px solid #6a2a6a;color:#d8b4fe;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">&#x2728; 神聖</button>'+
+      '</div>'+
+    '</div>'+
+    // === 解除冷卻限制 ===
+    '<div style="margin-bottom:8px;">'+
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">'+
+        '<input type="checkbox" id="__gmp_boss_bypass" style="width:14px;height:14px;cursor:pointer;">'+
+        '<label for="__gmp_boss_bypass" style="font-size:11px;color:#ffd700;cursor:pointer;">&#x1F513; 解除冷卻限制</label>'+
+      '</div>'+
+      '<div style="font-size:10px;color:#555;padding-left:22px;">&#x26A0;&#xFE0F; 伺服器仍會驗證冷卻</div>'+
+    '</div>'+
+    // === 自動掛機 BOSS ===
+    '<div style="margin-bottom:8px;">'+
+      '<div style="font-size:10px;color:#888;margin-bottom:4px;">自動掛機</div>'+
+      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+
+        '<input type="checkbox" id="__gmp_boss_auto_pot" style="width:13px;height:13px;cursor:pointer;">'+
+        '<label for="__gmp_boss_auto_pot" style="font-size:10px;color:#4ade80;cursor:pointer;">&#x1F48A; HP&lt;</label>'+
+        '<input id="__gmp_boss_auto_hp" type="number" value="50" min="1" max="100" style="width:45px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;text-align:center;">'+
+        '<span style="font-size:10px;color:#555;">%</span>'+
+      '</div>'+
+      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+
+        '<input type="checkbox" id="__gmp_boss_auto_heal" style="width:13px;height:13px;cursor:pointer;">'+
+        '<label for="__gmp_boss_auto_heal" style="font-size:10px;color:#86efac;cursor:pointer;">&#x1F49A; 自動治療魔法</label>'+
+      '</div>'+
+      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+
+        '<input type="checkbox" id="__gmp_boss_auto_barrier" style="width:13px;height:13px;cursor:pointer;">'+
+        '<label for="__gmp_boss_auto_barrier" style="font-size:10px;color:#818cf8;cursor:pointer;">&#x1F6E1;&#xFE0F; Boss HP&lt;</label>'+
+        '<input id="__gmp_boss_auto_barrier_pct" type="number" value="30" min="1" max="100" style="width:45px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;text-align:center;">'+
+        '<span style="font-size:10px;color:#555;">%</span>'+
+      '</div>'+
+      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
+        '<input type="checkbox" id="__gmp_boss_auto_atk" style="width:13px;height:13px;cursor:pointer;">'+
+        '<label for="__gmp_boss_auto_atk" style="font-size:10px;color:#f87171;cursor:pointer;">&#x2694;&#xFE0F; 自動攻擊</label>'+
+      '</div>'+
+      '<div id="__gmp_boss_auto_status" style="font-size:10px;color:#888;text-align:center;margin-bottom:6px;">停止中</div>'+
+      '<button id="__gmp_boss_auto_btn" style="width:100%;padding:8px;background:#0f3460;border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:12px;font-weight:bold;">&#x25B6; 啟動自動BOSS</button>'+
+    '</div>'+
+    // === Socket 狀態 + 匯入匯出 ===
+    '<div style="margin-bottom:6px;">'+
+      '<div style="font-size:10px;color:#888;margin-bottom:4px;">&#x1F4E1; Socket.IO 狀態</div>'+
+      '<div style="display:flex;gap:6px;margin-bottom:4px;">'+
+        '<span style="font-size:10px;color:#888;">連接: </span><span id="__gmp_sock_status" style="font-size:10px;color:#ffd700;">檢測中...</span>'+
+      '</div>'+
+      '<div style="font-size:10px;color:#888;">已捕獲: <span id="__gmp_sock_sent" style="color:#4ade80;">0</span> 發送 / <span id="__gmp_sock_evts" style="color:#00d9ff;">0</span> 事件</div>'+
+      '<div style="margin:8px 0 4px;display:flex;gap:4px;">'+
+        '<button id="__gmp_export_all" style="flex:1;padding:5px 4px;background:#0f3460;border:1px solid #7bd14a;color:#7bd14a;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">&#x1F4E5; 匯出設定</button>'+
+        '<button id="__gmp_import_all" style="flex:1;padding:5px 4px;background:#0f3460;border:1px solid #fbbf24;color:#fbbf24;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">&#x1F4E4; 匯入設定</button>'+
+        '<input type="file" id="__gmp_import_file" accept=".json" style="display:none;">'+
+      '</div>'+
+      '<div id="__gmp_idb_status" style="font-size:10px;color:#555;margin-top:3px;text-align:center;"></div>'+
+    '</div>'+
+    // === 事件列含自動刷新開關 ===
     '<div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;padding:4px 6px;background:rgba(0,0,0,0.15);border-radius:4px;">'+
+      '<label style="display:flex;align-items:center;gap:3px;cursor:pointer;margin-right:6px;">'+
+        '<input type="checkbox" id="__gmp_wb_auto" checked style="width:11px;height:11px;cursor:pointer;">'+
+        '<span style="font-size:9px;color:#888;">每 60s</span>'+
+      '</label>'+
       '<span style="font-size:9px;color:#555;">事件:</span>'+
       '<span id="__gmp_wb_evt_name" style="font-size:9px;color:#ffd700;">DOM 即時讀取</span>'+
-    '</div>'+// === MONITOR TAB ===
+    '</div>'+
+  '</div>'+// === MONITOR TAB ===
     '<div id="__gmp_tab_content_monitor" style="display:none;">'+
       '<div style="background:rgba(74,222,128,0.08);padding:8px;border-radius:6px;margin-bottom:8px;">'+
         '<div style="font-size:11px;color:#4ade80;font-weight:bold;margin-bottom:6px;">📡 封包監控 (Packet Monitor)</div>'+

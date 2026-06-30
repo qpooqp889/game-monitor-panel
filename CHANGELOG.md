@@ -1,5 +1,15 @@
 ﻿# 異動說明 (CHANGELOG)
 
+## [2.30] - 2026-06-30
+### BOSS Tab 修復：補回遺漏的戰鬥按鈕
+- v2.29 重構時誤刪戰鬥操作區（冷卻計時、手動指令、解除鎖定、自動掛機）
+- 全部補回：__gmp_boss_pot/atk/heal/convert/barrier/holy（手動按鈕）
+- 補回：__gmp_boss_bypass（解除冷卻限制）
+- 補回：__gmp_boss_auto_pot/heal/barrier/atk + 門檻設定（自動掛機）
+- 補回：__gmp_sock_status/sent/evts（Socket 狀態）
+- 補回：__gmp_export_all/__gmp_import_all（匯入匯出）
+- 保留 v2.29 新功能：可縮放世界王列表 + 優先討伐清單
+
 ## [2.29] - 2026-06-30
 ### BOSS Tab 重構：討伐清單 + 可縮放捲軸
 - 世界王列表改為可縮放容器（點擊標題列展開/收合，預設展開），max-height:300px + overflow-y:auto
