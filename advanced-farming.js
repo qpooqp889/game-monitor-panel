@@ -18,8 +18,23 @@
 
   // ====== 通用快取輔助 ======
   // 使用 window.__gmStorageSet/Get（game-monitor.js 掛載的 chrome.storage.local relay）
-  function storageSet(key,data){return window.__gmStorageSet(key,data)}
-  function storageGet(key){return window.__gmStorageGet([key]).then(function(r){return r&&r[key]||null})}
+  function storageSet(key,data){
+  if(window.__gmStorageSet){
+    return window.__gmStorageSet(key,data);
+  }
+  return new Promise(function(res,rej){
+    var o={};o[key]=data;
+    chrome.storage.local.set(o,function(){if(chrome.runtime.lastError)rej(chrome.runtime.lastError);else res()});
+  });
+}
+  function storageGet(key){
+  if(window.__gmStorageGet){
+    return window.__gmStorageGet([key]).then(function(r){return r&&r[key]||null});
+  }
+  return new Promise(function(res){
+    chrome.storage.local.get(key,function(d){res(d&&d[key]||null)});
+  });
+}
 
   // ====== 規則資料存取 ======
   var _rulesCache=null;
