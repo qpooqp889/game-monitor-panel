@@ -256,11 +256,34 @@
       if(!atype)return;
       switch(a.type){
         case 'castSkill':
-          // 送出 setAuto atkSkill（與進階設定「攻擊技能」行為一致）
+          // 1. 直接改遊戲 DOM 技能下拉
           (function(){
             var skillId=a.skillId||'strike';
+            // 在 #panel-scroll 找攻擊技能下拉（有 sk_ 選項的 select）
+            var panel=document.getElementById('panel-scroll');
+            if(panel){
+              var sels=panel.querySelectorAll('select');
+              for(var i=0;i<sels.length;i++){
+                var sel=sels[i];
+                // 跳過純數字/開關型的 select，找有 sk_ 技能選項的
+                var hasSk=false;
+                for(var j=0;j<sel.options.length;j++){
+                  if(/^sk_/.test(sel.options[j].value)){hasSk=true;break;}
+                }
+                if(!hasSk)continue;
+                // 檢查這個 select 是否有對應的 option
+                var opt=[].find.call(sel.options,function(o){return o.value===skillId});
+                if(!opt)continue;
+                // 找到了，直接賦值並觸發 change 讓遊戲響應
+                sel.value=skillId;
+                sel.dispatchEvent(new Event('change',{bubbles:true}));
+                console.log('[AdvFarm] castSkill DOM set:',skillId,'on select',sel.getAttribute('data-k')||sel.className);
+                return;
+              }
+            }
+            // 2. 備援：發 socket 封包
             window.__wbSocket.emit('setAuto',[{atkSkill:skillId}]);
-            console.log('[AdvFarm] castSkill→setAuto atkSkill:',skillId);
+            console.log('[AdvFarm] castSkill→setAuto atkSkill:',skillId,'(socket fallback)');
           })();
           break;
         case 'usePotion':
@@ -308,11 +331,27 @@
           }
           break;
         case 'setAuto':
-          // 固定送 setAuto openSkill（對應「開怪技能」）
+          // 1. 直接改遊戲 DOM 開怪技能下拉
           (function(){
             var skillId=a.skillId||'strike';
+            var panel=document.getElementById('panel-scroll');
+            if(panel){
+              var sels=panel.querySelectorAll('select');
+              for(var i=0;i<sels.length;i++){
+                var sel=sels[i];
+                var hasSk=[].some.call(sel.options,function(o){return/^sk_/.test(o.value)});
+                if(!hasSk)continue;
+                var opt=[].find.call(sel.options,function(o){return o.value===skillId});
+                if(!opt)continue;
+                sel.value=skillId;
+                sel.dispatchEvent(new Event('change',{bubbles:true}));
+                console.log('[AdvFarm] setAuto DOM set:',skillId,'on select',sel.getAttribute('data-k')||sel.className);
+                return;
+              }
+            }
+            // 2. 備援：發 socket 封包
             window.__wbSocket.emit('setAuto',[{openSkill:skillId}]);
-            console.log('[AdvFarm] setAuto openSkill:',skillId);
+            console.log('[AdvFarm] setAuto openSkill:',skillId,'(socket fallback)');
           })();
           break;
       }
