@@ -137,7 +137,14 @@ window.lastState=null;  // 初始化全域 lastState
             window.__wbWorldBossCache=window.__wbWorldBossCache||{data:null,ts:0};
             window.__wbWorldBossCache.data=p.data;
             window.__wbWorldBossCache.ts=Date.now();
+            window.__wbLastEvtName=evtName;
             console.log('[WB] WorldBoss event captured:',evtName,JSON.stringify(p.data[1]).slice(0,200));
+            // 更新 UI 元素（被動偵測到就立刻刷新）
+            var evtEl=document.getElementById('__gmp_wb_evt_name');
+            if(evtEl){evtEl.textContent=evtName;evtEl.style.color='#4ade80';}
+            var cntEl=document.getElementById('__gmp_wb_count');
+            if(cntEl)cntEl.textContent='1+';
+            __wbUpdateWorldBossUI();
             // 通知所有訂閱者
             (window.__wbBossEvtSubscribers||[]).forEach(function(fn){try{fn(evtName,p.data);}catch(e){}});
           }
@@ -171,7 +178,27 @@ function __wbQueryWorldBoss(){
   var names=['worldBoss','getBossInfo','bossInfo','world_boss','bossList','getBoss','RefreshBoss','getBossList','wbBoss'];
   var found=false;
   names.forEach(function(n){if(found)return;try{if(window.__wbSocket&&window.__wbSocket.emit){window.__wbSocket.emit(n);console.log('[WB-Query] emit:',n);found=true;}}catch(e){}});
-  if(!found)console.log('[WB-Query] no socket, will retry on next state');
+  if(!found){
+    console.log('[WB-Query] no socket ready, showing waiting status');
+    var el=document.getElementById('__gmp_wb_list');
+    var timerEl=document.getElementById('__gmp_wb_timer');
+    var countEl=document.getElementById('__gmp_wb_count');
+    if(el)el.innerHTML='<div style="font-size:10px;color:#fbbf24;padding:8px;text-align:center;">Socket.IO 未就緒<br><span style="font-size:9px;color:#888;">等待連線建立後自動刷新...</span></div>';
+    if(timerEl){timerEl.textContent='等待 socket...';timerEl.style.color='#fbbf24';}
+    if(countEl)countEl.textContent='--';
+    // 延遲重試：等待 socket 就緒後自動再查
+    if(!window.__wbSocketRetryTimer){
+      window.__wbSocketRetryTimer=setInterval(function(){
+        var retry=false;
+        names.forEach(function(n){if(retry)return;try{if(window.__wbSocket&&window.__wbSocket.emit){window.__wbSocket.emit(n);console.log('[WB-Retry] emit:',n);retry=true;}}catch(e){}});
+        if(retry){
+          clearInterval(window.__wbSocketRetryTimer);
+          window.__wbSocketRetryTimer=null;
+          __wbUpdateWorldBossUI();
+        }
+      },1500);
+    }
+  }
   return found;
 }
 // 自動查詢：每 60 秒執行一次
@@ -252,7 +279,8 @@ function __wbUpdateWorldBossUI(){
     }).join('');
   } else {
     if(countEl)countEl.textContent='--';
-    el.innerHTML='<div style="font-size:10px;color:#555;padding:8px;text-align:center;">尚無世界王資料<br><span style="font-size:9px;">等待 socket 事件...</span></div>';
+    var lastEvt=cache.ts?'已收到資料但解析失敗（事件:'+(window.__wbLastEvtName||'?')+'，請按「刷新」重試）':'尚未收到世界王事件（被動偵測中，或按「刷新」主動查詢）';
+    el.innerHTML='<div style="font-size:10px;color:#555;padding:8px;text-align:center;">尚無世界王資料<br><span style="font-size:9px;">'+lastEvt+'</span></div>';
   }
 }
 // 嘗試自動偵測世界王事件（每 5 秒檢查最近捕獲的事件）
@@ -2096,10 +2124,17 @@ function __gmBuildPanel(){
 
   // === 世界王列表 - 按鈕監聽 ===
   document.getElementById('__gmp_wb_refresh').onclick=function(){
-    __wbQueryWorldBoss();
+    var cache=window.__wbWorldBossCache||{};
+    var s=__wbQueryWorldBoss();
     __wbUpdateWorldBossUI();
+    var evtEl=document.getElementById('__gmp_wb_evt_name');
+    var evtText=window.__wbLastEvtName?'事件:'+window.__wbLastEvtName:'(被動偵測中...)';
+    if(evtEl){
+      evtEl.textContent=window.__wbLastEvtName||'querying...';
+      evtEl.style.color=s?'#4ade80':'#fbbf24';
+    }
     this.textContent='已刷新!';
-    setTimeout(function(){var b=document.getElementById('__gmp_wb_refresh');if(b)b.textContent='\u21BB 刷新';},1000);
+    setTimeout(function(){var b=document.getElementById('__gmp_wb_refresh');if(b)b.textContent='\u21BB 刷新';},1200);
   };
   document.getElementById('__gmp_wb_auto').onchange=function(){
     if(this.checked){
@@ -2110,20 +2145,28 @@ function __gmBuildPanel(){
   };
   document.getElementById('__gmp_wb_show_detected').onclick=function(){
     var evts=window.__wbAllEvents||[];
-    var candidates={};
+    var allNames={};
+    var bossCandidates={};
     evts.slice(-200).forEach(function(e){
-      if(/respawn|worldBoss|bossList|world_boss|RefreshBoss|getBoss/i.test(e.evt)){
-        candidates[e.evt]=(candidates[e.evt]||0)+1;
+      allNames[e.evt]=(allNames[e.evt]||0)+1;
+      if(/respawn|worldBoss|bossList|world_boss|RefreshBoss|getBoss|bossInfo|boss/i.test(e.evt)){
+        bossCandidates[e.evt]=(bossCandidates[e.evt]||0)+1;
       }
     });
-    var sorted=Object.keys(candidates).sort(function(a,b){return candidates[b]-candidates[a]});
-    if(sorted.length){
-      var list=sorted.slice(0,10).map(function(k,i){return(i+1)+'. '+k+' (x'+candidates[k]+')';}).join('\n');
-      console.log('[WB] Event candidates:\n'+list);
-      alert('事件候選 (查看 console 更多):\n'+sorted.slice(0,5).join('\n'));
-    } else {
-      alert('尚無偵測到世界王相關事件。請確認 Monitor 已在運行且有收到封包。');
+    var allSorted=Object.keys(allNames).sort(function(a,b){return allNames[b]-allNames[a]});
+    var bossSorted=Object.keys(bossCandidates).sort(function(a,b){return bossCandidates[b]-bossCandidates[a]});
+    console.log('[WB] All event names:',allSorted.slice(0,20));
+    var lines=[];
+    if(bossSorted.length){
+      lines.push('=== 世界王候選事件 ===');
+      bossSorted.slice(0,10).forEach(function(k,i){lines.push((i+1)+'. '+k+' (x'+bossCandidates[k]+')');});
+      lines.push('');
     }
+    lines.push('=== 所有事件 (前20) ===');
+    allSorted.slice(0,20).forEach(function(k,i){lines.push((i+1)+'. '+k+' (x'+allNames[k]+')');});
+    var msg=lines.join('\n');
+    console.log('[WB] Events:\n'+msg);
+    alert(msg.length>600?msg.substring(0,600)+'\n...(console 有完整列表)':msg);
   };
   // 世界王 UI 更新訂閱（cache 更新時即時刷新）
   __wbSubscribeWorldBoss(function(evtName,data){
