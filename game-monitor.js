@@ -1,4 +1,4 @@
-﻿(function(){
+(function(){
 var ver='v3.02';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
@@ -1093,7 +1093,12 @@ function __gmBuildPanel(){
       '<div style="margin-bottom:4px;">'+
         '<div style="display:flex;justify-content:space-between;font-size:10px;color:#888;margin-bottom:2px;">'+
           '<span>BOSS HP</span><span id="__gmp_boss_hp_text" style="color:#e94560;">--/--</span>'+
-        '</div>'+
+        '</div>'+'<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:6px 8px;background:rgba(76,175,80,0.10);border-radius:6px;">'+
+'<input type="checkbox" id="__gmp_boss_auto_script" style="width:16px;height:16px;cursor:pointer;">'+
+'<label for="__gmp_boss_auto_script" style="font-size:12px;color:#4caf50;font-weight:bold;cursor:pointer;">\uD83C\uDFAF 自動BOSS腳本</label>'+
+'<span id="__gmp_boss_script_status" style="font-size:9px;color:#888;">\u00B7 閒置中</span>'+
+'</div>'+
+
         '<div style="background:#3a1a1a;border-radius:4px;height:14px;">'+
           '<div id="__gmp_boss_hp_bar" style="width:0%;background:#e94560;height:100%;border-radius:4px;transition:width 0.3s;"></div>'+
         '</div>'+
@@ -2311,6 +2316,58 @@ function __gmBuildPanel(){
   });
   // Load saved config
   setTimeout(__wbLoadBossConfig,300);
+  // === BOSS auto script save/load ===
+  document.getElementById('__gmp_boss_auto_script').onchange=function(){
+    if(this.checked){
+      __wbBossAutoScriptStart();
+    } else {
+      __wbBossAutoScriptStop();
+    }
+    __wbSaveBossAutoScriptState();
+  };
+  function __wbSaveBossAutoScriptState(){
+    if(typeof window.__gmStorageSet==='undefined')return;
+    var chk=document.getElementById('__gmp_boss_auto_script');
+    window.__gmStorageSet('wb_auto_script_state',{enabled:chk?chk.checked:false}).catch(function(){});
+  }
+  function __wbLoadBossAutoScriptState(){
+    if(typeof window.__gmStorageGet==='undefined')return Promise.resolve();
+    return window.__gmStorageGet(['wb_auto_script_state']).then(function(r){
+      var s=r&&r.wb_auto_script_state||null;
+      if(s){
+        var chk=document.getElementById('__gmp_boss_auto_script');
+        if(chk)chk.checked=s.enabled;
+        if(s.enabled)setTimeout(__wbBossAutoScriptStart,800);
+      }
+    }).catch(function(){});
+  }
+  setTimeout(__wbLoadBossAutoScriptState,500);
+  // === BOSS auto script save/load ===
+  document.getElementById('__gmp_boss_auto_script').onchange=function(){
+    if(this.checked){
+      __wbBossAutoScriptStart();
+    } else {
+      __wbBossAutoScriptStop();
+    }
+    __wbSaveBossAutoScriptState();
+  };
+  function __wbSaveBossAutoScriptState(){
+    if(typeof window.__gmStorageSet==='undefined')return;
+    var chk=document.getElementById('__gmp_boss_auto_script');
+    window.__gmStorageSet('wb_auto_script_state',{enabled:chk?chk.checked:false}).catch(function(){});
+  }
+  function __wbLoadBossAutoScriptState(){
+    if(typeof window.__gmStorageGet==='undefined')return Promise.resolve();
+    return window.__gmStorageGet(['wb_auto_script_state']).then(function(r){
+      var s=r&&r.wb_auto_script_state||null;
+      if(s){
+        var chk=document.getElementById('__gmp_boss_auto_script');
+        if(chk)chk.checked=s.enabled;
+        if(s.enabled)setTimeout(__wbBossAutoScriptStart,800);
+      }
+    }).catch(function(){});
+  }
+  setTimeout(__wbLoadBossAutoScriptState,500);
 
   document.getElementById('__gmp_boss_auto_btn').onclick=function(){
     if(window.__wbBossAuto.running){

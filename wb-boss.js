@@ -1,3 +1,4 @@
+/* wb-boss.js v3.08 - BOSS Auto Script */
 // ====== wb-boss.js - World Boss Module ======
 // Extracted from game-monitor.js v2.30
 // Encapsulated in IIFE, all functions on window.__wb* namespace
@@ -7,7 +8,252 @@
   window.__wbModuleLoaded=true;
   console.log("[WB] World Boss module loading...");
 
-  // === Socket Hook (installSioHook) ===
+  // === Socket Hook (installSioHook) ===
+
+// ====== Hunt List Reorder ======
+function __wbGetHuntIds(callback){
+  __wbGetHuntList(function(list){
+    if(callback)callback(list?list.map(function(i){return i.id;}):[]);
+  });
+}
+
+function __wbMoveHuntItem(id, dir){
+  __wbGetHuntList(function(list){
+    var idx=list.findIndex(function(i){return i.id===id;});
+    if(idx<0)return;
+    var newIdx=idx+dir;
+    if(newIdx<0||newIdx>=list.length)return;
+    var tmp=list[idx];
+    list[idx]=list[newIdx];
+    list[newIdx]=tmp;
+    __wbSaveHuntList(list,function(){
+      __wbUpdateHuntListUI();
+      __wbUpdateWorldBossUI();
+    });
+  });
+}
+
+// ====== BOSS Auto Script State ======
+window.__wbBossAutoScript={running:false,timer:null,currentIdx:0,phase:'idle',farmWasRunning:false};
+
+// ====== BOSS Auto Script Main Loop ======
+function __wbBossAutoScriptStart(){
+  if(window.__wbBossAutoScript.running)return;
+  var cfgChk=document.getElementById('__gmp_boss_auto_script');
+  if(!cfgChk||!cfgChk.checked)return;
+
+  // Remember & stop farming
+  window.__wbBossAutoScript.farmWasRunning = window.__gmFarming && window.__gmFarming.running;
+  if(window.__wbBossAutoScript.farmWasRunning){
+    if(window.stopFarming)stopFarming();
+    console.log('[WB-AutoScript] Stopped farming');
+  }
+
+  window.__wbBossAutoScript.running=true;
+  window.__wbBossAutoScript.currentIdx=0;
+  window.__wbBossAutoScript.phase='loading';
+  var statusEl=document.getElementById('__gmp_boss_script_status');
+  if(statusEl)statusEl.textContent='\u26A1 BOSS\u811A\u672C\u8DD1\u884C\u4E2D...';
+
+  __wbBossAutoScriptLoop();
+}
+
+function __wbBossAutoScriptStop(){
+  window.__wbBossAutoScript.running=false;
+  if(window.__wbBossAutoScript.timer){
+    clearTimeout(window.__wbBossAutoScript.timer);
+    window.__wbBossAutoScript.timer=null;
+  }
+  window.__wbBossAutoScript.currentIdx=0;
+  window.__wbBossAutoScript.phase='idle';
+  var statusEl=document.getElementById('__gmp_boss_script_status');
+  if(statusEl)statusEl.textContent='\u2716 BOSS\u811A\u672C\u5DF2\u505C\u6B62';
+  // Restore farming
+  if(window.__wbBossAutoScript.farmWasRunning){
+    window.__wbBossAutoScript.farmWasRunning=false;
+    var farmBtn=document.getElementById('__gmp_farm_btn');
+    if(farmBtn&&farmBtn.textContent.indexOf('\u25B6')>-1){
+      if(window.startFarming)startFarming();
+    }
+  }
+}
+
+function __wbBossAutoScriptLoop(){
+  if(!window.__wbBossAutoScript.running)return;
+  var cfgChk=document.getElementById('__gmp_boss_auto_script');
+  if(!cfgChk||!cfgChk.checked){__wbBossAutoScriptStop();return;}
+
+  __wbGetHuntList(function(list){
+    if(!list||!list.length){
+      window.__wbBossAutoScript.phase='idle';
+      __wbBossAutoScriptRestoreFarm();
+      window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,10000);
+      return;
+    }
+
+    var idx=window.__wbBossAutoScript.currentIdx;
+    if(idx>=list.length){
+      // Reached end of hunt list \u2192 restore farm
+      console.log('[WB-AutoScript] Completed hunt list, restoring farm');
+      window.__wbBossAutoScript.currentIdx=0;
+      __wbBossAutoScriptRestoreFarm();
+      window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,5000);
+      return;
+    }
+
+    var target=list[idx];
+    window.__wbBossAutoScript.phase='checking';
+    var statusEl=document.getElementById('__gmp_boss_script_status');
+    if(statusEl)statusEl.textContent='[BOSS] '+target.name+' ('+(idx+1)+'/'+list.length+')...';
+
+    console.log('[WB-AutoScript] Checking #'+(idx+1)+': '+target.name);
+
+    // Step 1: Navigate to world boss tab
+    try{__wbEnsureWBTab();}catch(e){}
+
+    // Step 2: Wait for boss data, then check
+    window.__wbBossAutoScript.phase='waiting_boss';
+    window.__wbBossAutoScript.timer=setTimeout(function(){
+      __wbBossAutoScriptCheckBoss(target,idx,list);
+    },2000);
+  });
+}
+
+function __wbEnsureWBTab(){
+  var zoneTab=document.querySelector('div.tab[data-tab="zone"]');
+  var wbSub=document.querySelector('div.subtab[data-c="special"]');
+  if(zoneTab){zoneTab.click();}
+  if(wbSub){wbSub.click();}
+}
+
+function __wbBossAutoScriptCheckBoss(target,idx,list){
+  if(!window.__wbBossAutoScript.running)return;
+
+  // Read boss from DOM cards
+  var cards=document.querySelectorAll('.wb-card[data-boss]');
+  var foundBoss=null;
+  cards.forEach(function(card){
+    var bossId=card.getAttribute('data-boss');
+    if(bossId===target.id){foundBoss=card;}
+  });
+
+  if(!foundBoss){
+    console.log('[WB-AutoScript] '+target.name+' not in DOM, waiting...');
+    window.__wbBossAutoScript.phase='waiting_boss';
+    window.__wbBossAutoScript.timer=setTimeout(function(){
+      __wbBossAutoScriptCheckBoss(target,idx,list);
+    },3000);
+    return;
+  }
+
+  // Get boss status from sub element
+  var bossId=foundBoss.getAttribute('data-boss');
+  var subEl=document.querySelector('.wb-sub[data-boss="'+bossId+'"]');
+  var subText=subEl?subEl.textContent.trim():'';
+
+  var isAlive=subText.indexOf('\u5B58\u6D3B')!==-1||subText.indexOf('\u6230\u9B25\u4E2D')!==-1||subText.indexOf('HP')!==-1;
+  var isDead=subText.indexOf('\u5DF2\u88AB\u64CA\u6557')!==-1||subText.indexOf('\u5DF2\u88AB\u5FB4\u670D')!==-1;
+
+  if(isAlive){
+    console.log('[WB-AutoScript] '+target.name+' is ALIVE, entering...');
+    window.__wbBossAutoScript.phase='entering';
+    try{foundBoss.click();}catch(e){}
+
+    // Wait for boss battle then start auto-attack
+    window.__wbBossAutoScript.timer=setTimeout(function(){
+      var atkChk=document.getElementById('__gmp_boss_auto_atk');
+      if(atkChk)atkChk.checked=true;
+      var enableChk=document.getElementById('__gmp_boss_auto_enable');
+      if(enableChk)enableChk.checked=true;
+      __wbBossAutoScript.phase='attacking';
+      __wbBossAutoScriptMonitorBossHP(target,idx,list);
+    },1500);
+
+  } else if(isDead){
+    // Boss dead \u2192 next
+    var hasRespawn=false;
+    var respawnMatch=subText.match(/(\d{1,2}):(\d{2})/);
+    if(respawnMatch){
+      var h=parseInt(respawnMatch[1],10),min=parseInt(respawnMatch[2],10);
+      var now=new Date();
+      var targetTime=new Date(now.getFullYear(),now.getMonth(),now.getDate(),h,min,0);
+      if(targetTime<=now)targetTime.setDate(targetTime.getDate()+1);
+      var secondsLeft=Math.round((targetTime-now)/1000);
+      if(secondsLeft>0&&secondsLeft<86400){hasRespawn=true;}
+    }
+    if(hasRespawn){
+      console.log('[WB-AutoScript] '+target.name+' dead, respawn timer found, skipping');
+    } else {
+      console.log('[WB-AutoScript] '+target.name+' dead/no respawn, skipping');
+    }
+    window.__wbBossAutoScript.currentIdx++;
+    window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,500);
+
+  } else {
+    // Unknown \u2192 wait
+    console.log('[WB-AutoScript] '+target.name+' state unclear, waiting...');
+    window.__wbBossAutoScript.phase='waiting_boss';
+    window.__wbBossAutoScript.timer=setTimeout(function(){
+      __wbBossAutoScriptCheckBoss(target,idx,list);
+    },5000);
+  }
+}
+
+function __wbBossAutoScriptMonitorBossHP(target,idx,list){
+  if(!window.__wbBossAutoScript.running)return;
+
+  var ls=window.lastState||{};
+  var boss=ls.boss||{};
+  var mode=ls.mode||'';
+  var bossHp=boss.hp||0;
+  var bossMax=boss.maxHp||1;
+
+  var statusEl=document.getElementById('__gmp_boss_script_status');
+  if(statusEl)statusEl.textContent='[ATTACK] '+target.name+' HP:'+Math.round(bossHp/bossMax*100)+'%';
+
+  // If boss HP is 0 and not in battle mode, it's dead
+  if(bossHp<=0&&mode!=='bosscombat'){
+    console.log('[WB-AutoScript] '+target.name+' defeated!');
+    var enableChk=document.getElementById('__gmp_boss_auto_enable');
+    if(enableChk)enableChk.checked=false;
+    var atkChk=document.getElementById('__gmp_boss_auto_atk');
+    if(atkChk)atkChk.checked=false;
+
+    window.__wbBossAutoScript.currentIdx++;
+    if(window.__wbBossAutoScript.timer)clearTimeout(window.__wbBossAutoScript.timer);
+    window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,1000);
+    return;
+  }
+
+  // If in bosscombat, ensure auto attack is on
+  if(mode==='bosscombat'&&bossHp>0){
+    var atkChk=document.getElementById('__gmp_boss_auto_atk');
+    if(atkChk&&!atkChk.checked)atkChk.checked=true;
+    var enableChk=document.getElementById('__gmp_boss_auto_enable');
+    if(enableChk&&!enableChk.checked)enableChk.checked=true;
+    if(window.__wbSyncAutoConfig)__wbSyncAutoConfig();
+    if(window.__wbBossAuto&&!window.__wbBossAuto.running&&window.__wbBossAutoStart){
+      __wbBossAutoStart();
+    }
+  }
+
+  window.__wbBossAutoScript.timer=setTimeout(function(){
+    __wbBossAutoScriptMonitorBossHP(target,idx,list);
+  },2000);
+}
+
+function __wbBossAutoScriptRestoreFarm(){
+  if(window.__wbBossAutoScript.farmWasRunning){
+    window.__wbBossAutoScript.farmWasRunning=false;
+    console.log('[WB-AutoScript] Restoring farm');
+    var farmBtn=document.getElementById('__gmp_farm_btn');
+    if(farmBtn&&farmBtn.textContent.indexOf('\u25B6')>-1){
+      if(window.startFarming)startFarming();
+    }
+  }
+}
+
+
 // ====== WB Boss Hook ======
 window.__wbBossEmitLog=[];
 window.__wbSocket=null;
@@ -393,8 +639,11 @@ function __wbUpdateHuntListUI(){
   __wbGetHuntList(function(list){
     if(countEl)countEl.textContent=list.length+' \u53ea';
     if(list.length){
-      el.innerHTML=list.map(function(i){
-        return '<div style="display:flex;align-items:center;gap:4px;padding:4px 6px;background:rgba(76,175,80,0.08);border-radius:5px;margin-bottom:2px;border-left:3px solid #4caf50;">'+
+      el.innerHTML=list.map(function(i,idx){
+        var upBtn=idx>0?'<span style="font-size:9px;color:#aaa;cursor:pointer;min-width:14px;text-align:center;" onclick="__wbMoveHuntItem(\''+i.id+'\',-1)">\u25B2</span>':'<span style="font-size:9px;color:#333;min-width:14px;text-align:center;">\u25B2</span>';
+        var dnBtn=idx<list.length-1?'<span style="font-size:9px;color:#aaa;cursor:pointer;min-width:14px;text-align:center;" onclick="__wbMoveHuntItem(\''+i.id+'\',1)">\u25BC</span>':'<span style="font-size:9px;color:#333;min-width:14px;text-align:center;">\u25BC</span>';
+        return '<div style="display:flex;align-items:center;gap:2px;padding:4px 6px;background:rgba(76,175,80,0.08);border-radius:5px;margin-bottom:2px;border-left:3px solid #4caf50;">'+
+          upBtn+dnBtn+
           '<span style="font-size:10px;color:#4caf50;min-width:18px;cursor:pointer;" onclick="__wbRemoveFromHuntList(\''+i.id+'\')">[x]</span>'+
           '<span style="font-size:10px;color:#4caf50;min-width:70px;">'+i.name+'</span>'+
           '<span style="font-size:9px;color:#aaa;">Lv.'+i.lv+'</span>'+
