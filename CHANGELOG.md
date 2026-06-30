@@ -1,5 +1,15 @@
 ﻿# 異動說明 (CHANGELOG)
 
+## v3.02 (2026-06-30)
+### Farming Config 模組化：farming-config.js
+- 提取掛機設定儲存層為獨立模組：
+  - `window.__gmSaveFarmSettings` — 收集所有掛機 Tab 表單欄位 → postMessage GM_SAVE_SETTINGS
+  - `window.__gmLoadFarmSettings` — 觸發 GM_LOAD_SETTINGS + callback 回填表單
+  - standalone（無 IO 耦合），使用 postMessage 透通通訊
+- game-monitor.js 中的呼叫改為 `window.__gmSaveFarmSettings` / `__gmLoadFarmSettings`
+- popup.js 注入順序補入 farming-config.js（於 game-monitor.js 之前）
+- game-monitor.js 縮減 ~4KB
+
 ## v3.01 (2026-06-30)
 ### Storage 模組化：storage.js
 - 提取儲存層為獨立模組：

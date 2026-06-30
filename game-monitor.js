@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v3.01';
+var ver='v3.02';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -2398,7 +2398,7 @@ function __gmBuildPanel(){
   upd();
 
   // === Load saved settings ===
-  loadFarmSettings(function(data){
+  window.__gmLoadFarmSettings(function(data){
     if(!data)return;
     if(data.farmZone){
       var opt=document.querySelector('#__gmp_farm_zone option[value="'+data.farmZone+'"]');
@@ -2445,8 +2445,8 @@ function __gmBuildPanel(){
   farmInputs.forEach(function(id){
     var el=document.getElementById(id);
     if(el){
-      el.addEventListener('change',saveFarmSettings);
-      el.addEventListener('input',saveFarmSettings);
+      el.addEventListener('change',window.__gmSaveFarmSettings);
+      el.addEventListener('input',window.__gmSaveFarmSettings);
     }
   });
 }
