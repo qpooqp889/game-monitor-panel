@@ -430,47 +430,66 @@
     renderList();
   }
 
-  function refreshMonsterDatalist(){
-    var dl=document.getElementById('__gmAdvMonsterList');
-    if(!dl)return;
-    __gmMonsterDB.getAllNames().then(function(names){
-      dl.innerHTML=names.map(function(n){
-        return '<option value="'+escapeHtml(n)+'">';
-      }).join('');
-    });
-  }
-
   function refreshSkillDatalist(){
     var dl=document.getElementById('__gmAdvSkillList');
     if(!dl)return;
+    // 策略：優先讀遊戲 DOM（window.__pmSkillNames），若空白再讀 storage
+    var domNames=window.__pmSkillNames||{};
+    var hasDomData=Object.keys(domNames).some(function(k){return/^sk_/.test(k)});
+    if(hasDomData){
+      buildFromNames(domNames);
+      return;
+    }
+    // fallback：從 chrome.storage.local 讀
     __gmSkillDB.getLatest().then(function(rec){
-      var skills=rec&&rec.skills||{};
-      var skillNames=rec&&rec.skillNames||{};
+      if(rec&&rec.skillNames&&Object.keys(rec.skillNames).length){
+        buildFromNames(rec.skillNames);
+      } else {
+        // 終極 fallback：直接掃遊戲 DOM 的 data-skill / data-k select
+        var fallback={};
+        document.querySelectorAll('[data-skill]').forEach(function(el){var v=el.getAttribute('data-skill');if(v&&/^sk_/.test(v)){fallback[v]=el.closest('label')?el.closest('label').textContent.trim():v}});
+        document.querySelectorAll('[data-k]').forEach(function(el){
+          if(el.tagName==='SELECT')[].forEach.call(el.options,function(o){
+            var v=o.value;if(v&&/^sk_/.test(v)&&!fallback[v]){var txt=o.textContent.trim().replace(/（[^）]+）$/,'').replace(/\([^)]+\)$/,'').trim();fallback[v]=txt||v}
+          });
+        });
+        buildFromNames(fallback);
+      }
+    });
+    function buildFromNames(skillNames){
       var seen={};
       var options=[];
-      Object.keys(skills).sort().forEach(function(k){
-        var v=skills[k];
-        var label=typeof v==='object'?(v.label||k):k;
-        var val=typeof v==='object'?(v.value||k):v;
-        // skip 非技能值（數字、布林）
-        if(typeof v==='number'||typeof v==='boolean')return;
-        var displayName=skillNames[val]||null;
-        if(!seen[val]){
-          seen[val]=true;
-          if(displayName){
-            // 有中文名稱：顯示「中文名 (skillId)」
-            options.push('<option value="'+escapeHtml(val)+'">'+escapeHtml(displayName)+' ('+escapeHtml(val)+')</option>');
-          } else {
-            // 無中文名稱（純技能 ID）：顯示「key (key)」
-            options.push('<option value="'+escapeHtml(val)+'">'+escapeHtml(label+' ('+val+')')+'</option>');
-          }
-        }
+      Object.keys(skillNames).sort().forEach(function(skillId){
+        if(!skillId||!/^sk_/.test(skillId))return;
+        if(seen[skillId])return;
+        seen[skillId]=true;
+        var name=skillNames[skillId]||skillId;
+        var display=name.replace(/（[^）]+）$/,'').replace(/\([^)]+\)$/,'').trim();
+        options.push('<option value="'+escapeHtml(skillId)+'">'+escapeHtml(display)+' ('+escapeHtml(skillId)+')</option>');
       });
       dl.innerHTML=options.join('');
-    });
+    }
   }
 
-  function showStatus(msg,color){
+  function refreshMonsterDatalist(){
+    var dl=document.getElementById('__gmAdvMonsterList');
+    if(!dl)return;
+    // 優先從 chrome.storage.local（遊戲 loop 收錄的怪物）
+    __gmMonsterDB.getAllNames().then(function(names){
+      if(names&&names.length){
+        dl.innerHTML=names.map(function(n){return'<option value="'+escapeHtml(n)+'">'}).join('');
+      } else {
+        // fallback：從遊戲 DOM 的戰鬥畫面讀怪物名稱
+        var fallback=[];
+        document.querySelectorAll('.mob-name,[data-mob],.enemy-name').forEach(function(el){
+          var t=el.textContent.trim();if(t&&fallback.indexOf(t)===-1)fallback.push(t);
+        });
+        if(fallback.length){
+          dl.innerHTML=fallback.map(function(n){return'<option value="'+escapeHtml(n)+'">'}).join('');
+        }
+      }
+    });
+  }  function showStatus(msg,color){
     var el=document.getElementById('__gmAdvStatus');
     if(el){el.textContent=msg;el.style.color=color||'#4ade80';}
   }
