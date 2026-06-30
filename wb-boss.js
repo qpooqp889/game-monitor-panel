@@ -448,5 +448,21 @@ setTimeout(function(){
 
 
 
+  // ====== Export __wb* functions to window (for inline onclick/closure fallback) ======
+  window.__wbSend=__wbSend;window.__wbSendPotion=__wbSendPotion;window.__wbCastSkill=__wbCastSkill;
+  window.__wbSetBossSet=__wbSetBossSet;window.__wbEmit=__wbEmit;
+  window.__wbSubscribeWorldBoss=__wbSubscribeWorldBoss;window.__wbQueryWorldBoss=__wbQueryWorldBoss;
+  window.__wbStartWorldBossTimer=__wbStartWorldBossTimer;window.__wbStopWorldBossTimer=__wbStopWorldBossTimer;
+  window.__wbParseWorldBossData=__wbParseWorldBossData;window.__wbUpdateWorldBossUI=__wbUpdateWorldBossUI;
+  window.__wbDetectWorldBossEvt=__wbDetectWorldBossEvt;
+  window.__wbBossLoop=__wbBossLoop;window.__wbBossAutoStart=__wbBossAutoStart;window.__wbBossAutoStop=__wbBossAutoStop;
+  window.__wbToggleBypass=__wbToggleBypass;
+  window.__wbUpdateBossStatus=__wbUpdateBossStatus;window.__wbSyncAutoConfig=__wbSyncAutoConfig;
+  window.__wbBossStartUpdater=__wbBossStartUpdater;
+  window.__wbLoadHuntList=__wbLoadHuntList;window.__wbGetHuntList=__wbGetHuntList;
+  window.__wbSaveHuntList=__wbSaveHuntList;window.__wbAddToHuntList=__wbAddToHuntList;
+  window.__wbRemoveFromHuntList=__wbRemoveFromHuntList;window.__wbUpdateHuntListUI=__wbUpdateHuntListUI;
+  window.__wbInitHuntToggle=__wbInitHuntToggle;
+
   console.log("[WB] World Boss module loaded");
 })();
