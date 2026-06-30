@@ -1,5 +1,12 @@
 ﻿# 異動說明 (CHANGELOG)
 
+## v3.04 (2026-06-30)
+### 修復：討伐清單無法加入（MAIN world chrome 不可用）
+- **根因**：wb-boss.js 的 hunt list 函數直接呼叫 `chrome.storage.local.*`，但腳本以 `{world:'MAIN'}` 注入，`chrome` API 不可用
+- **修復**：改為使用 storage.js 的 `window.__gmStorageGet/Set`（postMessage → content.js → chrome.storage.local）
+- 移除 game-monitor.js 中重複的 hunt list 函數（`__wbSaveHuntList` ~ `__wbInitHuntToggle` 及 `__wbLoadHuntList / __wbGetHuntList`）
+- 現在所有 hunt list 操作統一由 wb-boss.js 處理，並透過 postMessage 橋接
+
 ## v3.03 (2026-06-30)
 ### 技能讀取：自動切換遊戲設定 Tab
 - `__pmReadFromGame` 分拆為 `__pmReadFromGame` + `__pmReadFromGameContinue`

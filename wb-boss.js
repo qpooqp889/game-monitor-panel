@@ -333,24 +333,24 @@ function __wbToggleBypass(on){window.__wbBypassCD=on;if(on&&!window.__wbBypassPa
 
 // ========== 優先討伐清單管理 ==========
 function __wbLoadHuntList(callback){
-  if(typeof chrome==='undefined'||!chrome.storage){if(callback)callback([]);return;}
-  chrome.storage.local.get('wb_priority_list',function(r){
-    var list=r.wb_priority_list||[];
+  if(typeof window.__gmStorageGet==='undefined'){if(callback)callback([]);return;}
+  window.__gmStorageGet(['wb_priority_list']).then(function(r){
+    var list=r&&r.wb_priority_list||[];
     var ids=list.map(function(i){return i.id;});
     if(callback)callback(ids);
-  });
+  }).catch(function(){if(callback)callback([]);});
 }
 
 function __wbGetHuntList(callback){
-  if(typeof chrome==='undefined'||!chrome.storage){callback([]);return;}
-  chrome.storage.local.get('wb_priority_list',function(r){
-    callback(r.wb_priority_list||[]);
-  });
+  if(typeof window.__gmStorageGet==='undefined'){if(callback)callback([]);return;}
+  window.__gmStorageGet(['wb_priority_list']).then(function(r){
+    callback(r&&r.wb_priority_list||[]);
+  }).catch(function(){callback([]);});
 }
 
 function __wbSaveHuntList(list){
-  if(typeof chrome==='undefined'||!chrome.storage)return;
-  chrome.storage.local.set({wb_priority_list:list},function(){
+  if(typeof window.__gmStorageSet==='undefined')return;
+  window.__gmStorageSet('wb_priority_list',list).then(function(){
     __wbUpdateHuntListUI();
     __wbUpdateWorldBossUI();
   });
