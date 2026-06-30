@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v3.00';
+var ver='v3.01';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -19,73 +19,6 @@ window.__battleStatus={packets:[]};window.__gmOnlineCount=null;
 window.__gmFarming={running:false,timer:null,returning:false,waitTimer:null};
 window.__gmLogoutModalVisible=false;
 window.__gmLogoutDayOffset=0; // 0=今天, 1=昨天, 2=前天...
-// ====== LogoutDB (chrome.storage.local) ======
-var LogoutDB=(function(){
-  var KEY='gmLogoutHistory';
-  var _cache=null;_cacheLoaded=false;
-  function ensureLoaded(){
-    if(_cacheLoaded)return Promise.resolve();
-    return __gmStorageGet([KEY]).then(function(r){
-      _cache=r&&r[KEY]||[];
-      _cacheLoaded=true;
-    });
-  }
-  function saveCache(){
-    return __gmStorageSet(KEY,_cache);
-  }
-  function genId(){return Date.now()+'_'+Math.random().toString(36).slice(2,8)}
-  return {
-    add:function(ts,mode){
-      return ensureLoaded().then(function(){
-        _cache.push({id:genId(),ts:ts||Date.now(),mode:mode||'unknown'});
-        return saveCache();
-      });
-    },
-    getAll:function(){
-      return ensureLoaded().then(function(){
-        return _cache.slice().sort(function(x,y){return y.ts-x.ts});
-      });
-    },
-    getBefore:function(b){
-      var ts=b instanceof Date?b.getTime():b;
-      return this.getAll().then(function(a){return a.filter(function(r){return r.ts<ts})});
-    },
-    getAfter:function(a){
-      var ts=a instanceof Date?a.getTime():a;
-      return this.getAll().then(function(a){return a.filter(function(r){return r.ts>=ts})});
-    },
-    getToday:function(){
-      var now=new Date();
-      var start=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime();
-      return this.getAll().then(function(a){return a.filter(function(r){return r.ts>=start})});
-    },
-    getByDayOffset:function(offset){
-      var now=new Date();
-      var base=new Date(now.getFullYear(),now.getMonth(),now.getDate());
-      base.setDate(base.getDate()-offset);
-      var start=base.getTime();
-      var end=start+86400000;
-      return this.getAll().then(function(a){return a.filter(function(r){return r.ts>=start&&r.ts<end})});
-    },
-    clearAll:function(){return ensureLoaded().then(function(){_cache=[];return saveCache()})},
-    clearBefore:function(b){
-      var ts=b instanceof Date?b.getTime():b;
-      var self=this;
-      return self.getBefore(ts).then(function(old){
-        var ids={};
-        old.forEach(function(r){ids[r.id]=true});
-        _cache=_cache.filter(function(r){return!ids[r.id]});
-        return saveCache().then(function(){return old.length});
-      });
-    },
-    count:function(){return ensureLoaded().then(function(){return _cache.length})},
-    last:function(){return ensureLoaded().then(function(){return _cache.length?_cache[_cache.length-1]:null})},
-    // 匯出完整資料（供儲存輔助用）
-    exportCache:function(){return ensureLoaded().then(function(){return JSON.parse(JSON.stringify(_cache))})},
-    importCache:function(arr){_cache=Array.isArray(arr)?arr.slice():[];return saveCache()}
-  };
-})();
-console.log('[LogoutDB] Storage local store loaded');
 
 
 // ====== WB Boss Hook ======
@@ -483,35 +416,6 @@ function __gmRenderLogoutList(){
   });
 }
 
-// ========== Storage Helper (chrome.storage.local via content.js relay) ==========
-var __gmStorageSeq=0;
-var __gmStorageCbs={};
-window.addEventListener('message',function(e){
-  if(e.data&&e.data.type==='GM_STORAGE_RESPONSE'&&e.data.seq!==undefined&&__gmStorageCbs[e.data.seq]){
-    __gmStorageCbs[e.data.seq](e.data.data||e.data);
-    delete __gmStorageCbs[e.data.seq];
-  }
-});
-// 儲存單一 key（掛到 window 供 advanced-farming.js 使用）
-function __gmStorageSet(key,data){
-  return new Promise(function(resolve){
-    var seq=++__gmStorageSeq;
-    __gmStorageCbs[seq]=function(){resolve()};
-    window.postMessage({type:'GM_STORAGE_SET',key:key,data:data,seq:seq},'*');
-  });
-}
-// 讀取 key(s)，傳入單一字串回傳值，傳入陣列回傳物件（掛到 window 供 advanced-farming.js 使用）
-function __gmStorageGet(keys){
-  return new Promise(function(resolve){
-    var seq=++__gmStorageSeq;
-    __gmStorageCbs[seq]=function(resp){resolve(resp)};
-    window.postMessage({type:'GM_STORAGE_GET',keys:Array.isArray(keys)?keys:[keys],seq:seq},'*');
-  });
-}
-// 暴露到 window 讓獨立注入的 advanced-farming.js 也能使用
-window.__gmStorageSet=__gmStorageSet;
-window.__gmStorageGet=__gmStorageGet;
-// ========== End Storage Helper ==========
 
 // ========== Storage Functions ==========
 function saveFarmSettings(){

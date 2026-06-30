@@ -1,5 +1,15 @@
 ﻿# 異動說明 (CHANGELOG)
 
+## v3.01 (2026-06-30)
+### Storage 模組化：storage.js
+- 提取儲存層為獨立模組：
+  - `__gmStorageGet/Set`（postMessage 式 chrome.storage.local 存取）
+  - `LogoutDB`（登出歷史，chrome.storage.local 版）
+  - `__gmStorageExportAll/ImportAll`（核心匯出/匯入）
+- popup.js 注入順序：storage.js → game-monitor.js → wb-boss.js → advanced-farming.js
+- game-monitor.js 縮減 3968 bytes（移除 LogoutDB + Storage Helper 區塊）
+- 利用 sloppy mode scope chain：game-monitor.js 中 `LogoutDB`、`__gmStorageGet/Set` 等裸參考自動解析到 `window`
+
 ## [2.30] - 2026-06-30
 ### BOSS Tab 修復：補回遺漏的戰鬥按鈕
 - v2.29 重構時誤刪戰鬥操作區（冷卻計時、手動指令、解除鎖定、自動掛機）
