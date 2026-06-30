@@ -203,7 +203,7 @@ function __wbParseWorldBossData(raw){
   // 標準化欄位
   return arr.map(function(it){
     return{
-      name:it.name||it.n||it.bossName||it.boss_name||'?'+
+      name:it.name||it.n||it.bossName||it.boss_name||'?'
       lv:it.lv||it.level||it.bossLv||it.boss_level||0,
       hp:it.hp||it.HP||0,
       maxHp:it.maxHp||it.maxHP||it['max-hp']||it.max_hp||0,
