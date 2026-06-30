@@ -1174,6 +1174,7 @@ function __gmBuildPanel(){
         '<span style="font-size:9px;color:#444;margin-left:4px;">| 事件:</span>'+
         '<span id="__gmp_wb_evt_name" style="font-size:9px;color:#ffd700;">auto-detecting...</span>'+
         '<button id="__gmp_wb_show_detected" style="margin-left:auto;padding:2px 6px;background:#2a2a4a;border:1px solid #555;color:#aaa;border-radius:4px;cursor:pointer;font-size:9px;">? 事件候選</button>'+
+        '<button id="__gmp_wb_export_all" onclick="__gmExportSioEvents()" style="padding:2px 6px;background:#1a3a1a;border:1px solid #4ade80;color:#4ade80;border-radius:4px;cursor:pointer;font-size:9px;">&#x1F4CB; 匯出</button>'+
       '</div>'+
     '</div>'+
     '<div style="margin-bottom:8px;">'+'<div style="font-size:10px;color:#888;margin-bottom:4px;">冷卻計時</div>'+
@@ -2171,6 +2172,70 @@ function __gmBuildPanel(){
     console.log('[WB] Events:\n'+msg);
     alert(msg.length>600?msg.substring(0,600)+'\n...(console 有完整列表)':msg);
   };
+  // === 匯出所有 Socket.IO 事件（SEND + RECEIVE）===
+  function __gmExportSioEvents(){
+    var sends=(window.__wbBossEmitLog||[]).slice(-200);
+    var recvs=(window.__wbAllEvents||[]).slice(-200);
+    var lines=[];
+    lines.push('=== Socket.IO 事件匯出 ===');
+    lines.push('時間: '+new Date().toLocaleString('zh-TW',{hour12:false}));
+    lines.push('角色: '+(window.lastState&&window.lastState.char?window.lastState.char.name:'?'));
+    lines.push('SEND 筆數: '+sends.length+' | RECEIVE 筆數: '+recvs.length);
+    lines.push('');
+    lines.push('--- SEND ('+sends.length+' 筆) ---');
+    sends.forEach(function(s,i){
+      lines.push('['+(i+1)+'] '+s.evt+' | '+s.args.substring(0,300));
+    });
+    lines.push('');
+    lines.push('--- RECEIVE ('+recvs.length+' 筆) ---');
+    recvs.forEach(function(r,i){
+      var t=new Date(r.t).toLocaleTimeString('zh-TW',{hour12:false});
+      lines.push('['+(i+1)+']['+t+'] '+r.evt+' | '+r.payload.substring(0,300));
+    });
+    lines.push('');
+    lines.push('--- worldBoss cache ---');
+    var cache=window.__wbWorldBossCache||{};
+    lines.push(JSON.stringify(cache.data,null,2).substring(0,2000));
+    var txt=lines.join('\n');
+    var existing=document.getElementById('__gm_export_modal');
+    if(existing)existing.remove();
+    var modal=document.createElement('div');
+    modal.id='__gm_export_modal';
+    modal.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:99999;display:flex;align-items:center;justify-content:center;';
+    modal.innerHTML='<div style="background:#1a1a2e;border:1px solid #0f3460;border-radius:12px;padding:20px;width:90%;max-width:800px;max-height:85vh;display:flex;flex-direction:column;gap:12px;">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;">'+
+      '<span style="color:#4ade80;font-weight:bold;font-size:13px;">Socket.IO 事件 ('+sends.length+' SEND / '+recvs.length+' RECV)</span>'+
+      '<button id="__gm_export_copy" style="padding:5px 14px;background:#1a4a1a;border:1px solid #4ade80;color:#4ade80;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">COPY</button>'+
+      '<button id="__gm_export_dl" style="padding:5px 14px;background:#1a3a1a;border:1px solid #00d9ff;color:#00d9ff;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">DL TXT</button>'+
+      '<button id="__gm_export_close" style="padding:5px 12px;background:#333;border:1px solid #555;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">X</button></div>'+
+      '<textarea id="__gm_export_ta" readonly style="flex:1;min-height:300px;max-height:60vh;background:#0a0a1a;border:1px solid #0f3460;color:#86c5ff;font-family:monospace;font-size:11px;padding:10px;border-radius:6px;resize:none;line-height:1.5;"></textarea>'+
+    '</div>';
+    document.body.appendChild(modal);
+    var ta=document.getElementById('__gm_export_ta');
+    ta.value=txt;
+    document.getElementById('__gm_export_close').onclick=function(){modal.remove()};
+    modal.onclick=function(e){if(e.target===modal)modal.remove()};
+    document.getElementById('__gm_export_copy').onclick=function(){
+      navigator.clipboard.writeText(txt).then(function(){
+        var b=document.getElementById('__gm_export_copy');
+        if(b){b.textContent='COPIED!';setTimeout(function(){b.textContent='COPY';},1500);}
+      }).catch(function(){
+        ta.select();document.execCommand('copy');
+        var b=document.getElementById('__gm_export_copy');
+        if(b){b.textContent='COPIED!';setTimeout(function(){b.textContent='COPY';},1500);}
+      });
+    };
+    document.getElementById('__gm_export_dl').onclick=function(){
+      var blob=new Blob([txt],{type:'text/plain;charset=utf-8'});
+      var url=URL.createObjectURL(blob);
+      var a=document.createElement('a');
+      a.href=url;
+      var ts=new Date().toISOString().replace(/[:.]/g,'-').substring(0,19);
+      a.download='sio_events_'+ts+'.txt';
+      document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+    };
+  }
+
   // 世界王 UI 更新訂閱（cache 更新時即時刷新）
   __wbSubscribeWorldBoss(function(evtName,data){
     __wbUpdateWorldBossUI();
