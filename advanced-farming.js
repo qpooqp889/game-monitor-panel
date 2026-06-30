@@ -262,6 +262,18 @@
             var targetSel=null;
             function findAndSet(){
               if(!panel)return;
+              // 攻擊技能 → data-k="atkSkill"
+              var atkSel=panel.querySelector('[data-k="atkSkill"]');
+              if(atkSel){
+                var opt=[].find.call(atkSel.options,function(o){return o.value===skillId});
+                if(opt){
+                  atkSel.value=skillId;
+                  atkSel.dispatchEvent(new Event('change',{bubbles:true}));
+                  console.log('[AdvFarm] castSkill DOM set atkSkill:',skillId);
+                  return true;
+                }
+              }
+              // fallback：找任何有 sk_ 選項的 select
               var sels=panel.querySelectorAll('select');
               for(var i=0;i<sels.length;i++){
                 var sel=sels[i];
@@ -270,8 +282,8 @@
                 if(!opt)continue;
                 sel.value=skillId;
                 sel.dispatchEvent(new Event('change',{bubbles:true}));
-                console.log('[AdvFarm] castSkill DOM set:',skillId,'on',sel.getAttribute('data-k')||sel.className);
-                targetSel=sel;return true;
+                console.log('[AdvFarm] castSkill DOM set (fallback):',skillId,'on',sel.getAttribute('data-k')||sel.className);
+                return true;
               }
               return false;
             }
@@ -353,6 +365,18 @@
             var targetSel=null;
             function findAndSet(){
               if(!panel)return;
+              // 開怪技能 → data-k="openSkill"
+              var openSel=panel.querySelector('[data-k="openSkill"]');
+              if(openSel){
+                var opt=[].find.call(openSel.options,function(o){return o.value===skillId});
+                if(opt){
+                  openSel.value=skillId;
+                  openSel.dispatchEvent(new Event('change',{bubbles:true}));
+                  console.log('[AdvFarm] setAuto DOM set openSkill:',skillId);
+                  return true;
+                }
+              }
+              // fallback：找任何有 sk_ 選項的 select
               var sels=panel.querySelectorAll('select');
               for(var i=0;i<sels.length;i++){
                 var sel=sels[i];
@@ -361,8 +385,8 @@
                 if(!opt)continue;
                 sel.value=skillId;
                 sel.dispatchEvent(new Event('change',{bubbles:true}));
-                console.log('[AdvFarm] setAuto DOM set:',skillId,'on',sel.getAttribute('data-k')||sel.className);
-                targetSel=sel;return true;
+                console.log('[AdvFarm] setAuto DOM set (fallback):',skillId,'on',sel.getAttribute('data-k')||sel.className);
+                return true;
               }
               return false;
             }
