@@ -285,11 +285,11 @@
               setTimeout(function(){
                 if(findAndSet())return;
                 // 終極：發 socket
-                window.__wbSocket.emit('setAuto',[{atkSkill:skillId}]);
+                window.__wbSocket.emit('setAuto',[{openSkill:skillId}]);
                 console.log('[AdvFarm] castSkill socket fallback:',skillId);
               },300);
             } else {
-              window.__wbSocket.emit('setAuto',[{atkSkill:skillId}]);
+              window.__wbSocket.emit('setAuto',[{openSkill:skillId}]);
               console.log('[AdvFarm] castSkill socket fallback:',skillId);
             }
           })();
