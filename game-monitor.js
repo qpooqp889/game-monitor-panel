@@ -131,9 +131,12 @@ window.lastState=null;  // 初始化全域 lastState
           var rec={t:Date.now(),evt:evtName,payload:payload};
           window.__wbAllEvents.push(rec);
           if(window.__wbAllEvents.length>500)window.__wbAllEvents.shift();
-          // 被動偵測：含 respawn / worldBoss / bossList / hp+maxHp+name 即為世界王候選
-          if(/respawn|worldBoss|bossList|world_boss|getBoss|RefreshBoss/i.test(evtName)||
-             (p.data.length>1&&/respawn|hp|maxHp|worldBoss|bossLv|lv|name/i.test(JSON.stringify(p.data[1])))){
+          // 被動偵測：事件名含世界王關鍵字（使用 word boundary 避免 "combat" 誤觸）
+          // 或 payload 含 boss 物件（非 state.player.boss 那種 null 值）
+          var _isWbEvtName=/\b(respawn|worldBoss|bossList|world_boss|getBoss|RefreshBoss|bossInfo)\b/i.test(evtName);
+          var _payloadStr=p.data.length>1?JSON.stringify(p.data[1]):'';
+          var _hasBossObj=/"boss"\s*:\s*\{/.test(_payloadStr)&&/respawn|worldBoss|bossLv|nextSpawn|cooldown|hp|maxHp/i.test(_payloadStr);
+          if(_isWbEvtName||_hasBossObj){
             window.__wbWorldBossCache=window.__wbWorldBossCache||{data:null,ts:0};
             window.__wbWorldBossCache.data=p.data;
             window.__wbWorldBossCache.ts=Date.now();
