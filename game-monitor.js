@@ -215,36 +215,11 @@ function __wbParseWorldBossData(raw){
       respawn:it.respawn||it.respawnTime||it.respawn_time||it.nextSpawn||it.cd||it.cooldown||null,
       status:it.status||it.state||'unknown',
       index:it.index||it.id||null
-function __wbStartWorldBossTimer(){
-  if(window.__wbWorldBossTimer)clearInterval(window.__wbWorldBossTimer);
-  __wbUpdateWorldBossUI();
-  window.__wbWorldBossTimer=setInterval(function(){
-    __wbUpdateWorldBossUI();
-  },60000);
-  console.log('[WB-WorldBoss] DOM timer started, interval=60s');
-} if(timerEl){
-    if(age!==null){
-      var rem=Math.max(0,60-Math.floor(age));
-      timerEl.textContent='自動刷新 '+rem+'s';
-      timerEl.style.color='#888';
-    } else {
-      timerEl.textContent='等待資料...';
-      timerEl.style.color='#555';
-    }
-  }
-  // 解析並顯示
-  var parsed=__wbParseWorldBossData(cache.data&&cache.data.length>1?cache.data[1]:null);
-  if(parsed.length){
-    if(countEl)countEl.textContent=parsed.length+' 隻';
-    el.innerHTML=parsed.map(function(b){
-      var pct=b.maxHp>0?Math.round(b.hp/b.maxHp*100):100;
-      var hpColor=pct>60?'#e94560':pct>30?'#fbbf24':'#dc2626';
-      var rsStr=b.respawn!==null?'重生:'+b.respawn+'s':'--';
-      var statusLabel={alive:'&#x1F7E2; 存活',dead:'&#x1F534; 死亡',waiting:'&#x1F7E1; 等待',unknown:'?'};
-      return '<div style="display:flex;align-items:center;gap:6px;padding:5px 6px;background:rgba(233,69,96,0.06);border-radius:5px;margin-bottom:3px;border-left:3px solid '+hpColor+';">'+
-        '<span style="font-size:10px;color:#e94560;min-width:70px;">'+b.name+'</span>'+
-        '<span style="font-size:9px;color:#aaa;">Lv.'+b.lv+'</span>'+
-        '<span style="font-size:9px;color:'+hpCfunction __wbUpdateWorldBossUI(){
+    };
+  });
+}
+// 更新世界王 UI（顯示在 BOSS Tab 頂端）
+function __wbUpdateWorldBossUI(){
   var el=document.getElementById('__gmp_wb_list');
   var timerEl=document.getElementById('__gmp_wb_timer');
   var countEl=document.getElementById('__gmp_wb_count');
@@ -300,9 +275,46 @@ function __wbStartWorldBossTimer(){
     }).join('');
   } else {
     if(countEl)countEl.textContent='--';
-    el.innerHTML='<div style="font-size:10px;color:#888;padding:8px;text-align:center;">世界王列表為空<br><span style="font-size:9px;color:#555;">請先切換到「狩獵場 &#x2192 世界王」分頁</span></div>';
+    el.innerHTML='<div style="font-size:10px;color:#888;padding:8px;text-align:center;">世界王列表為空<br><span style="font-size:9px;color:#555;">請先切換到「狩獵場 → 世界王」分頁</span></div>';
   }
-}r hpPct=ch.maxHp>0?ch.hp/ch.maxHp:1;try{if(cfg.pot&&hpPct<(cfg.hpPct/100)&&cd.pot<0.05)__wbSend('pot');if(cfg.heal&&cd.heal<0.05)__wbSend('heal');if(cfg.barrier&&boss.hp>0&&boss.maxHp>0&&(boss.hp/boss.maxHp)<(cfg.barrierPct/100)&&cd.barrier<0.05&&boss.barrierHas)__wbSend('barrier');if(cfg.atk&&ls.mode==='bosscombat'&&cd.atk<0.05)__wbSend('atk');}catch(e){}window.__wbBossAuto.timer=setTimeout(__wbBossLoop,500);}
+}
+// 嘗試自動偵測世界王事件（每 5 秒檢查最近捕獲的事件）
+function __wbDetectWorldBossEvt(){
+  var evts=window.__wbAllEvents||[];
+  var candidates={};
+  evts.slice(-100).forEach(function(e){
+    if(/respawn|worldBoss|bossList|world_boss|RefreshBoss|getBoss/i.test(e.evt)){
+      candidates[e.evt]=(candidates[e.evt]||0)+1;
+    }
+  });
+  var sorted=Object.keys(candidates).sort(function(a,b){return candidates[b]-candidates[a]});
+  if(sorted.length){
+    console.log('[WB-WorldBoss] detected candidates:',sorted.slice(0,5).map(function(k){return k+' x'+candidates[k];}).join(', '));
+    return sorted[0];
+  }
+  return null;
+}
+// 初次啟動偵測
+setTimeout(function(){
+  var detected=__wbDetectWorldBossEvt();
+  if(detected){
+    window.__wbWorldBossEvtName=detected;
+    console.log('[WB-WorldBoss] confirmed event:',detected);
+  }
+  __wbStartWorldBossTimer();
+  // 每 5 秒偵測新事件
+  window.__wbWorldBossDetectTimer=setInterval(function(){
+    if(!window.__wbWorldBossEvtName){
+      var d=__wbDetectWorldBossEvt();
+      if(d){window.__wbWorldBossEvtName=d;console.log('[WB-WorldBoss] auto-detected:',d);}
+    }
+    __wbUpdateWorldBossUI();
+  },5000);
+},5000);
+
+// ====== Boss Auto ======
+window.__wbBossAuto={running:false,timer:null,config:{pot:true,heal:false,barrier:false,atk:false,hpPct:50,barrierPct:30}};
+function __wbBossLoop(){if(!window.__wbBossAuto.running)return;var ls=window.lastState||{};var ch=ls.char||{};var boss=ls.boss||{};var cd=boss.cd||{};var cfg=window.__wbBossAuto.config;var hpPct=ch.maxHp>0?ch.hp/ch.maxHp:1;try{if(cfg.pot&&hpPct<(cfg.hpPct/100)&&cd.pot<0.05)__wbSend('pot');if(cfg.heal&&cd.heal<0.05)__wbSend('heal');if(cfg.barrier&&boss.hp>0&&boss.maxHp>0&&(boss.hp/boss.maxHp)<(cfg.barrierPct/100)&&cd.barrier<0.05&&boss.barrierHas)__wbSend('barrier');if(cfg.atk&&ls.mode==='bosscombat'&&cd.atk<0.05)__wbSend('atk');}catch(e){}window.__wbBossAuto.timer=setTimeout(__wbBossLoop,500);}
 function __wbBossAutoStart(){window.__wbBossAuto.running=true;__wbBossLoop();}
 function __wbBossAutoStop(){window.__wbBossAuto.running=false;if(window.__wbBossAuto.timer)clearTimeout(window.__wbBossAuto.timer);}
 
@@ -2127,14 +2139,18 @@ function __gmBuildPanel(){
     var allNames={};
     var bossCandidates={};
     evts.slice(-200).forEach(function(e){
-      allNames[edocument.getElementById('__gmp_wb_refresh').onclick=function(){
-    __wbUpdateWorldBossUI();
-    var evtEl=document.getElementById('__gmp_wb_evt_name');
-    if(evtEl){evtEl.textContent='DOM 即時讀取';evtEl.style.color='#4ade80';}
-    this.textContent='已刷新!';
-    var _t=this;
-    setTimeout(function(){var b=document.getElementById('__gmp_wb_refresh');if(b)b.textContent='\u2699 刷新';},1500);
-  }function(k,i){lines.push((i+1)+'. '+k+' (x'+bossCandidates[k]+')');});
+      allNames[e.evt]=(allNames[e.evt]||0)+1;
+      if(/respawn|worldBoss|bossList|world_boss|RefreshBoss|getBoss|bossInfo|boss/i.test(e.evt)){
+        bossCandidates[e.evt]=(bossCandidates[e.evt]||0)+1;
+      }
+    });
+    var allSorted=Object.keys(allNames).sort(function(a,b){return allNames[b]-allNames[a]});
+    var bossSorted=Object.keys(bossCandidates).sort(function(a,b){return bossCandidates[b]-bossCandidates[a]});
+    console.log('[WB] All event names:',allSorted.slice(0,20));
+    var lines=[];
+    if(bossSorted.length){
+      lines.push('=== 世界王候選事件 ===');
+      bossSorted.slice(0,10).forEach(function(k,i){lines.push((i+1)+'. '+k+' (x'+bossCandidates[k]+')');});
       lines.push('');
     }
     lines.push('=== 所有事件 (前20) ===');

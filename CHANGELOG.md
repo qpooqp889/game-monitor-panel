@@ -9,6 +9,15 @@
 - 刷新按鈕改為即時 DOM 讀取
 - 解析 wb-sub[data-boss] 的重生時間
 
+## [2.28] - 2026-06-30
+### WorldBoss DOM 讀取重構
+- 世界王列表改為讀取遊戲 DOM (.wb-card[data-boss])，放棄 Socket 封包攔截
+- 移除 __wbQueryWorldBoss socket 發送邏輯，直接呼叫 __wbUpdateWorldBossUI()
+- __wbStartWorldBossTimer 改為每 60 秒直接掃 DOM，移除 socket 重試機制
+- __wbUpdateWorldBossUI 完全重寫為 DOM 解析版本
+- 刷新按鈕改為即時 DOM 讀取
+- 解析 wb-sub[data-boss] 的重生時間
+
 ## [2.26] - 2026-06-30
 ### Fixes
 - BOSS Tab 世界王被動偵測：捕到事件時即時更新 UI（事件名 / 數量 / 列表）+ 每 1.5s 重試直到 Socket 就緒
