@@ -1006,7 +1006,7 @@ function __gmBuildPanel(){
   var activeTab='game';
   var activeZoneTab='town';
   var p=document.createElement('div');p.id='__gmp';
-  Object.assign(p.style,{position:'fixed',top:'10px',right:'10px',width:'300px',background:'linear-gradient(135deg,#1a1a2e,#16213e)',border:'2px solid #0f3460',borderRadius:'12px',padding:'12px',fontFamily:'Segoe UI',color:'#fff',zIndex:'999999',boxShadow:'0 4px 20px rgba(0,0,0,0.5)',cursor:'move'});
+  Object.assign(p.style,{position:'fixed',top:'10px',right:'10px',width:'450px',height:'650px',background:'linear-gradient(135deg,#1a1a2e,#16213e)',border:'2px solid #0f3460',borderRadius:'12px',padding:'12px',fontFamily:'Segoe UI',color:'#fff',zIndex:'999999',boxShadow:'0 4px 20px rgba(0,0,0,0.5)',cursor:'move',overflowY:'auto'});
 
   p.innerHTML=
   '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #0f3460;">'+
@@ -1026,7 +1026,7 @@ function __gmBuildPanel(){
     '<button id="__gmp_close" style="background:#e94560;border:none;color:#fff;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:12px;">X</button>'+
   '</div>'+
   '</div>'+
-  '<div id="__gmp_content">'+
+  '<div id="__gmp_content" style="height:calc(100% - 50px);overflow-y:auto;">'+
     // === GAME TAB ===
     '<div id="__gmp_tab_content_game" style="display:block;">'+
     '<div style="display:flex;gap:5px;margin-bottom:8px;">'+
