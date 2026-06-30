@@ -209,7 +209,7 @@
     'attack':{label:'一般攻擊',params:[],hint:''},
     'toLobby':{label:'返回大廳',params:[],hint:''},
     'setTarget':{label:'指定目標',params:['targetValue'],hint:'怪物名稱（部分匹配）或索引數字'},
-    'setAuto':{label:'設定自動技能',params:['skillId','autoType'],hint:'skillId / openSkill / atkSkill'}
+    'setAuto':{label:'設定自動技能',params:['skillId','autoType'],hint:'openSkill=開怪技能 / atkSkill=攻擊技能'}
   };
 
   // ====== API (chrome.storage.local 實作, 見上方 preamble) ======
@@ -446,22 +446,22 @@
     __gmSkillDB.getLatest().then(function(rec){
       var skills=rec&&rec.skills||{};
       var skillNames=rec&&rec.skillNames||{};
-      // 收集所有獨特 skillId 值（skip 掉非技能的值如數字/布林）
       var seen={};
       var options=[];
       Object.keys(skills).sort().forEach(function(k){
         var v=skills[k];
         var label=typeof v==='object'?(v.label||k):k;
         var val=typeof v==='object'?(v.value||k):v;
-        // 若 val 是 skillId 且有中文名稱定義，用中文名稱
+        // skip 非技能值（數字、布林）
+        if(typeof v==='number'||typeof v==='boolean')return;
         var displayName=skillNames[val]||null;
-        if(displayName&&!seen[val]){
+        if(!seen[val]){
           seen[val]=true;
-          options.push('<option value="'+escapeHtml(val)+'">'+escapeHtml(displayName)+' ('+escapeHtml(val)+')</option>');
-        } else if(!displayName){
-          // 一般設定值（數字、開關等）
-          if(!seen[k]){
-            seen[k]=true;
+          if(displayName){
+            // 有中文名稱：顯示「中文名 (skillId)」
+            options.push('<option value="'+escapeHtml(val)+'">'+escapeHtml(displayName)+' ('+escapeHtml(val)+')</option>');
+          } else {
+            // 無中文名稱（純技能 ID）：顯示「key (key)」
             options.push('<option value="'+escapeHtml(val)+'">'+escapeHtml(label+' ('+val+')')+'</option>');
           }
         }
@@ -566,7 +566,7 @@
             paramInput='<input data-af="param" list="__gmAdvMonsterList" type="text" value="'+escapeHtml(p1)+'" placeholder="選擇或輸入怪物名稱 / 索引" autocomplete="off" style="flex:1;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;padding:3px;font-size:10px;">';
           } else if(a.type==='setAuto'){
             paramInput='<input data-af="skillId" list="__gmAdvSkillList" type="text" value="'+escapeHtml(p1)+'" placeholder="選擇或輸入技能ID (sk_fireball)" autocomplete="off" style="flex:1;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;padding:3px;font-size:10px;">'+
-              '<select data-af="autoType" style="background:#1a2a3a;border:1px solid #0f3460;border-radius:4px;color:#ffd700;padding:3px;font-size:10px;"><option value="openSkill" '+(p2==='openSkill'?'selected':'')+'>開怪</option><option value="atkSkill" '+(p2==='atkSkill'?'selected':'')+'>攻擊</option></select>';
+              '<select data-af="autoType" style="background:#1a2a3a;border:1px solid #0f3460;border-radius:4px;color:#ffd700;padding:3px;font-size:10px;"><option value="openSkill" '+(p2==='openSkill'?'selected':'')+'>開怪技能</option><option value="atkSkill" '+(p2==='atkSkill'?'selected':'')+'>攻擊技能</option></select>';
           } else {
             paramInput='<input data-af="param" type="text" value="'+escapeHtml(p1)+'" placeholder="'+placeholder+'" style="flex:1;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;padding:3px;font-size:10px;">';
           }
