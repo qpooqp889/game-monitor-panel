@@ -1601,13 +1601,35 @@ function __gmBuildPanel(){
       if (sectionData.items.length > 0) window.__pmAuto.boxes.push(sectionData);
     });
 
-    // 建立技能 ID → 中文名稱映射（來自 select 選項的 text）
+    // 建立技能 ID → 中文名稱映射（雙管齊下）
     window.__pmSkillNames={};
+    // 第一波：遍歷 __pmAuto.boxes 所有 items
+    //   - checkbox（data-skill）：key=技能ID，label=中文名 → 直接建立 skillNames[key]=label
+    //   - select（data-k）：value=當前技能ID，label=設定名 → 建立 skillNames[value]=label
+    window.__pmAuto.boxes.forEach(function(sec){
+      sec.items.forEach(function(item){
+        if(!item.key)return;
+        // checkbox 技能：key 是技能 ID（如 sk_fireball），label 是中文名
+        if(item.type==='checkbox'&&item.label){
+          if(!/^(true|false|on|off|\d+)$/i.test(item.key)){
+            window.__pmSkillNames[item.key]=item.label;
+          }
+          return;
+        }
+        // select 技能：value 是當前選的技能 ID（如 sk_fireball），label 是設定中文名
+        if(item.type==='select'&&item.value&&item.label){
+          if(!/^(true|false|on|off|\d+)$/i.test(item.value)){
+            window.__pmSkillNames[item.value]=item.label;
+          }
+        }
+      });
+    });
+    // 第二波：select option text，補充下拉內其他候選技能的中文名
     boxes.forEach(function(box){
-      box.querySelectorAll('[data-k]').forEach(function(el){
+      [].forEach.call(box.querySelectorAll('[data-k]'),function(el){
         if(el.tagName==='SELECT'){
           [].forEach.call(el.options,function(o){
-            if(o.value&&o.textContent.trim()){
+            if(o.value&&o.textContent.trim()&&!/^(true|false|on|off|\d+)$/i.test(o.value)&&!window.__pmSkillNames[o.value]){
               window.__pmSkillNames[o.value]=o.textContent.trim();
             }
           });
