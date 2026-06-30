@@ -1,4 +1,4 @@
-(function(){
+﻿(function(){
 var ver='v2.25';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');

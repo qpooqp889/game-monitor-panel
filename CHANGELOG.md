@@ -1,5 +1,11 @@
-# 異動說明 (CHANGELOG)
+﻿# 異動說明 (CHANGELOG)
 
+## [2.26] - 2026-06-30
+### Fixes
+- BOSS Tab 世界王被動偵測：捕到事件時即時更新 UI（事件名 / 數量 / 列表）+ 每 1.5s 重試直到 Socket 就緒
+- 刷新按鈕即時回饋：成功=綠色，查詢中=黃色
+- __wbUpdateWorldBossUI 無資料時顯示詳細原因（未收到事件 vs 已收到但解析失敗）
+- 世界王候選按鈕：顯示所有捕獲事件名稱（而非只看符合 worldBoss 等關鍵字的）
 ## [v2.25] - 2026-06-30
 
 ### 🐛 Fix: Unexpected identifier 'lv'
