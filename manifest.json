@@ -1,0 +1,33 @@
+﻿{
+  "manifest_version": 3,
+  "name": "Game Monitor Panel",
+  "version": "3.00",
+  "description": "Game Monitor Panel",
+  "permissions": ["activeTab", "scripting", "tabs", "storage"],
+  "host_permissions": ["https://linh5web.win/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://linh5web.win/*"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["game-monitor.js", "advanced-farming.js", "wb-boss.js"],
+      "matches": ["https://linh5web.win/*"]
+    }
+  ]
+}
