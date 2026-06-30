@@ -256,34 +256,42 @@
       if(!atype)return;
       switch(a.type){
         case 'castSkill':
-          // 1. 直接改遊戲 DOM 技能下拉
           (function(){
             var skillId=a.skillId||'strike';
-            // 在 #panel-scroll 找攻擊技能下拉（有 sk_ 選項的 select）
             var panel=document.getElementById('panel-scroll');
-            if(panel){
+            var targetSel=null;
+            function findAndSet(){
+              if(!panel)return;
               var sels=panel.querySelectorAll('select');
               for(var i=0;i<sels.length;i++){
                 var sel=sels[i];
-                // 跳過純數字/開關型的 select，找有 sk_ 技能選項的
-                var hasSk=false;
-                for(var j=0;j<sel.options.length;j++){
-                  if(/^sk_/.test(sel.options[j].value)){hasSk=true;break;}
-                }
-                if(!hasSk)continue;
-                // 檢查這個 select 是否有對應的 option
+                if(![].some.call(sel.options,function(o){return/^sk_/.test(o.value)}))continue;
                 var opt=[].find.call(sel.options,function(o){return o.value===skillId});
                 if(!opt)continue;
-                // 找到了，直接賦值並觸發 change 讓遊戲響應
                 sel.value=skillId;
                 sel.dispatchEvent(new Event('change',{bubbles:true}));
-                console.log('[AdvFarm] castSkill DOM set:',skillId,'on select',sel.getAttribute('data-k')||sel.className);
-                return;
+                console.log('[AdvFarm] castSkill DOM set:',skillId,'on',sel.getAttribute('data-k')||sel.className);
+                targetSel=sel;return true;
               }
+              return false;
             }
-            // 2. 備援：發 socket 封包
-            window.__wbSocket.emit('setAuto',[{atkSkill:skillId}]);
-            console.log('[AdvFarm] castSkill→setAuto atkSkill:',skillId,'(socket fallback)');
+            // 先試當前可見的 DOM
+            if(findAndSet())return;
+            // 找不到就切到「設定」Tab 再試
+            var setTab=document.querySelector('.tab[data-tab="set"]');
+            if(setTab){
+              setTab.click();
+              console.log('[AdvFarm] castSkill: switched to set tab, retrying DOM find');
+              setTimeout(function(){
+                if(findAndSet())return;
+                // 終極：發 socket
+                window.__wbSocket.emit('setAuto',[{atkSkill:skillId}]);
+                console.log('[AdvFarm] castSkill socket fallback:',skillId);
+              },300);
+            } else {
+              window.__wbSocket.emit('setAuto',[{atkSkill:skillId}]);
+              console.log('[AdvFarm] castSkill socket fallback:',skillId);
+            }
           })();
           break;
         case 'usePotion':
@@ -331,27 +339,39 @@
           }
           break;
         case 'setAuto':
-          // 1. 直接改遊戲 DOM 開怪技能下拉
           (function(){
             var skillId=a.skillId||'strike';
             var panel=document.getElementById('panel-scroll');
-            if(panel){
+            var targetSel=null;
+            function findAndSet(){
+              if(!panel)return;
               var sels=panel.querySelectorAll('select');
               for(var i=0;i<sels.length;i++){
                 var sel=sels[i];
-                var hasSk=[].some.call(sel.options,function(o){return/^sk_/.test(o.value)});
-                if(!hasSk)continue;
+                if(![].some.call(sel.options,function(o){return/^sk_/.test(o.value)}))continue;
                 var opt=[].find.call(sel.options,function(o){return o.value===skillId});
                 if(!opt)continue;
                 sel.value=skillId;
                 sel.dispatchEvent(new Event('change',{bubbles:true}));
-                console.log('[AdvFarm] setAuto DOM set:',skillId,'on select',sel.getAttribute('data-k')||sel.className);
-                return;
+                console.log('[AdvFarm] setAuto DOM set:',skillId,'on',sel.getAttribute('data-k')||sel.className);
+                targetSel=sel;return true;
               }
+              return false;
             }
-            // 2. 備援：發 socket 封包
-            window.__wbSocket.emit('setAuto',[{openSkill:skillId}]);
-            console.log('[AdvFarm] setAuto openSkill:',skillId,'(socket fallback)');
+            if(findAndSet())return;
+            var setTab=document.querySelector('.tab[data-tab="set"]');
+            if(setTab){
+              setTab.click();
+              console.log('[AdvFarm] setAuto: switched to set tab, retrying DOM find');
+              setTimeout(function(){
+                if(findAndSet())return;
+                window.__wbSocket.emit('setAuto',[{openSkill:skillId}]);
+                console.log('[AdvFarm] setAuto socket fallback:',skillId);
+              },300);
+            } else {
+              window.__wbSocket.emit('setAuto',[{openSkill:skillId}]);
+              console.log('[AdvFarm] setAuto socket fallback:',skillId);
+            }
           })();
           break;
       }
