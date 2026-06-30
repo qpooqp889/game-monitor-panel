@@ -1,5 +1,12 @@
 ﻿# 異動說明 (CHANGELOG)
 
+## v3.03 (2026-06-30)
+### 技能讀取：自動切換遊戲設定 Tab
+- `__pmReadFromGame` 分拆為 `__pmReadFromGame` + `__pmReadFromGameContinue`
+- 點擊「讀取設定」時先自動點擊遊戲內 `.tab[data-tab="set"]` 確保面板就緒
+- 找不到 `#panel-scroll` 時自動 200ms 後重試一次
+- 減少手動操作步驟
+
 ## v3.02 (2026-06-30)
 ### Farming Config 模組化：farming-config.js
 - 提取掛機設定儲存層為獨立模組：

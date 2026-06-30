@@ -1708,11 +1708,26 @@ function __gmBuildPanel(){
 
   // 讀取遊戲面板
   function __pmReadFromGame() {
+    // 先點擊遊戲的「設定」Tab，確保面板就緒
+    var gameSetTab = document.querySelector('.tab[data-tab="set"]');
+    if (gameSetTab) {
+      gameSetTab.click();
+    }
     var panel = document.getElementById('panel-scroll');
     if (!panel) {
-      alert('找不到遊戲設定面板 (#panel-scroll)。\n請先在遊戲內打開自動施法設定介面。');
+      setTimeout(function(){
+        var retryPanel = document.getElementById('panel-scroll');
+        if (retryPanel) {
+          __pmReadFromGameContinue(retryPanel);
+        } else {
+          alert('找不到遊戲設定面板 (#panel-scroll)。\n請先在遊戲內打開自動施法設定介面。');
+        }
+      }, 200);
       return;
     }
+    __pmReadFromGameContinue(panel);
+  }
+  function __pmReadFromGameContinue(panel) {
     var status = document.getElementById('__gmp_skill_status');
     if (status) { status.textContent = '讀取中...'; status.style.color = '#fbbf24'; }
 
