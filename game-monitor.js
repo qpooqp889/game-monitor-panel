@@ -1616,21 +1616,30 @@ function __gmBuildPanel(){
           }
           return;
         }
-        // select 技能：value 是當前選的技能 ID（如 sk_fireball），label 是設定中文名
+        // select 技能：value=當前技能ID，label=設定名（錯！改用當前選中 option text）
         if(item.type==='select'&&item.value&&item.label){
           if(!/^(true|false|on|off|\d+)$/i.test(item.value)){
-            window.__pmSkillNames[item.value]=item.label;
+            // 從 item.options 找當前選中項的 text（技能中文名）
+            var selOpt=(item.options||[]).find(function(o){return o.value===item.value});
+            var skillName=selOpt?selOpt.text:item.label;
+            // 去除 MP 註記：「燃燒的火球（MP14）」→ 「燃燒的火球」
+            skillName=skillName.replace(/（[^）]+）$/,'').replace(/\([^)]+\)$/,'').trim();
+            window.__pmSkillNames[item.value]=skillName;
           }
         }
       });
     });
-    // 第二波：select option text，補充下拉內其他候選技能的中文名
+    // 第二波：select option text，補充下拉內其他候選技能的中文名（並去除 MP 註記）
     boxes.forEach(function(box){
       [].forEach.call(box.querySelectorAll('[data-k]'),function(el){
         if(el.tagName==='SELECT'){
           [].forEach.call(el.options,function(o){
-            if(o.value&&o.textContent.trim()&&!/^(true|false|on|off|\d+)$/i.test(o.value)&&!window.__pmSkillNames[o.value]){
-              window.__pmSkillNames[o.value]=o.textContent.trim();
+            var v=o.value;
+            if(!v||/^(true|false|on|off|\d+)$/i.test(v))return;
+            if(!/^(sk_|_)/.test(v))return;
+            if(!window.__pmSkillNames[v]){
+              var txt=o.textContent.trim().replace(/（[^）]+）$/,'').replace(/\([^)]+\)$/,'').trim();
+              window.__pmSkillNames[v]=txt||v;
             }
           });
         }
