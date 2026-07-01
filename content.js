@@ -3,6 +3,82 @@
 if(window.__gmContentLoaded)return;
 window.__gmContentLoaded=true;
 
+// ====== Extension context invalidation guard ======
+var __gmRuntimeDead = false;
+var _gmChrome = null;
+try {
+  _gmChrome = chrome;
+  // Check if runtime is alive
+  if (_gmChrome.runtime && _gmChrome.runtime.id) {
+    // alive
+  } else {
+    __gmRuntimeDead = true;
+  }
+} catch(e) {
+  __gmRuntimeDead = true;
+}
+
+// Runtime disconnect listener
+try {
+  // Listen for runtime disconnect (extension reload)
+  // onConnect/onDisconnect isn't reliable for detecting reload.
+  // Instead, wrap sendMessage to catch the error.
+} catch(e) {
+  __gmRuntimeDead = true;
+}
+
+function __gmSafeSendMessage(msg, cb) {
+  if (__gmRuntimeDead) {
+    if (cb) cb(null);
+    return;
+  }
+  try {
+    _gmChrome.runtime.sendMessage(msg, function(resp) {
+      if (_gmChrome.runtime.lastError) {
+        // Runtime disconnected mid-flight
+        __gmRuntimeDead = true;
+        if (cb) cb(null);
+        return;
+      }
+      if (cb) cb(resp);
+    });
+  } catch(e) {
+    __gmRuntimeDead = true;
+    if (cb) cb(null);
+  }
+}
+
+function __gmSafeStorageGet(keys, cb) {
+  if (__gmRuntimeDead) { if(cb) cb({}); return; }
+  try {
+    _gmChrome.storage.local.get(keys, function(result) {
+      if (_gmChrome.runtime.lastError) { __gmRuntimeDead = true; if(cb) cb({}); return; }
+      if (cb) cb(result);
+    });
+  } catch(e) {
+    __gmRuntimeDead = true; if(cb) cb({});
+  }
+}
+
+function __gmSafeStorageSet(obj, cb) {
+  if (__gmRuntimeDead) { if(cb) cb(); return; }
+  try {
+    _gmChrome.storage.local.set(obj, function() {
+      if (_gmChrome.runtime.lastError) { __gmRuntimeDead = true; if(cb) cb(); return; }
+      if (cb) cb();
+    });
+  } catch(e) {
+    __gmRuntimeDead = true; if(cb) cb();
+  }
+}
+
+// If runtime is already dead, bail out silently
+if (__gmRuntimeDead) {
+  console.log('[GM Content] Extension context invalidated, content script disabled');
+  return;
+}
+
+// ====== Main content script ======
 window.__gmPanelVisible=false;
 
 // 遊戲分頁 ID（盡早向 background 請求並快取）
@@ -12,7 +88,7 @@ var __gmGameTabId = null;
 var __gmPendingInjections = [];
 
 // 向 background 註冊自己並取得自己的 tabId
-chrome.runtime.sendMessage({action:'registerGameTab'}, function(resp) {
+__gmSafeSendMessage({action:'registerGameTab'}, function(resp) {
   if (resp && resp.registered) {
     console.log('[GM Content] Game tab registered');
   }
@@ -28,7 +104,7 @@ window.addEventListener('message', function(e) {
   // ---------- 通用 chrome.storage.local 讀寫（取代 IndexedDB） ----------
   if (e.data.type === 'GM_STORAGE_GET') {
     // e.data = {type: 'GM_STORAGE_GET', keys: ['key1','key2'], seq: N}
-    chrome.storage.local.get(e.data.keys || [], function(result) {
+    __gmSafeStorageGet(e.data.keys || [], function(result) {
       window.postMessage({
         type: 'GM_STORAGE_RESPONSE',
         keys: e.data.keys,
@@ -43,7 +119,7 @@ window.addEventListener('message', function(e) {
     // e.data = {type: 'GM_STORAGE_SET', key: 'xxx', data: {...}, seq: N}
     var obj = {};
     obj[e.data.key] = e.data.data;
-    chrome.storage.local.set(obj, function() {
+    __gmSafeStorageSet(obj, function() {
       if (e.data.seq !== undefined) {
         window.postMessage({
           type: 'GM_STORAGE_RESPONSE',
@@ -58,14 +134,14 @@ window.addEventListener('message', function(e) {
 
   // ---------- Legacy: 基本掛機設定 ----------
   if (e.data.type === 'GM_SAVE_SETTINGS' && e.data.data) {
-    chrome.storage.local.set({gmFarmSettings: e.data.data}, function() {
-      console.log('[GM] Settings saved');
+    __gmSafeStorageSet({gmFarmSettings: e.data.data}, function() {
+      if (!__gmRuntimeDead) console.log('[GM] Settings saved');
     });
     return;
   }
 
   if (e.data.type === 'GM_LOAD_SETTINGS') {
-    chrome.storage.local.get(['gmFarmSettings'], function(result) {
+    __gmSafeStorageGet(['gmFarmSettings'], function(result) {
       var data = result.gmFarmSettings || {};
       window.postMessage({type: 'GM_LOAD_RESPONSE', data: data}, '*');
     });
@@ -74,11 +150,18 @@ window.addEventListener('message', function(e) {
 
   // ---------- 注入模組 ----------
   if (e.data.type === 'GM_LOAD_ADVANCED' && e.data.src) {
+    // If runtime is dead, can't inject — warn and bail
+    if (__gmRuntimeDead) {
+      console.warn('[GM Content] Extension invalidated, cannot inject', e.data.src);
+      window.postMessage({type: 'GM_ADVANCED_LOADED', src: e.data.src, error: 'context invalidated'}, '*');
+      return;
+    }
+
     var scriptName = e.data.src;
     console.log('[GM Content] Relaying', scriptName, 'injection request');
 
     function doInject(tabId) {
-      chrome.runtime.sendMessage(
+      __gmSafeSendMessage(
         {action: 'injectScript', scriptName: scriptName, tabId: tabId},
         function(response) {
           if (response && response.success) {
@@ -86,20 +169,22 @@ window.addEventListener('message', function(e) {
             window.postMessage({type: 'GM_ADVANCED_LOADED', src: scriptName}, '*');
           } else {
             console.error('[GM Content] Failed to inject ' + scriptName, response && response.error);
-            // Retry once after 800ms
-            setTimeout(function() {
-              chrome.runtime.sendMessage(
-                {action: 'injectScript', scriptName: scriptName, tabId: tabId},
-                function(resp2) {
-                  if (resp2 && resp2.success) {
-                    console.log('[GM Content] ' + scriptName + ' injected (retry)');
-                    window.postMessage({type: 'GM_ADVANCED_LOADED', src: scriptName}, '*');
-                  } else {
-                    console.error('[GM Content] Retry failed for ' + scriptName, resp2 && resp2.error);
+            // Retry once after 800ms (only if runtime still alive)
+            if (!__gmRuntimeDead) {
+              setTimeout(function() {
+                __gmSafeSendMessage(
+                  {action: 'injectScript', scriptName: scriptName, tabId: tabId},
+                  function(resp2) {
+                    if (resp2 && resp2.success) {
+                      console.log('[GM Content] ' + scriptName + ' injected (retry)');
+                      window.postMessage({type: 'GM_ADVANCED_LOADED', src: scriptName}, '*');
+                    } else {
+                      console.error('[GM Content] Retry failed for ' + scriptName, resp2 && resp2.error);
+                    }
                   }
-                }
-              );
-            }, 800);
+                );
+              }, 800);
+            }
           }
         }
       );
@@ -110,7 +195,7 @@ window.addEventListener('message', function(e) {
       doInject(__gmGameTabId);
     } else {
       // 還不知道 tabId：向 background 查詢，等回應後再注射
-      chrome.runtime.sendMessage({action: 'getGameTabId'}, function(info) {
+      __gmSafeSendMessage({action: 'getGameTabId'}, function(info) {
         if (info && info.tabId) {
           __gmGameTabId = info.tabId;
           doInject(__gmGameTabId);
@@ -123,6 +208,10 @@ window.addEventListener('message', function(e) {
 });
 
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+  if (__gmRuntimeDead) {
+    sendResponse({error: 'context invalidated'});
+    return true;
+  }
   if (request.action === 'togglePanel') {
     togglePanel();
     sendResponse({visible: window.__gmPanelVisible});
