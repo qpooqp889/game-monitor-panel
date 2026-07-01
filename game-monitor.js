@@ -286,9 +286,11 @@ window.__wbBossAuto={
     atkSkill:true,
     heal:true,healHp:70,
     barrier:true,
-    bypass:false
+    bypass:false,
+    startHpPct:80,startMpPct:50,
+    potStop:false,potStopHp:30
   };
-function __wbBossLoop(){if(!window.__wbBossAuto.running)return;var ls=window.lastState||{};var ch=ls.char||{};var boss=ls.boss||{};var cd=boss.cd||{};var cfg=window.__wbBossAuto.config;var hpPct=ch.maxHp>0?ch.hp/ch.maxHp:1;try{if(cfg.stop&&hpPct<(cfg.stopHp/100)&&cd.atk<0.05)__wbSend('stop');if(cfg.pot&&hpPct<(cfg.potHp/100)&&cd.pot<0.05)__wbSend('pot');if(cfg.atkSkill&&cd.atk<0.05)__wbSend('atk');if(cfg.heal&&hpPct<(cfg.healHp/100)&&cd.heal<0.05)__wbSend('heal');if(cfg.barrier&&cd.barrier<0.05&&boss.barrierHas)__wbSend('barrier');if(cfg.atk&&ls.mode==='bosscombat'){var _bh=boss.hp/boss.maxHp;var _hpC=_bh<(cfg.atkHpPct/100);var _olC=(window.__gmOnlineCount||0)>=cfg.atkOnline;var _atkOk=_hpC;if(cfg.atkLogic==='AND')_atkOk=_hpC&&_olC;else if(cfg.atkLogic==='OR')_atkOk=_hpC||_olC;else if(cfg.atkLogic==='NOT')_atkOk=!_hpC;}if(_atkOk)__wbSend('atk');}catch(e){}window.__wbBossAuto.timer=setTimeout(__wbBossLoop,500);}
+function __wbBossLoop(){if(!window.__wbBossAuto.running)return;var ls=window.lastState||{};var ch=ls.char||{};var boss=ls.boss||{};var cd=boss.cd||{};var cfg=window.__wbBossAuto.config;var hpPct=ch.maxHp>0?ch.hp/ch.maxHp:1;try{if(cfg.stop&&hpPct<(cfg.stopHp/100)&&cd.atk<0.05)__wbSend('stop');if(cfg.potStop&&hpPct<(cfg.potStopHp/100)&&cd.atk<0.05)__wbSend('stop');if(cfg.pot&&hpPct<(cfg.potHp/100)&&cd.pot<0.05)__wbSend('pot');if(cfg.atkSkill&&cd.atk<0.05)__wbSend('atk');if(cfg.heal&&hpPct<(cfg.healHp/100)&&cd.heal<0.05)__wbSend('heal');if(cfg.barrier&&cd.barrier<0.05&&boss.barrierHas)__wbSend('barrier');if(cfg.atk&&ls.mode==='bosscombat'){var _bh=boss.hp/boss.maxHp;var _hpC=_bh<(cfg.atkHpPct/100);var _olC=(window.__gmOnlineCount||0)>=cfg.atkOnline;var _atkOk=_hpC;if(cfg.atkLogic==='AND')_atkOk=_hpC&&_olC;else if(cfg.atkLogic==='OR')_atkOk=_hpC||_olC;else if(cfg.atkLogic==='NOT')_atkOk=!_hpC;if(cfg.startHpPct>0&&hpPct<(cfg.startHpPct/100))_atkOk=false;if(cfg.startMpPct>0&&(ch.maxMp>0?ch.mp/ch.maxMp:1)<(cfg.startMpPct/100))_atkOk=false;}if(_atkOk)__wbSend('atk');}catch(e){}window.__wbBossAuto.timer=setTimeout(__wbBossLoop,500);}
 function __wbBossAutoStart(){window.__wbBossAuto.running=true;__wbBossLoop();}
 function __wbBossAutoStop(){window.__wbBossAuto.running=false;if(window.__wbBossAuto.timer)clearTimeout(window.__wbBossAuto.timer);}
 
@@ -1032,7 +1034,7 @@ function __gmBuildPanel(){
     '<button id="__gmp_zoom_in" style="background:#333;border:none;color:#fff;width:20px;height:20px;border-radius:4px;cursor:pointer;font-size:12px;">+</button>'+
     '<button id="__gmp_zoom_out" style="background:#333;border:none;color:#fff;width:20px;height:20px;border-radius:4px;cursor:pointer;font-size:12px;">-</button>'+
     '<button id="__gmp_close" style="background:#e94560;border:none;color:#fff;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:12px;">X</button>'+
-  '</div>'+
+  '\n<div style="display:flex;align-items:center;gap:5px;margin-top:6px;padding:4px 0;border-top:1px solid #333;"><span style="font-size:10px;color:#fbbf24;">\u958b\u59cb\u689d\u4ef6 </span><span style="font-size:10px;color:#7bd14a;">HP&gt;</span><input id="__gmp_boss_auto_start_hp" type="number" value="80" min="0" max="100" style="width:45px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;outline:none;text-align:center;"><span style="font-size:9px;color:#888;">%</span><span style="font-size:10px;color:#60a5fa;">MP&gt;</span><input id="__gmp_boss_auto_start_mp" type="number" value="50" min="0" max="100" style="width:45px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;outline:none;text-align:center;"><span style="font-size:9px;color:#888;">%</span></div>\n</div>'+
   '</div>'+
   '<div id="__gmp_content" style="height:calc(100% - 50px);overflow-y:auto;">'+
     // === GAME TAB ===
@@ -1103,8 +1105,8 @@ function __gmBuildPanel(){
           '<span>BOSS HP</span><span id="__gmp_boss_hp_text" style="color:#e94560;">--/--</span>'+
         '</div>'+
 '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:6px 8px;background:rgba(76,175,80,0.10);border-radius:6px;">'+
-'<input type="checkbox" id="__gmp_boss_auto_script" style="width:16px;height:16px;cursor:pointer;">'+
-'<label for="__gmp_boss_auto_script" style="font-size:12px;color:#4caf50;font-weight:bold;cursor:pointer;">\uD83C\uDFAF 自動進入世界王</label>'+
+'<input type="checkbox" id="__gmp_boss_auto_enable" style="width:16px;height:16px;cursor:pointer;">'+
+'<label for="__gmp_boss_auto_enable" style="font-size:12px;color:#4caf50;font-weight:bold;cursor:pointer;">\uD83C\uDFAF 自動進入世界王</label>'+
 '<span id="__gmp_boss_script_status" style="font-size:9px;color:#888;">\u00B7 閒置中</span>'+
 '</div>'+'<div style="display:flex;align-items:center;gap:2px;margin-top:4px;margin-bottom:4px;">'+
 '<input type="checkbox" id="__gmp_boss_auto_reenter" style="width:13px;height:13px;cursor:pointer;">'+
@@ -1194,7 +1196,7 @@ function __gmBuildPanel(){
 '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+
 '<input type="checkbox" id="__gmp_boss_auto_atk" style="width:13px;height:13px;cursor:pointer;" checked>'+
 '<label for="__gmp_boss_auto_atk" style="font-size:11px;color:#f87171;cursor:pointer;">\u2694\uFE0F \u958b\u59cb\u653b\u64caBOSS</label>'+
-'</div>'+
+'\n<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px;"><input type="checkbox" id="__gmp_boss_auto_pot_stop" style="width:13px;height:13px;cursor:pointer;"><label for="__gmp_boss_auto_pot_stop" style="font-size:10px;color:#f87171;">P少於停止攻\u5f31</label><input id="__gmp_boss_auto_pot_stop_hp" type="number" value="30" min="1" max="100" style="width:50px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;outline:none;text-align:center;"><span style="font-size:9px;color:#888;">%</span></div>\n</div>'+
 '<div style="display:flex;align-items:center;gap:4px;margin-bottom:8px;padding:6px 8px;background:rgba(248,113,113,0.08);border-radius:4px;">'+
 '<span style="font-size:10px;color:#f87171;">\u8a2d\u5b9aBOSS\u8840\u91cf\u5c11\u65bc</span>'+
 '<input id="__gmp_boss_auto_atk_hp_pct" type="number" value="100" min="0" max="100" style="width:45px;padding:2px 4px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;text-align:center;">'+
@@ -2914,7 +2916,7 @@ function __gmBuildPanel(){
   // Load saved config
   setTimeout(__wbLoadBossConfig,300);
   // === BOSS auto script save/load ===
-  document.getElementById('__gmp_boss_auto_script').onchange=function(){
+  document.getElementById('__gmp_boss_auto_enable').onchange=function(){
     if(this.checked){
       if(window.__wbBossAutoScriptStart)window.__wbBossAutoScriptStart();
     } else {
@@ -2924,7 +2926,7 @@ function __gmBuildPanel(){
   };
   function __wbSaveBossAutoScriptState(){
     if(typeof window.__gmStorageSet==='undefined')return;
-    var chk=document.getElementById('__gmp_boss_auto_script');
+    var chk=document.getElementById('__gmp_boss_auto_enable');
     window.__gmStorageSet('wb_auto_script_state',{enabled:chk?chk.checked:false}).catch(function(){});
   }
   function __wbLoadBossAutoScriptState(){
@@ -2932,7 +2934,7 @@ function __gmBuildPanel(){
     return window.__gmStorageGet(['wb_auto_script_state']).then(function(r){
       var s=r&&r.wb_auto_script_state||null;
       if(s){
-        var chk=document.getElementById('__gmp_boss_auto_script');
+        var chk=document.getElementById('__gmp_boss_auto_enable');
         if(chk)chk.checked=s.enabled;
         if(s.enabled)setTimeout(function(){if(window.__wbBossAutoScriptStart)window.__wbBossAutoScriptStart();},800);
       }
@@ -2940,7 +2942,7 @@ function __gmBuildPanel(){
   }
   setTimeout(__wbLoadBossAutoScriptState,500);
   // === BOSS auto script save/load ===
-  document.getElementById('__gmp_boss_auto_script').onchange=function(){
+  document.getElementById('__gmp_boss_auto_enable').onchange=function(){
     if(this.checked){
       if(window.__wbBossAutoScriptStart)window.__wbBossAutoScriptStart();
     } else {
@@ -2950,7 +2952,7 @@ function __gmBuildPanel(){
   };
   function __wbSaveBossAutoScriptState(){
     if(typeof window.__gmStorageSet==='undefined')return;
-    var chk=document.getElementById('__gmp_boss_auto_script');
+    var chk=document.getElementById('__gmp_boss_auto_enable');
     window.__gmStorageSet('wb_auto_script_state',{enabled:chk?chk.checked:false}).catch(function(){});
   }
   function __wbLoadBossAutoScriptState(){
@@ -2958,7 +2960,7 @@ function __gmBuildPanel(){
     return window.__gmStorageGet(['wb_auto_script_state']).then(function(r){
       var s=r&&r.wb_auto_script_state||null;
       if(s){
-        var chk=document.getElementById('__gmp_boss_auto_script');
+        var chk=document.getElementById('__gmp_boss_auto_enable');
         if(chk)chk.checked=s.enabled;
         if(s.enabled)setTimeout(function(){if(window.__wbBossAutoScriptStart)window.__wbBossAutoScriptStart();},800);
       }

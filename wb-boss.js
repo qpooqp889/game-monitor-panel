@@ -40,7 +40,7 @@ window.__wbBossAutoScript={running:false,timer:null,currentIdx:0,phase:'idle',fa
 // ====== BOSS Auto Script Main Loop ======
 function __wbBossAutoScriptStart(){
   if(window.__wbBossAutoScript.running)return;
-  var cfgChk=document.getElementById('__gmp_boss_auto_script');
+  var cfgChk=document.getElementById('__gmp_boss_auto_enable');
   if(!cfgChk||!cfgChk.checked)return;
 
   // Remember & stop farming
@@ -87,7 +87,7 @@ function __wbBossAutoScriptStop(){
 
 function __wbBossAutoScriptLoop(){
   if(!window.__wbBossAutoScript.running)return;
-  var cfgChk=document.getElementById('__gmp_boss_auto_script');
+  var cfgChk=document.getElementById('__gmp_boss_auto_enable');
   if(!cfgChk||!cfgChk.checked){__wbBossAutoScriptStop();return;}
 
   __wbGetHuntList(function(list){
