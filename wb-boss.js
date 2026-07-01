@@ -726,6 +726,7 @@ setTimeout(function(){
   window.__wbSaveHuntList=__wbSaveHuntList;window.__wbAddToHuntList=__wbAddToHuntList;
   window.__wbRemoveFromHuntList=__wbRemoveFromHuntList;window.__wbUpdateHuntListUI=__wbUpdateHuntListUI;
   window.__wbInitHuntToggle=__wbInitHuntToggle;
+  window.__wbMoveHuntItem=__wbMoveHuntItem;window.__wbGetHuntIds=__wbGetHuntIds;
 
   console.log("[WB] World Boss module loaded");
 })();
