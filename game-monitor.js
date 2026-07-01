@@ -2824,9 +2824,9 @@ function __gmBuildPanel(){
   // === BOSS auto script save/load ===
   document.getElementById('__gmp_boss_auto_script').onchange=function(){
     if(this.checked){
-      __wbBossAutoScriptStart();
+      if(window.__wbBossAutoScriptStart)window.__wbBossAutoScriptStart();
     } else {
-      __wbBossAutoScriptStop();
+      if(window.__wbBossAutoScriptStop)window.__wbBossAutoScriptStop();
     }
     __wbSaveBossAutoScriptState();
   };
@@ -2842,7 +2842,7 @@ function __gmBuildPanel(){
       if(s){
         var chk=document.getElementById('__gmp_boss_auto_script');
         if(chk)chk.checked=s.enabled;
-        if(s.enabled)setTimeout(__wbBossAutoScriptStart,800);
+        if(s.enabled)setTimeout(function(){if(window.__wbBossAutoScriptStart)window.__wbBossAutoScriptStart();},800);
       }
     }).catch(function(){});
   }
@@ -2850,9 +2850,9 @@ function __gmBuildPanel(){
   // === BOSS auto script save/load ===
   document.getElementById('__gmp_boss_auto_script').onchange=function(){
     if(this.checked){
-      __wbBossAutoScriptStart();
+      if(window.__wbBossAutoScriptStart)window.__wbBossAutoScriptStart();
     } else {
-      __wbBossAutoScriptStop();
+      if(window.__wbBossAutoScriptStop)window.__wbBossAutoScriptStop();
     }
     __wbSaveBossAutoScriptState();
   };
@@ -2868,7 +2868,7 @@ function __gmBuildPanel(){
       if(s){
         var chk=document.getElementById('__gmp_boss_auto_script');
         if(chk)chk.checked=s.enabled;
-        if(s.enabled)setTimeout(__wbBossAutoScriptStart,800);
+        if(s.enabled)setTimeout(function(){if(window.__wbBossAutoScriptStart)window.__wbBossAutoScriptStart();},800);
       }
     }).catch(function(){});
   }

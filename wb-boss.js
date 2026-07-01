@@ -1138,6 +1138,8 @@ setTimeout(function(){
   window.__wbLoadBossLoot=__wbLoadBossLoot;window.__wbGetBossLoot=__wbGetBossLoot;
   window.__wbClearBossLoot=__wbClearBossLoot;
   window.__wbBossAutoScriptWaitForLoot=__wbBossAutoScriptWaitForLoot;
+  window.__wbBossAutoScriptStart=__wbBossAutoScriptStart;
+  window.__wbBossAutoScriptStop=__wbBossAutoScriptStop;
 
   console.log("[WB] World Boss module loaded");
 })();
