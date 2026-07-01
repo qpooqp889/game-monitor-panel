@@ -584,7 +584,7 @@ function __wbToggleBypass(on){window.__wbBypassCD=on;if(on&&!window.__wbBypassPa
   function __wbBossStartUpdater(){
     if(__wbBossUpdTimer)return;
     __wbBossUpdTimer=setInterval(function(){
-      if(activeTab==='boss')__wbUpdateBossStatus();
+      if(activeTab==='boss'){__wbUpdateBossStatus();__wbUpdateWorldBossUI();}
           __wbInitHuntToggle();
           __wbUpdateHuntListUI();
     },500);
