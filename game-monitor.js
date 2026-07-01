@@ -1142,7 +1142,7 @@ function __gmBuildPanel(){
           '<span id="__gmp_hunt_timer" style="font-size:9px;color:#888;"></span>'+
         '</div>'+
       '</div>'+
-      '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 8px;background:rgba(0,0,0,0.1);border-bottom:1px solid rgba(76,175,80,0.15);"><span style="font-size:10px;color:#888;">&#x1F465; 最小在場人數才進入:</span><select id="__gmp_hunt_min_players" style="background:#0f3460;border:1px solid #4caf50;color:#fff;border-radius:4px;padding:2px 4px;font-size:10px;cursor:pointer;width:60px;text-align:center;"><option value="0">不限</option><option value="1">&gt;=1</option><option value="2">&gt;=2</option><option value="3">&gt;=3</option><option value="4">&gt;=4</option><option value="5">&gt;=5</option><option value="6">&gt;=6</option><option value="7">&gt;=7</option><option value="8">&gt;=8</option><option value="9">&gt;=9</option><option value="10">&gt;=10</option></select></div>'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 8px;background:rgba(0,0,0,0.1);border-bottom:1px solid rgba(76,175,80,0.15);"><span style="font-size:10px;color:#888;">&#x1F465; 最小在場人數才進入:</span><span style="font-size:10px;color:#888;">各BOSS可自設最低人數</span></div>'+
           '<div id="__gmp_hunt_body" style="max-height:300px;overflow-y:auto;padding:6px;">'+
         '<div id="__gmp_hunt_list" style="font-size:10px;color:#555;padding:6px;text-align:center;">點選上方世界王 [+] 加入</div>'+
       '</div>'+
@@ -1600,12 +1600,12 @@ function __gmBuildPanel(){
   document.getElementById('__gmp_tab_farm').onclick=function(){switchTab('farm')};
   document.getElementById('__gmp_tab_boss').onclick=function(){switchTab('boss');};
   document.getElementById('__gmp_tab_monitor').onclick=function(){switchTab('monitor')};
-  document.getElementById('__gmp').addEventListener('click',function(e){
+  document.addEventListener('click',function(e){
     var t=e.target;
     if(t&&t.getAttribute&&t.getAttribute('data-wb-add-hunt')){
       var parts=t.getAttribute('data-wb-add-hunt').split('|');
-      if(parts.length>=3&&typeof __wbAddToHuntList==='function'){
-        __wbAddToHuntList(parts[0],parts[1],parseInt(parts[2],10));
+      if(parts.length>=3&&typeof window.__wbAddToHuntList==='function'){
+        window.__wbAddToHuntList(parts[0],parts[1],parseInt(parts[2],10));
         __wbUpdateWorldBossUI();
       }
     }

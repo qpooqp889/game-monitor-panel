@@ -162,7 +162,7 @@ function __wbBossAutoScriptCheckBoss(target,idx,list){
   var isDead=subText.indexOf('\u5DF2\u88AB\u64CA\u6557')!==-1||subText.indexOf('\u5DF2\u88AB\u5FB4\u670D')!==-1;
 
   if(isAlive){
-    var threshold=window.__wbCachedMinPlayers||0;
+    var threshold=(target&&target.minPlayers)?target.minPlayers:0;
     if(threshold>0){
       var playersText=subEl?subEl.textContent.trim():'';
       var pcMatch=playersText.match(/(\d+)/);
@@ -1017,7 +1017,7 @@ function __wbToggleBypass(on){window.__wbBypassCD=on;if(on&&!window.__wbBypassPa
 function __wbLoadHuntList(callback){
   if(typeof window.__gmStorageGet==='undefined'){if(callback)callback([]);return;}
   window.__gmStorageGet(['wb_min_players']).then(function(mr){
-    window.__wbCachedMinPlayers=(mr&&mr.wb_min_players&&mr.wb_min_players.value)||0;
+    // per-item minPlayers, no global threshold
   });
   window.__gmStorageGet(['wb_priority_list']).then(function(r){
     var list=r&&r.wb_priority_list||[];
@@ -1035,7 +1035,6 @@ function __wbGetHuntList(callback){
 
 function __wbSaveHuntList(list){
   if(typeof window.__gmStorageSet==='undefined')return;
-  window.__gmStorageSet('wb_min_players',{value:parseInt((document.getElementById('__gmp_hunt_min_players')||{}).value)||0});
   window.__gmStorageSet('wb_priority_list',list).then(function(){
     __wbUpdateHuntListUI();
     __wbUpdateWorldBossUI();
@@ -1046,7 +1045,7 @@ function __wbAddToHuntList(bossId,bossName,bossLv){
   __wbGetHuntList(function(list){
     // 檢查是否已存在
     if(list.some(function(i){return i.id===bossId;}))return;
-    list.push({id:bossId,name:bossName,lv:bossLv,addedAt:Date.now()});
+    list.push({id:bossId,name:bossName,lv:bossLv,addedAt:Date.now(),minPlayers:0});
     __wbSaveHuntList(list);
   });
 }
@@ -1073,6 +1072,7 @@ function __wbUpdateHuntListUI(){
           '<span style="font-size:10px;color:#4caf50;min-width:18px;cursor:pointer;" data-wb-remove="'+i.id+'">[x]</span>'+
           '<span style="font-size:10px;color:#4caf50;min-width:70px;">'+i.name+'</span>'+
           '<span style="font-size:9px;color:#aaa;">Lv.'+i.lv+'</span>'+
+          '<input type="number" value="'+(i.minPlayers||0)+'" min="0" max="20" style="width:32px;padding:1px 2px;background:#2a2a4a;border:1px solid #0f3460;border-radius:3px;color:#fbbf24;font-size:9px;outline:none;text-align:center;" data-wb-minp="'+i.id+'" title="最低人數(0=不限)">'+
         '</div>';
       }).join('');
     } else {
@@ -1162,3 +1162,19 @@ setTimeout(function(){
 
   console.log("[WB] World Boss module loaded");
 })();
+
+// === Per-item minPlayers change handler ===
+document.addEventListener('input',function(e){
+  var t=e.target;
+  if(t&&t.getAttribute&&t.getAttribute('data-wb-minp')){
+    var id=t.getAttribute('data-wb-minp');
+    var val=parseInt(t.value)||0;
+    __wbGetHuntList(function(list){
+      var changed=false;
+      list.forEach(function(item,i){
+        if(item.id===id){list[i].minPlayers=val;changed=true;}
+      });
+      if(changed)__wbSaveHuntList(list);
+    });
+  }
+});
