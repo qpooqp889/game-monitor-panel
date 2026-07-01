@@ -1016,7 +1016,7 @@ function __gmBuildPanel(){
     '<button id="__gmp_tab_farm" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">掛機</button>'+
     '<button id="__gmp_tab_boss" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">👑BOSS</button>'+
     '<button id="__gmp_tab_monitor" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">📡監控</button>'+
-    '<button id="__gmp_tab_skill" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">⚡技能</button>'+
+    '<button id="__gmp_tab_skill" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">⚡技能</button><button id="__gmp_tab_status" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">📊狀態</button>'+
     '<span id="__gmp_ver" style="font-size:10px;color:#4ade80;font-weight:bold;">'+ver+'</span>'+
   '</div>'+
   '<div style="display:flex;gap:3px;">'+
@@ -1132,7 +1132,8 @@ function __gmBuildPanel(){
           '<span id="__gmp_hunt_timer" style="font-size:9px;color:#888;"></span>'+
         '</div>'+
       '</div>'+
-      '<div id="__gmp_hunt_body" style="max-height:300px;overflow-y:auto;padding:6px;">'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 8px;background:rgba(0,0,0,0.1);border-bottom:1px solid rgba(76,175,80,0.15);"><span style="font-size:10px;color:#888;">&#x1F465; 最小在場人數才進入:</span><select id="__gmp_hunt_min_players" style="background:#0f3460;border:1px solid #4caf50;color:#fff;border-radius:4px;padding:2px 4px;font-size:10px;cursor:pointer;width:60px;text-align:center;"><option value="0">不限</option><option value="1">&gt;=1</option><option value="2">&gt;=2</option><option value="3">&gt;=3</option><option value="4">&gt;=4</option><option value="5">&gt;=5</option><option value="6">&gt;=6</option><option value="7">&gt;=7</option><option value="8">&gt;=8</option><option value="9">&gt;=9</option><option value="10">&gt;=10</option></select></div>'+
+          '<div id="__gmp_hunt_body" style="max-height:300px;overflow-y:auto;padding:6px;">'+
         '<div id="__gmp_hunt_list" style="font-size:10px;color:#555;padding:6px;text-align:center;">點選上方世界王 [+] 加入</div>'+
       '</div>'+
     '</div>'+
@@ -1344,6 +1345,19 @@ function __gmBuildPanel(){
       '</div>'+
       '<div id="__gmp_skill_list" style="background:rgba(0,0,0,0.25);padding:6px 8px;border-radius:6px;max-height:360px;overflow-y:auto;font-size:11px;">'+
         '<div id="__gmp_skill_empty" style="color:#555;text-align:center;padding:24px 0;">尚無資料<br><span style="font-size:9px;color:#444;">點「讀取設定」從遊戲面板抓取</span></div>'+
+      '</div>'+
+    '</div>'+
+
+    // === STATUS TAB ===
+    '<div id="__gmp_tab_content_status" style="display:none;">'+
+      '<div style="background:rgba(100,149,237,0.08);padding:8px;border-radius:6px;margin-bottom:8px;">'+
+        '<div style="font-size:11px;color:cornflowerblue;font-weight:bold;margin-bottom:6px;">📊 全部設定狀態 (chrome.storage.local)</div>'+
+        '<div style="margin:8px 0 4px;display:flex;gap:4px;">'+
+          '<button id="__gmp_status_export" style="flex:1;padding:5px 4px;background:#0f3460;border:1px solid #7bd14a;color:#7bd14a;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">📤 匯出全部設定</button>'+
+          '<button id="__gmp_status_import" style="flex:1;padding:5px 4px;background:#0f3460;border:1px solid #fbbf24;color:#fbbf24;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">📥 匯入全部設定</button>'+
+          '<input type="file" id="__gmp_status_import_file" accept=".json" style="display:none;">'+
+        '</div>'+
+        '<div id="__gmp_status_summary" style="font-size:10px;color:#aaa;margin-top:4px;padding:6px;background:rgba(0,0,0,0.2);border-radius:4px;max-height:200px;overflow-y:auto;"></div>'+
       '</div>'+
     '</div>'+
 
@@ -1572,7 +1586,7 @@ function __gmBuildPanel(){
   // === Tab switching ===
   function switchTab(tab){
     activeTab=tab;
-    ['game','zone','farm','boss','monitor','skill'].forEach(function(t){
+    ['game','zone','farm','boss','monitor','skill','status'].forEach(function(t){
       var el=document.getElementById('__gmp_tab_content_'+t);
       if(el)el.style.display=t===tab?'block':'none';
       var btn=document.getElementById('__gmp_tab_'+t);
@@ -2109,6 +2123,61 @@ function __gmBuildPanel(){
 
   // 按鈕事件
   document.getElementById('__gmp_tab_skill').onclick = function() { switchTab('skill'); };
+  document.getElementById('__gmp_tab_status').onclick=function(){ switchTab('status'); };
+
+  // === Status tab handlers ===
+  function __gmExportAllSettings(){
+    __gmShowIdbStatus('\u{1F4E4} 導出所有設定中...','#fbbf24');
+    chrome.storage.local.get(null,function(all){
+      var exportData={export_version:'3.18',export_date:new Date().toISOString(),settings:{}};
+      ['gmSkillSettings','wb_boss_config','wb_priority_list','wb_boss_entry_settings','wb_boss_history','wb_boss_loot','wb_auto_script_state','wb_boss_auto_loot','wb_min_players'].forEach(function(k){if(all[k]!==undefined)exportData.settings[k]=all[k];});
+      doExportDownload(exportData);
+    });
+  }
+  function doExportDownload(data){
+    var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');a.href=url;a.download='gm-panel-settings-'+(new Date().toISOString().slice(0,10))+'.json';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+    var cnt=Object.keys(data.settings||{}).length;
+    __gmShowIdbStatus('✅ 導出成功: '+cnt+' 項設定','#4ade80');
+  }
+  function __gmImportAllSettings(jsonStr){
+    try{
+      var data=JSON.parse(jsonStr);
+      if(!data.settings||typeof data.settings!=='object'){__gmShowIdbStatus('❌ JSON 格式錯誤: 缺少 settings 區塊','#e94560');return;}
+      __gmShowIdbStatus('\u{1F4E5} 導入設定中...','#fbbf24');
+      chrome.storage.local.set(data.settings,function(){
+        __gmShowIdbStatus('✅ 導入成功: '+(Object.keys(data.settings).length)+' 項設定已寫入','#4ade80');
+        if(window.__wbLoadBossConfig)window.__wbLoadBossConfig();
+        if(window.__wbLoadPriorityList)window.__wbLoadPriorityList();
+        if(window.__wbLoadEntrySkills)window.__wbLoadEntrySkills();
+      });
+    }catch(ex){__gmShowIdbStatus('❌ JSON 解析錯誤','#e94560');}
+  }
+  function __gmRefreshStatusView(){
+    var el=document.getElementById('__gmp_status_summary');if(!el)return;
+    chrome.storage.local.get(null,function(all){
+      var html='<div style="margin-bottom:4px;color:#888;font-size:10px;">已儲存的設定項(共'+Object.keys(all).length+' 項):</div>';
+      ['gmSkillSettings','wb_boss_config','wb_priority_list','wb_boss_entry_settings','wb_boss_history','wb_boss_loot','wb_auto_script_state','wb_boss_auto_loot','wb_min_players'].forEach(function(k){
+        var v=all[k];
+        var labels={gmSkillSettings:'⚡技能設定',wb_boss_config:'\u{1F451}BOSS',wb_priority_list:'\u{1F3AF}優先詂伐',wb_boss_entry_settings:'\u{1F3E0}BOSS進入',wb_boss_history:'\u{1F4DC}歷史',wb_boss_loot:'\u{1F4B0}掉落',wb_auto_script_state:'▶自動進入',wb_boss_auto_loot:'\u{1F4E6}掉落記錄',wb_min_players:'\u{1F465}最少人'};
+        var label=labels[k]||k;
+        if(v!==undefined){
+          var size=JSON.stringify(v).length+'B';
+          html+='<div style="padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;"><span style="color:#4ade80;">'+label+'</span><span style="color:#888;font-size:9px;">'+size+'</span></div>';
+        }else{
+          html+='<div style="padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;"><span style="color:#888;">'+label+'</span><span style="color:#555;">未設定</span></div>';
+        }
+      });
+      el.innerHTML=html;
+    });
+  }
+  document.getElementById('__gmp_status_export').onclick=function(){ __gmExportAllSettings(); };
+  document.getElementById('__gmp_status_import').onclick=function(){document.getElementById('__gmp_status_import_file').value='';document.getElementById('__gmp_status_import_file').click();};
+  document.getElementById('__gmp_status_import_file').onchange=function(e){var f=e.target.files[0];if(!f)return;var rd=new FileReader();rd.onload=function(ev){__gmImportAllSettings(ev.target.result);};rd.readAsText(f);};
+  var __gmOrigSwitchTab2=window.switchTab;
+  if(typeof __gmOrigSwitchTab2==='function'){window.switchTab=function(t){__gmOrigSwitchTab2(t);if(t==='status')setTimeout(__gmRefreshStatusView,50);};}
   document.getElementById('__gmp_skill_read').onclick = __pmReadFromGame;
   document.getElementById('__gmp_skill_clear').onclick = function() {
     window.__pmAuto = {boxes: [], all: {}, gameEls: {}};
@@ -2913,7 +2982,9 @@ function __gmBuildPanel(){
     },4000);
   }
 
-  document.getElementById('__gmp_export_all').onclick=function(){
+  document.getElementById('__gmp_export_all').onclick=function(){ __gmExportAllSettings(); };
+
+  document.getElementById('__gmp_import_all').onclick=function(){
     if(!window.__gmAdvanced){
       __gmShowIdbStatus('⚠️ 進階模組尚未載入，請稍候再試','#fbbf24');
       return;

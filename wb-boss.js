@@ -162,8 +162,24 @@ function __wbBossAutoScriptCheckBoss(target,idx,list){
   var isDead=subText.indexOf('\u5DF2\u88AB\u64CA\u6557')!==-1||subText.indexOf('\u5DF2\u88AB\u5FB4\u670D')!==-1;
 
   if(isAlive){
+    var threshold=window.__wbCachedMinPlayers||0;
+    if(threshold>0){
+      var playersText=subEl?subEl.textContent.trim():'';
+      var pcMatch=playersText.match(/(\d+)/);
+      var curPlayers=pcMatch?parseInt(pcMatch[1],10):0;
+      if(curPlayers<threshold){
+        console.log('[WB-AutoScript] '+target.name+' only '+curPlayers+' players (<'+threshold+'), skipping');
+        __wbAddBossHistory(target.name,'skip','人數不足: '+curPlayers+'/'+threshold+' ','0',null);
+        if(list&&idx<list.length-1){
+          __wbBossAutoScript.phase='next_boss';
+          __wbBossAutoScript.timer=setTimeout(function(){__wbBossAutoScriptCheckBoss(list[idx+1],idx+1,list);},2000);
+        }else{
+          __wbBossAutoScriptDone(list);
+        }
+        return;
+      }
+    }
     console.log('[WB-AutoScript] '+target.name+' is ALIVE, entering...');
-    // Log entry attempt
     __wbAddBossHistory(target.name, 'enter', '嘗試進入BOSS', 0, null);
     window.__wbBossAutoScript.phase='entering';
     try{foundBoss.click();}catch(e){}
@@ -1001,6 +1017,9 @@ function __wbToggleBypass(on){window.__wbBypassCD=on;if(on&&!window.__wbBypassPa
 // ========== 優先討伐清單管理 ==========
 function __wbLoadHuntList(callback){
   if(typeof window.__gmStorageGet==='undefined'){if(callback)callback([]);return;}
+  window.__gmStorageGet(['wb_min_players']).then(function(mr){
+    window.__wbCachedMinPlayers=(mr&&mr.wb_min_players&&mr.wb_min_players.value)||0;
+  });
   window.__gmStorageGet(['wb_priority_list']).then(function(r){
     var list=r&&r.wb_priority_list||[];
     var ids=list.map(function(i){return i.id;});
@@ -1017,6 +1036,7 @@ function __wbGetHuntList(callback){
 
 function __wbSaveHuntList(list){
   if(typeof window.__gmStorageSet==='undefined')return;
+  window.__gmStorageSet('wb_min_players',{value:parseInt((document.getElementById('__gmp_hunt_min_players')||{}).value)||0});
   window.__gmStorageSet('wb_priority_list',list).then(function(){
     __wbUpdateHuntListUI();
     __wbUpdateWorldBossUI();
