@@ -284,9 +284,8 @@ function __wbBossAutoScriptRestoreFarm(){
     if(farmBtn&&farmBtn.textContent.indexOf('\u25B6')>-1){
       if(window.startFarming)startFarming();
     }
-
-
-
+  }
+}
 
 // ====== BOSS 掉落記錄 ======
 // Saved to chrome.storage.local key: wb_boss_loot
@@ -670,9 +669,6 @@ function __wbBossAutoScriptHandleDefeat(target, idx, list){
     window.__wbBossAutoScript.currentIdx++;
     if(window.__wbBossAutoScript.timer) clearTimeout(window.__wbBossAutoScript.timer);
     window.__wbBossAutoScript.timer = setTimeout(__wbBossAutoScriptLoop, 1000);
-  }
-}
-
   }
 }
 
