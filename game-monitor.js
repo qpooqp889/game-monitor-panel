@@ -1232,6 +1232,39 @@ function __gmBuildPanel(){
 '<button id="__gmp_boss_auto_btn" style="width:100%;padding:10px;background:#e94560;border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:13px;font-weight:bold;">\u25B6 啟動自動BOSS</button>'+
 '</div>'+
 '</div>'+
+'<div style="margin-top:12px;margin-bottom:12px;border-top:1px solid #333;padding-top:10px;">'+
+'<div style="font-size:12px;color:#ffd700;font-weight:bold;margin-bottom:8px;">\u2694\uFE0F BOSS 進入設定</div>'+
+'<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
+'<span id="__gmp_boss_entry_atkSkill_chk" style="font-size:14px;color:#555;">\u25CB</span>'+
+'<span style="font-size:11px;color:#f87171;">攻擊技能</span>'+
+'<select id="__gmp_boss_entry_atkSkill" style="flex:1;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;">'+
+'<option value="">-- 請選擇 --</option>'+
+'</select>'+
+'</div>'+
+'<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
+'<span id="__gmp_boss_entry_potType_chk" style="font-size:14px;color:#555;">\u25CB</span>'+
+'<span style="font-size:11px;color:#4ade80;">喝水設定</span>'+
+'<select id="__gmp_boss_entry_potType" style="flex:1;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;">'+
+'<option value="">-- 請選擇 --</option>'+
+'<option value="potion_ult" selected>白色藥水</option>'+
+'<option value="potion_s">小型藥水</option>'+
+'<option value="potion_m">中型藥水</option>'+
+'<option value="potion_l">大型藥水</option>'+
+'</select>'+
+'</div>'+
+'<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
+'<span id="__gmp_boss_entry_healSkill_chk" style="font-size:14px;color:#555;">\u25CB</span>'+
+'<span style="font-size:11px;color:#86efac;">治療魔法</span>'+
+'<select id="__gmp_boss_entry_healSkill" style="flex:1;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;">'+
+'<option value="">-- 請選擇 --</option>'+
+'</select>'+
+'</div>'+
+'<div style="display:flex;gap:4px;margin-top:8px;">'+
+'<button id="__gmp_boss_entry_save" style="flex:1;padding:6px;background:#1a4a1a;border:1px solid #4ade80;color:#4ade80;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;">儲存設定</button>'+
+'<button id="__gmp_boss_entry_reset" style="padding:6px 10px;background:#4a1a1a;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:11px;">清除</button>'+
+'</div>'+
+'</div>'+
+
 '</div>'+
 
     // === Socket 狀態 + 匯入匯出 ===
@@ -2268,6 +2301,7 @@ function __gmBuildPanel(){
   document.getElementById('__gmp_boss_auto_config_btn').onclick=function(){
     var modal=document.getElementById('__gmp_boss_auto_modal');
     if(modal){modal.style.display='flex';}
+    setTimeout(function(){try{if(typeof __wbLoadEntrySkills==='function')__wbLoadEntrySkills();}catch(e){}},100);
   };
   document.getElementById('__gmp_boss_auto_modal_close').onclick=function(){
     var modal=document.getElementById('__gmp_boss_auto_modal');
@@ -2277,6 +2311,102 @@ function __gmBuildPanel(){
   document.getElementById('__gmp_boss_auto_barrier_pct').addEventListener('input',__wbSyncAutoConfig);
 
   // === BOSS config save/load ===
+
+
+  // === BOSS 進入設定 handler ===
+  function checkEntryField(field){
+    var el=document.getElementById('__gmp_boss_entry_'+field);
+    var chk=document.getElementById('__gmp_boss_entry_'+field+'_chk');
+    if(!el||!chk)return;
+    if(el.value&&el.value!==''){
+      chk.textContent='\u2714\uFE0F';
+      chk.style.color='#4ade80';
+    }else{
+      chk.textContent='\u25CB';
+      chk.style.color='#555';
+    }
+  }
+
+  function saveEntrySettings(){
+    if(typeof window.__gmStorageGet==='undefined')return;
+    var atkSkill=document.getElementById('__gmp_boss_entry_atkSkill');
+    var potType=document.getElementById('__gmp_boss_entry_potType');
+    var healSkill=document.getElementById('__gmp_boss_entry_healSkill');
+    window.__gmStorageGet(['wb_boss_entry_settings']).then(function(existing){
+      var data=existing&&existing.wb_boss_entry_settings?existing.wb_boss_entry_settings:{};
+      data.atkSkill=atkSkill?atkSkill.value:'';
+      data.potType=potType?potType.value:'';
+      data.healSkill=healSkill?healSkill.value:'';
+      data.updatedAt=Date.now();
+      return window.__gmStorageSet('wb_boss_entry_settings',data);
+    }).then(function(){
+      checkEntryField('atkSkill');
+      checkEntryField('potType');
+      checkEntryField('healSkill');
+      var btn=document.getElementById('__gmp_boss_entry_save');
+      if(btn){btn.textContent='\u2714\uFE0F 已儲存!';btn.style.border='none';btn.style.background='#0a3a0a';setTimeout(function(){btn.textContent='儲存設定';btn.style.border='1px solid #4ade80';btn.style.background='#1a4a1a';},2000);}
+    }).catch(function(){});
+  }
+
+  function resetEntrySettings(){
+    if(typeof window.__gmStorageGet==='undefined')return;
+    window.__gmStorageGet(['wb_boss_entry_settings']).then(function(existing){
+      var data=existing&&existing.wb_boss_entry_settings?existing.wb_boss_entry_settings:{};
+      delete data.atkSkill;
+      delete data.potType;
+      delete data.healSkill;
+      data.updatedAt=Date.now();
+      return window.__gmStorageSet('wb_boss_entry_settings',data);
+    }).then(function(){
+      var el1=document.getElementById('__gmp_boss_entry_atkSkill');if(el1)el1.value='';
+      var el2=document.getElementById('__gmp_boss_entry_potType');if(el2)el2.value='';
+      var el3=document.getElementById('__gmp_boss_entry_healSkill');if(el3)el3.value='';
+      checkEntryField('atkSkill');checkEntryField('potType');checkEntryField('healSkill');
+    }).catch(function(){});
+  }
+
+  function __wbLoadEntrySkills(){
+    try{
+      var atkSel=document.getElementById('__gmp_boss_entry_atkSkill');
+      var healSel=document.getElementById('__gmp_boss_entry_healSkill');
+      if(!atkSel&&!healSel)return;
+      try{
+        var panel=document.getElementById('panel-scroll');
+        if(panel){
+          var atkCell=panel.querySelector('.bcell[data-k="atk"] select');
+          var healCell=panel.querySelector('.bcell[data-k="heal"] select');
+          if(atkSel&&atkCell) atkSel.innerHTML=atkCell.innerHTML;
+          if(healSel&&healCell) healSel.innerHTML=healCell.innerHTML;
+        }
+      }catch(e){}
+      setTimeout(function(){
+        if(typeof window.__gmStorageGet==='undefined')return;
+        __gmStorageGet(['wb_boss_entry_settings']).then(function(r){
+          if(!r||!r.wb_boss_entry_settings)return;
+          var s=r.wb_boss_entry_settings;
+          if(s.atkSkill){var el=document.getElementById('__gmp_boss_entry_atkSkill');if(el){el.value=s.atkSkill;checkEntryField('atkSkill');}}
+          if(s.potType){var el=document.getElementById('__gmp_boss_entry_potType');if(el){el.value=s.potType;checkEntryField('potType');}}
+          if(s.healSkill){var el=document.getElementById('__gmp_boss_entry_healSkill');if(el){el.value=s.healSkill;checkEntryField('healSkill');}}
+        }).catch(function(){});
+      },50);
+    }catch(e){}
+  }
+
+  // 監聽按鈕與下拉變更
+  setTimeout(function(){
+    var atkS=document.getElementById('__gmp_boss_entry_atkSkill');
+    var potS=document.getElementById('__gmp_boss_entry_potType');
+    var healS=document.getElementById('__gmp_boss_entry_healSkill');
+    if(atkS)atkS.addEventListener('change',function(){checkEntryField('atkSkill');saveEntrySettings();});
+    if(potS)potS.addEventListener('change',function(){checkEntryField('potType');saveEntrySettings();});
+    if(healS)healS.addEventListener('change',function(){checkEntryField('healSkill');saveEntrySettings();});
+    var sv=document.getElementById('__gmp_boss_entry_save');
+    if(sv)sv.onclick=saveEntrySettings;
+    var rs=document.getElementById('__gmp_boss_entry_reset');
+    if(rs)rs.onclick=resetEntrySettings;
+  },200);
+
+
   function __wbSaveBossConfig(){
     if(typeof window.__gmStorageSet==='undefined')return;
     var cfg=window.__wbBossAuto.config;
