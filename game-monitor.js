@@ -1093,10 +1093,14 @@ function __gmBuildPanel(){
       '<div style="margin-bottom:4px;">'+
         '<div style="display:flex;justify-content:space-between;font-size:10px;color:#888;margin-bottom:2px;">'+
           '<span>BOSS HP</span><span id="__gmp_boss_hp_text" style="color:#e94560;">--/--</span>'+
-        '</div>'+'<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:6px 8px;background:rgba(76,175,80,0.10);border-radius:6px;">'+
+        '</div>'+
+'<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:6px 8px;background:rgba(76,175,80,0.10);border-radius:6px;">'+
 '<input type="checkbox" id="__gmp_boss_auto_script" style="width:16px;height:16px;cursor:pointer;">'+
 '<label for="__gmp_boss_auto_script" style="font-size:12px;color:#4caf50;font-weight:bold;cursor:pointer;">\uD83C\uDFAF 自動進入世界王</label>'+
 '<span id="__gmp_boss_script_status" style="font-size:9px;color:#888;">\u00B7 閒置中</span>'+
+'</div>'+'<div style="display:flex;align-items:center;gap:2px;margin-top:4px;margin-bottom:4px;">'+
+'<input type="checkbox" id="__gmp_boss_auto_reenter" style="width:13px;height:13px;cursor:pointer;">'+
+'<label for="__gmp_boss_auto_reenter" style="font-size:11px;color:#86c5ff;cursor:pointer;">\u2620 \u6b7b\u4ea1\u81ea\u52a8\u56de\u5927\u5385\u91cd\u8fdb\u672c\u6b21\u4e16\u754c\u738b</label>'+
 '</div>'+
 
         '<div style="background:#3a1a1a;border-radius:4px;height:14px;">'+
@@ -1266,6 +1270,9 @@ function __gmBuildPanel(){
 '</div>'+
 
 '</div>'+
+    '<div style="margin-top:6px;margin-bottom:6px;display:flex;align-items:center;gap:6px;">'+
+    '<button id="__gmp_boss_history_btn" style="flex:1;padding:5px;background:#1a1a3e;border:1px solid #0f3460;color:#86c5ff;border-radius:4px;cursor:pointer;font-size:10px;font-weight:bold;">\U0001F4CB BOSS \u5386\u53f2\u8bb0\u5f55</button>'+
+    '</div>'+
 
     // === Socket 狀態 + 匯入匯出 ===
     '<div style="margin-bottom:6px;">'+
@@ -2303,6 +2310,150 @@ function __gmBuildPanel(){
     if(modal){modal.style.display='flex';}
     setTimeout(function(){try{if(typeof __wbLoadEntrySkills==='function')__wbLoadEntrySkills();}catch(e){}},100);
   };
+    document.getElementById('__gmp_boss_history_btn').onclick=function(){
+    if(typeof __wbOpenBossHistoryModal==='function')__wbOpenBossHistoryModal();
+  };
+
+  window.__wbOpenBossHistoryModal=function(){
+    var modal=document.getElementById('__gmp_boss_history_modal');
+    if(!modal)return;
+    modal.style.display='flex';
+    // Clear search
+    var searchEl=document.getElementById('__gmp_boss_history_search');
+    if(searchEl)searchEl.value='';
+    // Load & render
+    if(typeof __wbLoadBossHistory==='function'){
+      __wbLoadBossHistory(function(){
+        if(typeof __wbRenderBossHistoryList==='function')__wbRenderBossHistoryList();
+      });
+    } else if(typeof __wbRenderBossHistoryList==='function'){
+      __wbRenderBossHistoryList();
+    }
+  };
+
+  window.__wbCloseBossHistoryModal=function(){
+    var modal=document.getElementById('__gmp_boss_history_modal');
+    if(modal)modal.style.display='none';
+  };
+
+  window.__wbRenderBossHistoryList=function(){
+    var listEl=document.getElementById('__gmp_boss_history_list');
+    var countEl=document.getElementById('__gmp_boss_history_count');
+    var searchEl=document.getElementById('__gmp_boss_history_search');
+    if(!listEl)return;
+
+    var history=window.__wbBossHistory||[];
+    var search=searchEl?searchEl.value.trim().toLowerCase():'';
+
+    var filtered=history;
+    if(search){
+      filtered=history.filter(function(e){
+        return e.bossName.toLowerCase().indexOf(search)!==-1||
+               e.event.toLowerCase().indexOf(search)!==-1||
+               e.details.toLowerCase().indexOf(search)!==-1;
+      });
+    }
+
+    // Sort by time descending
+    filtered=filtered.slice().sort(function(a,b){return b.t-a.t;});
+
+    if(countEl){
+      var totalStr='\u5171 '+filtered.length+' \u6761';
+      if(search) totalStr+=', \u641c\u7d22: &quot;'+search+'&quot;';
+      countEl.textContent=totalStr;
+    }
+
+    if(!filtered.length){
+      listEl.innerHTML='<div style="text-align:center;padding:20px;color:#555;">'+ (search?'\u65e0\u7b26\u5408\u6761\u4ef6\u7684\u8bb0\u5f55':'\u6682\u65e0 BOSS \u5386\u53f2\u8bb0\u5f55') +'</div>';
+      return;
+    }
+
+    var eventLabels={
+      'enter':'\u2705 \u8fdb\u5165',
+      'reenter':'\U0001F504 \u91cd\u9032',
+      'leave':'\u274C \u79bb\u5f00',
+      'defeat':'\u2708 BOSS\u6483\u6557',
+      'death':'\u2620 \u89d2\u8272\u6b7b\u4ea1',
+      'fail_entry':'\u26A0 \u9032\u5165\u5931\u8d25',
+      'skip':'\u23E9 \u8df3\u904e',
+      'attack':'\u2694 \u653b\u51fb'
+    };
+    var eventColors={
+      'enter':'#4ade80',
+      'reenter':'#86efac',
+      'leave':'#f87171',
+      'defeat':'#fbbf24',
+      'death':'#ef4444',
+      'fail_entry':'#fb923c',
+      'skip':'#888',
+      'attack':'#60a5fa'
+    };
+
+    var html=filtered.map(function(e){
+      var ts=new Date(e.t);
+      var dateStr=
+        ts.getFullYear()+'-'+
+        String(ts.getMonth()+1).padStart(2,'0')+'-'+
+        String(ts.getDate()).padStart(2,'0')+' '+
+        String(ts.getHours()).padStart(2,'0')+':'+
+        String(ts.getMinutes()).padStart(2,'0')+':'+
+        String(ts.getSeconds()).padStart(2,'0');
+      var label=eventLabels[e.event]||e.event;
+      var color=eventColors[e.event]||'#aaa';
+      return '<div style="display:flex;align-items:flex-start;gap:4px;padding:5px 6px;border-bottom:1px solid #222;font-size:10px;">'+
+        '<span style="color:#888;min-width:100px;white-space:nowrap;">'+dateStr+'</span>'+
+        '<span style="color:'+color+';min-width:64px;font-weight:bold;">'+label+'</span>'+
+        '<span style="color:#ffd700;min-width:60px;">'+e.bossName+'</span>'+
+        '<span style="color:#ccc;flex:1;">'+e.details+'</span>'+
+        (e.nextRespawn?'<span style="color:#888;min-width:50px;">\u751f:'+e.nextRespawn+'</span>':'')+
+      '</div>';
+    }).join('');
+    listEl.innerHTML=html;
+  };
+
+  // Also bind modal close on backdrop click
+  window.__wbBossHistoryModalBackdrop=function(e){
+    if(e.target===this){
+      if(typeof __wbCloseBossHistoryModal==='function')__wbCloseBossHistoryModal();
+    }
+  };
+  
+  // === BOSS 歷史記錄 Modal ===
+  var historyModal=document.createElement('div');
+  historyModal.id='__gmp_boss_history_modal';
+  historyModal.style.cssText='display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9999;justify-content:center;align-items:center;';
+  historyModal.innerHTML=
+    '<div style="background:#1a1a2e;border:2px solid #0f3460;border-radius:10px;padding:16px;width:450px;max-height:80vh;display:flex;flex-direction:column;">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">'+
+        '<span style="font-size:14px;color:#86c5ff;font-weight:bold;">\U0001F4CB BOSS \u5386\u53f2\u8bb0\u5f55</span>'+
+        '<button id="__gmp_boss_history_close" style="background:transparent;border:none;color:#888;font-size:18px;cursor:pointer;">\u2716</button>'+
+      '</div>'+
+      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">'+
+        '<input id="__gmp_boss_history_search" type="text" placeholder="\u641c\u7d22 BOSS \u540d\u79f0 / \u4e8b\u4ef6..." style="flex:1;padding:5px 8px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;">'+
+        '<button id="__gmp_boss_history_search_btn" style="padding:5px 10px;background:#1a3a6e;border:1px solid #0f3460;color:#86c5ff;border-radius:4px;cursor:pointer;font-size:10px;">\U0001F50D</button>'+
+        '<button id="__gmp_boss_history_clear" style="padding:5px 10px;background:#4a1a1a;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:10px;">\U0001F5D1 \u5168\u90e8\u6e05\u7a7a</button>'+
+      '</div>'+
+      '<div id="__gmp_boss_history_count" style="font-size:9px;color:#888;margin-bottom:6px;"></div>'+
+      '<div id="__gmp_boss_history_list" style="flex:1;overflow-y:auto;font-size:10px;"></div>'+
+    '</div>';
+  document.body.appendChild(historyModal);
+
+  document.getElementById('__gmp_boss_history_close').onclick=function(){
+    document.getElementById('__gmp_boss_history_modal').style.display='none';
+  };
+  document.getElementById('__gmp_boss_history_search_btn').onclick=function(){
+    if(typeof __wbRenderBossHistoryList==='function')__wbRenderBossHistoryList();
+  };
+  document.getElementById('__gmp_boss_history_search').onkeydown=function(e){
+    if(e.key==='Enter'&&typeof __wbRenderBossHistoryList==='function')__wbRenderBossHistoryList();
+  };
+  document.getElementById('__gmp_boss_history_clear').onclick=function(){
+    if(confirm('\u786e\u5b9a\u6e05\u7a7a\u5168\u90e8 BOSS \u5386\u53f2\u8bb0\u5f55\uff1f')){
+      if(typeof __wbClearBossHistory==='function')__wbClearBossHistory();
+      if(typeof __wbRenderBossHistoryList==='function')__wbRenderBossHistoryList();
+    }
+  };
+
   document.getElementById('__gmp_boss_auto_modal_close').onclick=function(){
     var modal=document.getElementById('__gmp_boss_auto_modal');
     if(modal){modal.style.display='none';}

@@ -1,0 +1,9 @@
+
+# Temp patch scripts
+*.js
+!game-monitor.js
+!wb-boss.js
+!background.js
+!content.js
+!storage.js
+!popup.js

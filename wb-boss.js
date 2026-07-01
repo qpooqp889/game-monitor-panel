@@ -8,7 +8,8 @@
   window.__wbModuleLoaded=true;
   console.log("[WB] World Boss module loading...");
 
-  // === Socket Hook (installSioHook) ===
+  // === Socket Hook (installSioHook) ===
+
 
 // ====== Hunt List Reorder ======
 function __wbGetHuntIds(callback){
@@ -54,6 +55,12 @@ function __wbBossAutoScriptStart(){
   window.__wbBossAutoScript.phase='loading';
   var statusEl=document.getElementById('__gmp_boss_script_status');
   if(statusEl)statusEl.textContent='\u26A1 BOSS\u811A\u672C\u8DD1\u884C\u4E2D...';
+  
+  // Load boss history
+  __wbLoadBossHistory();
+  // Auto-check re-enter when script starts
+  var reChk=document.getElementById('__gmp_boss_auto_reenter');
+  if(reChk)reChk.checked=true;
 
   __wbBossAutoScriptLoop();
 }
@@ -156,11 +163,24 @@ function __wbBossAutoScriptCheckBoss(target,idx,list){
 
   if(isAlive){
     console.log('[WB-AutoScript] '+target.name+' is ALIVE, entering...');
+    // Log entry attempt
+    __wbAddBossHistory(target.name, 'enter', '嘗試進入BOSS', 0, null);
     window.__wbBossAutoScript.phase='entering';
     try{foundBoss.click();}catch(e){}
 
-    // Wait for boss battle then start auto-attack
+    // Wait for boss battle then verify entry + start auto-attack
     window.__wbBossAutoScript.timer=setTimeout(function(){
+      // Verify entry by checking lastState
+      var ls=window.lastState||{};
+      var boss=ls.boss||{};
+      var bossHp=boss.hp||0;
+      var bossMax=boss.maxHp||1;
+      if(ls.mode==='bosscombat'&&bossHp>0){
+        var hpPct=Math.round(bossHp/bossMax*100);
+        __wbAddBossHistory(target.name, 'enter', '確認進入, HP: '+bossHp+'/'+bossMax+' ('+hpPct+'%)', bossHp, null);
+      } else {
+        __wbAddBossHistory(target.name, 'enter', '可能未成功進入(狀態: '+ls.mode+')', bossHp, null);
+      }
       var atkChk=document.getElementById('__gmp_boss_auto_atk');
       if(atkChk)atkChk.checked=true;
       var enableChk=document.getElementById('__gmp_boss_auto_enable');
@@ -170,25 +190,30 @@ function __wbBossAutoScriptCheckBoss(target,idx,list){
     },1500);
 
   } else if(isDead){
-    // Boss dead \u2192 next
+    // Boss dead → next
     var hasRespawn=false;
+    var respawnStr=null;
     var respawnMatch=subText.match(/(\d{1,2}):(\d{2})/);
     if(respawnMatch){
       var h=parseInt(respawnMatch[1],10),min=parseInt(respawnMatch[2],10);
+      respawnStr=h+':'+(min<10?'0':'')+min;
       var now=new Date();
       var targetTime=new Date(now.getFullYear(),now.getMonth(),now.getDate(),h,min,0);
       if(targetTime<=now)targetTime.setDate(targetTime.getDate()+1);
       var secondsLeft=Math.round((targetTime-now)/1000);
       if(secondsLeft>0&&secondsLeft<86400){hasRespawn=true;}
     }
+    var skipReason='BOSS\u5DF2\u88AB\u64CA\u6557';
+    if(respawnStr)skipReason+=', \u4E0B\u6B21\u91CD\u751F\u7D04 '+respawnStr;
+    else skipReason+=', \u7121\u91CD\u751F\u6642\u9593';
+    __wbAddBossHistory(target.name,'skip',skipReason,0,respawnStr);
     if(hasRespawn){
-      console.log('[WB-AutoScript] '+target.name+' dead, respawn timer found, skipping');
+      console.log('[WB-AutoScript] '+target.name+' dead, respawn:'+respawnStr+' found, skipping');
     } else {
       console.log('[WB-AutoScript] '+target.name+' dead/no respawn, skipping');
     }
     window.__wbBossAutoScript.currentIdx++;
     window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,500);
-
   } else {
     // Unknown \u2192 wait
     console.log('[WB-AutoScript] '+target.name+' state unclear, waiting...');
@@ -213,15 +238,7 @@ function __wbBossAutoScriptMonitorBossHP(target,idx,list){
 
   // If boss HP is 0 and not in battle mode, it's dead
   if(bossHp<=0&&mode!=='bosscombat'){
-    console.log('[WB-AutoScript] '+target.name+' defeated!');
-    var enableChk=document.getElementById('__gmp_boss_auto_enable');
-    if(enableChk)enableChk.checked=false;
-    var atkChk=document.getElementById('__gmp_boss_auto_atk');
-    if(atkChk)atkChk.checked=false;
-
-    window.__wbBossAutoScript.currentIdx++;
-    if(window.__wbBossAutoScript.timer)clearTimeout(window.__wbBossAutoScript.timer);
-    window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,1000);
+    __wbBossAutoScriptHandleDefeat(target,idx,list);
     return;
   }
 
@@ -250,6 +267,216 @@ function __wbBossAutoScriptRestoreFarm(){
     if(farmBtn&&farmBtn.textContent.indexOf('\u25B6')>-1){
       if(window.startFarming)startFarming();
     }
+
+
+// ====== BOSS 歷史記錄 ======
+// Log entry structure:
+// { id: unique, t: Date.now(), bossName: string, event: 'enter'|'leave'|'defeat'|'death'|'reenter'|'fail_entry'|'skip',
+//   details: string, bossHp: number, nextRespawn: string|null }
+
+window.__wbBossHistory = [];
+
+function __wbAddBossHistory(bossName, event, details, bossHp, nextRespawn){
+  var entry = {
+    id: Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+    t: Date.now(),
+    bossName: bossName || '?',
+    event: event || 'unknown',
+    details: details || '',
+    bossHp: bossHp || 0,
+    nextRespawn: nextRespawn || null
+  };
+  window.__wbBossHistory.push(entry);
+  __wbSaveBossHistory();
+  return entry;
+}
+
+function __wbSaveBossHistory(){
+  // Keep last 500 entries
+  if(window.__wbBossHistory.length > 500) window.__wbBossHistory = window.__wbBossHistory.slice(-500);
+  if(typeof window.__gmStorageSet === 'undefined') return;
+  window.__gmStorageSet('wb_boss_history', window.__wbBossHistory).catch(function(){});
+}
+
+function __wbLoadBossHistory(callback){
+  if(typeof window.__gmStorageGet === 'undefined'){ if(callback) callback([]); return; }
+  window.__gmStorageGet(['wb_boss_history']).then(function(r){
+    var list = r && r.wb_boss_history || [];
+    window.__wbBossHistory = list;
+    if(callback) callback(list);
+  }).catch(function(){
+    window.__wbBossHistory = [];
+    if(callback) callback([]);
+  });
+}
+
+function __wbClearBossHistory(){
+  window.__wbBossHistory = [];
+  if(typeof window.__gmStorageSet !== 'undefined'){
+    window.__gmStorageSet('wb_boss_history', []);
+  }
+}
+
+// ====== 死亡偵測 + 自動重進 ======
+// Checkbox id: __gmp_boss_auto_reenter
+function __wbCanReEnterBoss(){
+  var chk = document.getElementById('__gmp_boss_auto_reenter');
+  return chk && chk.checked;
+}
+
+// Try to re-enter the same boss after death
+function __wbBossAutoScriptReEnter(target, idx, list){
+  if(!window.__wbBossAutoScript.running) return;
+
+  var phaseEl = document.getElementById('__gmp_boss_script_status');
+  if(phaseEl) phaseEl.textContent = '[重進] ' + target.name + ' 回大廳重進中...';
+
+  // Step 1: Go to lobby / zone tab
+  try { __wbEnsureWBTab(); } catch(e){}
+
+  // Step 2: Wait for boss tab to load
+  window.__wbBossAutoScript.phase = 'reenter_wait';
+  window.__wbBossAutoScript.timer = setTimeout(function(){
+    __wbBossAutoScriptCheckReEnter(target, idx, list);
+  }, 2000);
+}
+
+function __wbBossAutoScriptCheckReEnter(target, idx, list){
+  if(!window.__wbBossAutoScript.running) return;
+
+  var cards = document.querySelectorAll('.wb-card[data-boss]');
+  var foundBoss = null;
+  cards.forEach(function(card){
+    var bossId = card.getAttribute('data-boss');
+    if(bossId === target.id) foundBoss = card;
+  });
+
+  if(!foundBoss){
+    // Boss not in DOM - log and move on
+    var reason = 'BOSS 不在列表中 (可能已消失/時間未到)';
+    __wbAddBossHistory(target.name, 'fail_entry', reason, 0, null);
+    __wbBossAutoScript.currentIdx++;
+    window.__wbBossAutoScript.timer = setTimeout(__wbBossAutoScriptLoop, 500);
+    return;
+  }
+
+  var bossId = foundBoss.getAttribute('data-boss');
+  var subEl = document.querySelector('.wb-sub[data-boss="' + bossId + '"]');
+  var subText = subEl ? subEl.textContent.trim() : '';
+
+  var isAlive = subText.indexOf('存活') !== -1 || subText.indexOf('戰鬥中') !== -1 || subText.indexOf('HP') !== -1;
+  var isDead = subText.indexOf('已被擊敗') !== -1 || subText.indexOf('已被征服') !== -1;
+
+  if(isAlive){
+    // Boss is alive - enter!
+    var details = 'BOSS存活, 進入戰鬥';
+    __wbAddBossHistory(target.name, 'reenter', details, 0, null);
+
+    try { foundBoss.click(); } catch(e){}
+    window.__wbBossAutoScript.phase = 'entering';
+
+    window.__wbBossAutoScript.timer = setTimeout(function(){
+      // Verify entry by checking boss HP
+      __wbBossAutoScriptVerifyEntry(target, idx, list, 3); // 3 attempts
+    }, 1500);
+
+  } else if(isDead){
+    // Boss still dead - extract respawn info
+    var respawnStr = null;
+    var respawnMatch = subText.match(/(\d{1,2}):(\d{2})/);
+    if(respawnMatch){
+      var h = parseInt(respawnMatch[1],10), min = parseInt(respawnMatch[2],10);
+      respawnStr = h + ':' + (min < 10 ? '0' : '') + min;
+    }
+    var reason = 'BOSS 已被擊敗';
+    if(respawnStr) reason += ', 下次重生約 ' + respawnStr;
+    else reason += ', 未偵測到重生時間';
+    __wbAddBossHistory(target.name, 'fail_entry', reason, 0, respawnStr);
+
+    // Move to next boss
+    window.__wbBossAutoScript.currentIdx++;
+    window.__wbBossAutoScript.timer = setTimeout(__wbBossAutoScriptLoop, 500);
+
+  } else {
+    // Unknown state - wait and retry
+    var reason = 'BOSS 狀態不明, 等待中...';
+    __wbAddBossHistory(target.name, 'fail_entry', reason, 0, null);
+
+    window.__wbBossAutoScript.timer = setTimeout(function(){
+      __wbBossAutoScriptCheckReEnter(target, idx, list);
+    }, 5000);
+  }
+}
+
+// Verify boss entry by checking lastState boss HP
+function __wbBossAutoScriptVerifyEntry(target, idx, list, retriesLeft){
+  if(!window.__wbBossAutoScript.running) return;
+
+  var ls = window.lastState || {};
+  var boss = ls.boss || {};
+  var mode = ls.mode || '';
+  var bossHp = boss.hp || 0;
+  var bossMax = boss.maxHp || 1;
+
+  // Check if we're actually in boss combat with HP > 0
+  var entered = (mode === 'bosscombat' && bossHp > 0);
+
+  if(entered){
+    // Successfully entered!
+    var hpPct = Math.round(bossHp / bossMax * 100);
+    __wbAddBossHistory(target.name, 'enter', '成功進入, HP: ' + bossHp + '/' + bossMax + ' (' + hpPct + '%)', bossHp, null);
+
+    // Start auto-attack
+    var atkChk = document.getElementById('__gmp_boss_auto_atk');
+    if(atkChk) atkChk.checked = true;
+    var enableChk = document.getElementById('__gmp_boss_auto_enable');
+    if(enableChk) enableChk.checked = true;
+    __wbBossAutoScript.phase = 'attacking';
+    __wbBossAutoScriptMonitorBossHP(target, idx, list);
+
+  } else if(retriesLeft > 0){
+    // Not yet entered, wait and retry
+    window.__wbBossAutoScript.timer = setTimeout(function(){
+      __wbBossAutoScriptVerifyEntry(target, idx, list, retriesLeft - 1);
+    }, 2000);
+
+  } else {
+    // Failed to enter after retries
+    var reason = '進入失敗(無法確認戰鬥開始), 跳到下一隻';
+    __wbAddBossHistory(target.name, 'fail_entry', reason, 0, null);
+    __wbBossAutoScript.currentIdx++;
+    window.__wbBossAutoScript.timer = setTimeout(__wbBossAutoScriptLoop, 500);
+  }
+}
+
+// Modified defeat handler in MonitorBossHP - add re-enter logic
+function __wbBossAutoScriptHandleDefeat(target, idx, list){
+  console.log('[WB-AutoScript] ' + target.name + ' defeated!');
+
+  // Log defeat
+  var ls = window.lastState || {};
+  var boss = ls.boss || {};
+  __wbAddBossHistory(target.name, 'defeat', '擊敗 BOSS', 0, null);
+
+  // Turn off auto-attack
+  var enableChk = document.getElementById('__gmp_boss_auto_enable');
+  if(enableChk) enableChk.checked = false;
+  var atkChk = document.getElementById('__gmp_boss_auto_atk');
+  if(atkChk) atkChk.checked = false;
+
+  // Check re-enter setting
+  if(__wbCanReEnterBoss()){
+    window.__wbBossAutoScript.phase = 'reenter';
+    __wbBossAutoScriptReEnter(target, idx, list);
+  } else {
+    // Log leave before moving on
+    __wbAddBossHistory(target.name, 'leave', '離開(無重進設定)', 0, null);
+    window.__wbBossAutoScript.currentIdx++;
+    if(window.__wbBossAutoScript.timer) clearTimeout(window.__wbBossAutoScript.timer);
+    window.__wbBossAutoScript.timer = setTimeout(__wbBossAutoScriptLoop, 1000);
+  }
+}
+
   }
 }
 
