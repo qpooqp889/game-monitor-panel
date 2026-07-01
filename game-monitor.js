@@ -210,7 +210,7 @@ function __wbUpdateWorldBossUI(autoNav){
   });
 
   // === 讀取優先討伐清單 ===
-  __wbLoadHuntList(function(huntIds){
+  window.__wbLoadHuntList(function(huntIds){
     if(bossList.length){
       if(countEl)countEl.textContent=bossList.length+' 隻';
       var html=bossList.map(function(b){
@@ -232,7 +232,7 @@ function __wbUpdateWorldBossUI(autoNav){
       el.innerHTML='<div style="font-size:10px;color:#888;padding:8px;text-align:center;">\u4e16\u754c\u738b\u5217\u8868\u4e3a\u7a7a<br><span style="font-size:9px;color:#555;">\u8bf7\u5148\u5207\u6362\u5230\u300c\u72e9\u7315\u573a \u2192 \u4e16\u754c\u738b\u300d\u5206\u9875'+ (autoNav?'<br><span style="font-size:9px;color:#ffd700;">\u81ea\u52a8\u5bfc\u822a\u4e2d...</span>':'') +'</span></div>';
     }
     // 同步更新優先討伐清單 UI
-    __wbUpdateHuntListUI();
+    window.__wbUpdateHuntListUI();
   });
   // === 自動導航 ===
   if(autoNav && bossList.length===0){
@@ -1593,7 +1593,7 @@ function __gmBuildPanel(){
       }
     });
     if(tab==='zone')renderZones(activeZoneTab);
-    if(tab==='boss'){__wbInitHuntToggle();__wbUpdateBossStatus();__wbUpdateWorldBossUI();}
+    if(tab==='boss'){window.__wbInitHuntToggle();__wbUpdateBossStatus();__wbUpdateWorldBossUI();}
   }
   document.getElementById('__gmp_tab_game').onclick=function(){switchTab('game')};
   document.getElementById('__gmp_tab_zone').onclick=function(){switchTab('zone')};
@@ -2501,7 +2501,7 @@ function __gmBuildPanel(){
     // Clear button
     document.getElementById('__gmp_loot_clear_btn').onclick = function(){
       if(confirm('\u786E\u8A8D\u6E05\u9664\u6240\u6709 BOSS \u6389\u843d\u8A18\u9304\uFF1F')){
-        if(window.__wbClearBossLoot) __wbClearBossLoot();
+        if(window.__wbClearBossLoot) window.__wbClearBossLoot();
         document.getElementById('__gmp_loot_list').innerHTML = '<div style="text-align:center;color:#666;padding:20px;">\u5DF2\u6E05\u9664</div>';
       }
     };
@@ -2989,8 +2989,8 @@ function __gmBuildPanel(){
     if(__wbBossUpdTimer)return;
     __wbBossUpdTimer=setInterval(function(){
       if(activeTab==='boss')__wbUpdateBossStatus();
-          __wbInitHuntToggle();
-          __wbUpdateHuntListUI();
+          window.__wbInitHuntToggle();
+          window.__wbUpdateHuntListUI();
     },500);
   }
   __wbBossStartUpdater();
