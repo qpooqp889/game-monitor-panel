@@ -290,7 +290,7 @@ window.__wbBossAuto={
     startHpPct:80,startMpPct:50,
     potStop:false,potStopHp:30
   };
-function __wbBossLoop(){if(!window.__wbBossAuto.running)return;var ls=window.lastState||{};var ch=ls.char||{};var boss=ls.boss||{};var cd=boss.cd||{};var cfg=window.__wbBossAuto.config;var hpPct=ch.maxHp>0?ch.hp/ch.maxHp:1;try{if(cfg.stop&&hpPct<(cfg.stopHp/100)&&cd.atk<0.05)__wbSend('stop');if(cfg.potStop&&hpPct<(cfg.potStopHp/100)&&cd.atk<0.05)__wbSend('stop');if(cfg.pot&&hpPct<(cfg.potHp/100)&&cd.pot<0.05)__wbSend('pot');if(cfg.atkSkill&&cd.atk<0.05)__wbSend('atk');if(cfg.heal&&hpPct<(cfg.healHp/100)&&cd.heal<0.05)__wbSend('heal');if(cfg.barrier&&cd.barrier<0.05&&boss.barrierHas)__wbSend('barrier');if(cfg.atk&&ls.mode==='bosscombat'){var _bh=boss.hp/boss.maxHp;var _hpC=_bh<(cfg.atkHpPct/100);var _olC=(window.__gmOnlineCount||0)>=cfg.atkOnline;var _atkOk=_hpC;if(cfg.atkLogic==='AND')_atkOk=_hpC&&_olC;else if(cfg.atkLogic==='OR')_atkOk=_hpC||_olC;else if(cfg.atkLogic==='NOT')_atkOk=!_hpC;if(cfg.startHpPct>0&&hpPct<(cfg.startHpPct/100))_atkOk=false;if(cfg.startMpPct>0&&(ch.maxMp>0?ch.mp/ch.maxMp:1)<(cfg.startMpPct/100))_atkOk=false;}if(_atkOk)__wbSend('atk');}catch(e){}window.__wbBossAuto.timer=setTimeout(__wbBossLoop,500);}
+function __wbBossLoop(){if(!window.__wbBossAuto.running)return;var ls=window.lastState||{};var ch=ls.char||{};var boss=ls.boss||{};var cd=boss.cd||{};var cfg=window.__wbBossAuto;var hpPct=ch.maxHp>0?ch.hp/ch.maxHp:1;try{if(cfg.stop&&hpPct<(cfg.stopHp/100)&&cd.atk<0.05)__wbSend('stop');if(cfg.potStop&&hpPct<(cfg.potStopHp/100)&&cd.atk<0.05)__wbSend('stop');if(cfg.pot&&hpPct<(cfg.potHp/100)&&cd.pot<0.05)__wbSend('pot');if(cfg.atkSkill&&cd.atk<0.05)__wbSend('atk');if(cfg.heal&&hpPct<(cfg.healHp/100)&&cd.heal<0.05)__wbSend('heal');if(cfg.barrier&&cd.barrier<0.05&&boss.barrierHas)__wbSend('barrier');if(cfg.atk&&ls.mode==='bosscombat'){var _bh=boss.hp/boss.maxHp;var _hpC=_bh<(cfg.atkHpPct/100);var _olC=(window.__gmOnlineCount||0)>=cfg.atkOnline;var _atkOk=_hpC;if(cfg.atkLogic==='AND')_atkOk=_hpC&&_olC;else if(cfg.atkLogic==='OR')_atkOk=_hpC||_olC;else if(cfg.atkLogic==='NOT')_atkOk=!_hpC;if(cfg.startHpPct>0&&hpPct<(cfg.startHpPct/100))_atkOk=false;if(cfg.startMpPct>0&&(ch.maxMp>0?ch.mp/ch.maxMp:1)<(cfg.startMpPct/100))_atkOk=false;}if(_atkOk)__wbSend('atk');}catch(e){}window.__wbBossAuto.timer=setTimeout(__wbBossLoop,500);}
 function __wbBossAutoStart(){window.__wbBossAuto.running=true;__wbBossLoop();}
 function __wbBossAutoStop(){window.__wbBossAuto.running=false;if(window.__wbBossAuto.timer)clearTimeout(window.__wbBossAuto.timer);}
 
@@ -2350,7 +2350,7 @@ function __gmBuildPanel(){
 
   // Auto boss
   function __wbSyncAutoConfig(){
-    var cfg=window.__wbBossAuto.config;
+    var cfg=window.__wbBossAuto;
     cfg.atk=document.getElementById('__gmp_boss_auto_atk').checked;
     cfg.atkHpPct=parseInt(document.getElementById('__gmp_boss_auto_atk_hp_pct').value)||100;
     cfg.atkLogic=document.getElementById('__gmp_boss_auto_atk_logic').value;
@@ -2869,7 +2869,7 @@ function __gmBuildPanel(){
 
   function __wbSaveBossConfig(){
     if(typeof window.__gmStorageSet==='undefined')return;
-    var cfg=window.__wbBossAuto.config;
+    var cfg=window.__wbBossAuto;
     window.__gmStorageSet('wb_boss_config',JSON.parse(JSON.stringify(cfg))).catch(function(){});
   }
   function __wbLoadBossConfig(){
@@ -2877,13 +2877,13 @@ function __gmBuildPanel(){
     return window.__gmStorageGet(['wb_boss_config']).then(function(r){
       var saved=r&&r.wb_boss_config||null;
       if(saved){
-        Object.assign(window.__wbBossAuto.config,saved);
+        Object.assign(window.__wbBossAuto,saved);
         __wbApplyBossConfigUI();
       }
     }).catch(function(){});
   }
   function __wbApplyBossConfigUI(){
-    var cfg=window.__wbBossAuto.config;
+    var cfg=window.__wbBossAuto;
     var el=document.getElementById('__gmp_boss_auto_pot');if(el)el.checked=cfg.pot;
     el=document.getElementById('__gmp_boss_auto_heal');if(el)el.checked=cfg.heal;
     el=document.getElementById('__gmp_boss_auto_atk');if(el)el.checked=cfg.atk;
