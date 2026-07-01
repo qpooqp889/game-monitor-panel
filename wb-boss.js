@@ -591,7 +591,16 @@ function __wbBossAutoScriptVerifyEntry(target, idx, list, retriesLeft){
 
 
 function __wbBossAutoScriptWaitForLoot(target, idx, list){
-  console.log('[WB-Loot] Waiting for loot popup (.ip-box) after ' + target.name + ' defeated...');
+  // Check if loot capture is enabled
+  var lootChk = document.getElementById('__gmp_boss_auto_loot');
+  if(!lootChk || !lootChk.checked){
+    console.log('[WB-Loot] Loot capture disabled by checkbox, skipping');
+    __wbBossAutoScriptHandleDefeat(target, idx, list);
+    return;
+  }
+
+
+console.log('[WB-Loot] Waiting for loot popup (.ip-box) after ' + target.name + ' defeated...');
   var maxWait = 20000; // 20 seconds max
   var interval = 500;
   var elapsed = 0;
