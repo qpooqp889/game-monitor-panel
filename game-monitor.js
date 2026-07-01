@@ -1272,6 +1272,7 @@ function __gmBuildPanel(){
 '</div>'+
     '<div style="margin-top:6px;margin-bottom:6px;display:flex;align-items:center;gap:6px;">'+
     '<button id="__gmp_boss_history_btn" style="flex:1;padding:5px;background:#1a1a3e;border:1px solid #0f3460;color:#86c5ff;border-radius:4px;cursor:pointer;font-size:10px;font-weight:bold;">\U0001F4CB BOSS \u5386\u53f2\u8bb0\u5f55</button>'+
+    '<button id="__gmp_boss_loot_btn" style="flex:1;padding:5px;background:#1a1a1a;border:1px solid #6b4226;color:#fbbf24;border-radius:4px;cursor:pointer;font-size:10px;font-weight:bold;">\uD83D\uDCB0 \u6389\u843d\u8A18\u9304</button>'+
     '</div>'+
 
     // === Socket 狀態 + 匯入匯出 ===
@@ -2378,6 +2379,151 @@ function __gmBuildPanel(){
       'skip':'\u23E9 \u8df3\u904e',
       'attack':'\u2694 \u653b\u51fb'
     };
+
+  // === BOSS 掉落記錄 Modal ===
+  var __gmp_boss_loot_modal = null;
+
+  function __wbOpenLootModal(){
+    if(__gmp_boss_loot_modal) { __gmp_boss_loot_modal.style.display='block'; return; }
+
+    var modal = document.createElement('div');
+    modal.id = '__gmp_boss_loot_modal';
+    modal.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:460px;max-height:500px;background:#1a1a2e;border:2px solid #6b4226;border-radius:8px;z-index:10002;padding:12px;overflow-y:auto;box-shadow:0 4px 20px rgba(0,0,0,0.6);color:#ddd;font-size:12px;';
+
+    var title = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">'+
+      '<span style="color:#fbbf24;font-size:15px;font-weight:bold;">\uD83D\uDCB0 BOSS \u6389\u843d\u8A18\u9304</span>'+
+      '<div>'+
+        '<button id="__gmp_loot_clear_btn" style="padding:3px 8px;background:#4a1a1a;border:1px solid #e94560;color:#e94560;border-radius:3px;cursor:pointer;font-size:10px;margin-right:4px;">\u2726 \u5168\u90E8\u6E05\u7A7A</button>'+
+        '<button id="__gmp_loot_close_btn" style="padding:3px 8px;background:#333;border:1px solid #555;color:#999;border-radius:3px;cursor:pointer;font-size:10px;">\u2716</button>'+
+      '</div></div>';
+
+    var searchHtml = '<div style="margin-bottom:6px;display:flex;gap:4px;">'+
+      '<input id="__gmp_loot_search" type="text" placeholder="\u641C\u5C0B BOSS / \u7269\u54C1 / \u73A9\u5BB6..." style="flex:1;padding:4px 6px;background:#16213e;border:1px solid #0f3460;color:#ddd;border-radius:3px;font-size:11px;">'+
+      '<button id="__gmp_loot_search_btn" style="padding:4px 10px;background:#0f3460;border:1px solid #1a5276;color:#86c5ff;border-radius:3px;cursor:pointer;font-size:10px;">\uD83D\uDD0D</button>'+
+    '</div>';
+
+    var listHtml = '<div id="__gmp_loot_list" style="max-height:380px;overflow-y:auto;"></div>';
+
+    modal.innerHTML = title + searchHtml + listHtml;
+    document.body.appendChild(modal);
+    __gmp_boss_loot_modal = modal;
+
+    // Close button
+    document.getElementById('__gmp_loot_close_btn').onclick = function(){ modal.style.display='none'; };
+
+    // Clear button
+    document.getElementById('__gmp_loot_clear_btn').onclick = function(){
+      if(confirm('\u786E\u8A8D\u6E05\u9664\u6240\u6709 BOSS \u6389\u843d\u8A18\u9304\uFF1F')){
+        if(window.__wbClearBossLoot) __wbClearBossLoot();
+        document.getElementById('__gmp_loot_list').innerHTML = '<div style="text-align:center;color:#666;padding:20px;">\u5DF2\u6E05\u9664</div>';
+      }
+    };
+
+    // Search
+    function renderLootList(filter){
+      var data = (window.__wbGetBossLoot && window.__wbGetBossLoot()) || [];
+      var container = document.getElementById('__gmp_loot_list');
+      if(!container) return;
+
+      if(data.length === 0){
+        container.innerHTML = '<div style="text-align:center;color:#666;padding:30px;font-size:13px;">\u6682\u7121 BOSS \u6389\u843d\u8A18\u9304</div>';
+        return;
+      }
+
+      var html = '';
+      var reversed = data.slice().reverse();
+      reversed.forEach(function(entry){
+        // Filter
+        if(filter){
+          var f = filter.toLowerCase();
+          var match = entry.bossName.toLowerCase().indexOf(f) >= 0;
+          if(!match && entry.drops){
+            entry.drops.forEach(function(d){
+              if(d.item.toLowerCase().indexOf(f) >= 0 || d.winner.toLowerCase().indexOf(f) >= 0) match = true;
+            });
+          }
+          if(!match && entry.rank){
+            entry.rank.forEach(function(r){
+              if(r.player.toLowerCase().indexOf(f) >= 0) match = true;
+            });
+          }
+          if(!entry.drops || !entry.rank) match = true;
+          if(!match) return;
+        }
+
+        var d = new Date(entry.t);
+        var timeStr = d.getFullYear() + '/' + (d.getMonth()+1).toString().padStart(2,'0') + '/' + d.getDate().toString().padStart(2,'0') + ' ' +
+          d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+
+        html += '<div style="background:rgba(107,66,38,0.12);border:1px solid rgba(107,66,38,0.3);border-radius:5px;padding:8px;margin-bottom:6px;">'+
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">'+
+            '<span style="color:#fbbf24;font-weight:bold;font-size:12px;">\u2694 ' + entry.bossName + '</span>'+
+            '<span style="color:#888;font-size:10px;">' + timeStr + '</span>'+
+          '</div>';
+
+        if(entry.mvp){
+          html += '<div style="font-size:10px;color:#7be87b;margin-bottom:4px;">\uD83C\uDFC6 MVP: ' + entry.mvp + '</div>';
+        }
+
+        if(entry.drops && entry.drops.length > 0){
+          html += '<div style="font-size:10px;color:#aaa;margin-bottom:2px;">\u2728 \u6389\u843d:</div>';
+          html += '<div style="font-size:10px;padding-left:8px;">';
+          entry.drops.forEach(function(drop){
+            var icon = drop.icon ? (drop.icon.startsWith('assets/') ? '\uD83C\uDF92' : '') : '\uD83D\uDC8E';
+            html += '<div style="display:flex;justify-content:space-between;padding:1px 0;">'+
+              '<span>' + icon + ' ' + drop.item + '</span>'+
+              (drop.winner ? '<span style="color:#86c5ff;">' + drop.winner + '</span>' : '') +
+            '</div>';
+          });
+          html += '</div>';
+        }
+
+        if(entry.rank && entry.rank.length > 0){
+          html += '<div style="font-size:10px;color:#aaa;margin-top:4px;margin-bottom:2px;">\uD83D\uDCCA \u50B7\u5BB3\u6392\u540D:</div>';
+          html += '<div style="font-size:10px;padding-left:8px;max-height:120px;overflow-y:auto;">';
+          entry.rank.forEach(function(r){
+            html += '<div style="display:flex;justify-content:space-between;padding:1px 0;">'+
+              '<span style="color:' + (r.rank <= 3 ? '#fbbf24' : '#aaa') + ';">#' + r.rank + '</span>'+
+              '<span>' + r.player + '</span>'+
+              '<span style="color:#86c5ff;">' + r.damage + '</span>'+
+            '</div>';
+          });
+          html += '</div>';
+        }
+
+        // Participants count
+        if(entry.participants && entry.participants.length > 0){
+          html += '<div style="font-size:9px;color:#666;margin-top:3px;">\uD83D\uDC65 \u53C3\u8207 ' + entry.participants.length + ' \u4EBA</div>';
+        }
+
+        html += '</div>';
+      });
+
+      container.innerHTML = html || '<div style="text-align:center;color:#666;padding:20px;">\u6C92\u6709\u7B26\u5408\u7684\u8A18\u9304</div>';
+    }
+
+    // Initial render
+    renderLootList('');
+
+    // Search handler
+    var searchInput = document.getElementById('__gmp_loot_search');
+    var searchBtn = document.getElementById('__gmp_loot_search_btn');
+    function doSearch(){
+      renderLootList(searchInput.value);
+    }
+    searchBtn.onclick = doSearch;
+    searchInput.onkeypress = function(e){ if(e.keyCode===13) doSearch(); };
+
+    // Click outside to close
+    modal.onclick = function(e){
+      if(e.target === modal) modal.style.display='none';
+    };
+  }
+
+  function __wbCloseLootModal(){
+    if(__gmp_boss_loot_modal) __gmp_boss_loot_modal.style.display='none';
+  }
+
     var eventColors={
       'enter':'#4ade80',
       'reenter':'#86efac',

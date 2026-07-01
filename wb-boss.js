@@ -238,7 +238,8 @@ function __wbBossAutoScriptMonitorBossHP(target,idx,list){
 
   // If boss HP is 0 and not in battle mode, it's dead
   if(bossHp<=0&&mode!=='bosscombat'){
-    __wbBossAutoScriptHandleDefeat(target,idx,list);
+    window.__wbBossAutoScript.phase='waiting_loot';
+    __wbBossAutoScriptWaitForLoot(target,idx,list);
     return;
   }
 
@@ -268,6 +269,143 @@ function __wbBossAutoScriptRestoreFarm(){
       if(window.startFarming)startFarming();
     }
 
+
+
+
+// ====== BOSS 掉落記錄 ======
+// Saved to chrome.storage.local key: wb_boss_loot
+// Structure: [{ id, t, bossName, drops: [{item, winner}], rank: [{player, damage}], mvp, participants, rawHTML }]
+
+window.__wbBossLoot = [];
+
+function __wbCaptureBossLoot(bossName){
+  try {
+    var ipBox = document.querySelector('.ip-box');
+    if(!ipBox){
+      console.log('[WB-Loot] No .ip-box found on page');
+      return null;
+    }
+
+    // Parse boss name from #br-boss
+    var bossEl = document.getElementById('br-boss');
+    var bossDisplay = bossEl ? bossEl.textContent.trim() : bossName;
+
+    // Parse drops
+    var dropsEl = document.getElementById('br-drops');
+    var drops = [];
+    if(dropsEl){
+      var dropRows = dropsEl.querySelectorAll('.br-row');
+      dropRows.forEach(function(row){
+        var icon = row.querySelector('img') ? (row.querySelector('img').getAttribute('src') || '') : '';
+        var textNodes = row.querySelectorAll('.rk-n, .br-w');
+        var itemName = '';
+        var winner = '';
+        textNodes.forEach(function(n, i){
+          if(i === 0) itemName = n.textContent.trim();
+          else if(i === 1) winner = n.textContent.trim();
+        });
+        drops.push({ icon: icon, item: itemName, winner: winner });
+      });
+    }
+
+    // Parse damage rank
+    var rankEl = document.getElementById('br-rank');
+    var rank = [];
+    var mvp = '';
+    if(rankEl){
+      var mvpEl = rankEl.querySelector('[style*="color:#7be87b"]');
+      if(mvpEl) mvp = mvpEl.textContent.replace('奶媽MVP：', '').trim();
+
+      var rankRows = rankEl.querySelectorAll('.rank-row');
+      rankRows.forEach(function(row){
+        var no = row.querySelector('.rk-no');
+        var name = row.querySelector('.rk-n');
+        var dmg = row.querySelector('.rk-d');
+        if(no && name && dmg){
+          rank.push({
+            rank: parseInt(no.textContent) || rank.length + 1,
+            player: name.textContent.trim(),
+            damage: dmg.textContent.trim()
+          });
+        }
+      });
+    }
+
+    // Collect all participants (unique)
+    var participants = [];
+    drops.forEach(function(d){ if(d.winner && participants.indexOf(d.winner) === -1) participants.push(d.winner); });
+    rank.forEach(function(r){ if(r.player && participants.indexOf(r.player) === -1) participants.push(r.player); });
+    if(mvp && participants.indexOf(mvp) === -1) participants.push(mvp);
+
+    var entry = {
+      id: Date.now() + '_' + Math.random().toString(36).substring(2, 8),
+      t: Date.now(),
+      bossName: bossDisplay,
+      drops: drops,
+      rank: rank,
+      mvp: mvp,
+      participants: participants,
+      rawHTML: ipBox.innerHTML.substring(0, 2000)
+    };
+
+    // Save to window array
+    window.__wbBossLoot.push(entry);
+
+    // Persist to chrome.storage
+    __wbSaveBossLoot();
+
+    console.log('[WB-Loot] Captured boss loot for ' + bossDisplay + ' (' + drops.length + ' drops, ' + rank.length + ' rankers)');
+    return entry;
+  } catch(e){
+    console.error('[WB-Loot] Capture error:', e);
+    return null;
+  }
+}
+
+function __wbSaveBossLoot(){
+  try {
+    var data = window.__wbBossLoot || [];
+    // Keep last 200 entries max
+    if(data.length > 200) data = data.slice(-200);
+    var serialized = JSON.stringify(data);
+    // Use chrome.storage.local directly (injected context)
+    if(typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local){
+      chrome.storage.local.set({ wb_boss_loot: data }, function(){
+        console.log('[WB-Loot] Saved ' + data.length + ' entries to storage');
+      });
+    } else if(window.__wbSaveToStorage){
+      window.__wbSaveToStorage('wb_boss_loot', data);
+    }
+  } catch(e){
+    console.error('[WB-Loot] Save error:', e);
+  }
+}
+
+function __wbLoadBossLoot(callback){
+  try {
+    if(typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local){
+      chrome.storage.local.get('wb_boss_loot', function(result){
+        window.__wbBossLoot = result.wb_boss_loot || [];
+        if(callback) callback(window.__wbBossLoot);
+      });
+    } else {
+      window.__wbBossLoot = window.__wbBossLoot || [];
+      if(callback) callback(window.__wbBossLoot);
+    }
+  } catch(e){
+    window.__wbBossLoot = [];
+    if(callback) callback([]);
+  }
+}
+
+function __wbGetBossLoot(){
+  return window.__wbBossLoot || [];
+}
+
+function __wbClearBossLoot(){
+  window.__wbBossLoot = [];
+  __wbSaveBossLoot();
+}
 
 // ====== BOSS 歷史記錄 ======
 // Log entry structure:
@@ -450,6 +588,37 @@ function __wbBossAutoScriptVerifyEntry(target, idx, list, retriesLeft){
 }
 
 // Modified defeat handler in MonitorBossHP - add re-enter logic
+
+
+function __wbBossAutoScriptWaitForLoot(target, idx, list){
+  console.log('[WB-Loot] Waiting for loot popup (.ip-box) after ' + target.name + ' defeated...');
+  var maxWait = 20000; // 20 seconds max
+  var interval = 500;
+  var elapsed = 0;
+  var captured = false;
+
+  var poller = setInterval(function(){
+    if(!window.__wbBossAutoScript.running){ clearInterval(poller); return; }
+    elapsed += interval;
+
+    var ipBox = document.querySelector('.ip-box');
+    if(ipBox && ipBox.innerHTML.length > 100){
+      // Loot popup found and has content
+      clearInterval(poller);
+      captured = true;
+      console.log('[WB-Loot] Loot popup found after ' + elapsed + 'ms, capturing...');
+      __wbCaptureBossLoot(target.name);
+      __wbBossAutoScriptHandleDefeat(target, idx, list);
+      return;
+    }
+
+    if(elapsed >= maxWait){
+      clearInterval(poller);
+      console.log('[WB-Loot] Loot popup not found after ' + maxWait + 'ms, proceeding without loot capture');
+      __wbBossAutoScriptHandleDefeat(target, idx, list);
+    }
+  }, interval);
+}
 function __wbBossAutoScriptHandleDefeat(target, idx, list){
   console.log('[WB-AutoScript] ' + target.name + ' defeated!');
 
@@ -458,7 +627,9 @@ function __wbBossAutoScriptHandleDefeat(target, idx, list){
   var boss = ls.boss || {};
   __wbAddBossHistory(target.name, 'defeat', '擊敗 BOSS', 0, null);
 
+
   // Turn off auto-attack
+
   var enableChk = document.getElementById('__gmp_boss_auto_enable');
   if(enableChk) enableChk.checked = false;
   var atkChk = document.getElementById('__gmp_boss_auto_atk');
@@ -954,6 +1125,10 @@ setTimeout(function(){
   window.__wbRemoveFromHuntList=__wbRemoveFromHuntList;window.__wbUpdateHuntListUI=__wbUpdateHuntListUI;
   window.__wbInitHuntToggle=__wbInitHuntToggle;
   window.__wbMoveHuntItem=__wbMoveHuntItem;window.__wbGetHuntIds=__wbGetHuntIds;
+  window.__wbCaptureBossLoot=__wbCaptureBossLoot;window.__wbSaveBossLoot=__wbSaveBossLoot;
+  window.__wbLoadBossLoot=__wbLoadBossLoot;window.__wbGetBossLoot=__wbGetBossLoot;
+  window.__wbClearBossLoot=__wbClearBossLoot;
+  window.__wbBossAutoScriptWaitForLoot=__wbBossAutoScriptWaitForLoot;
 
   console.log("[WB] World Boss module loaded");
 })();
