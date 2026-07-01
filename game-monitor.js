@@ -2371,7 +2371,27 @@ function __gmBuildPanel(){
       var healSel=document.getElementById('__gmp_boss_entry_healSkill');
       if(!atkSel&&!healSel)return;
 
-      // 從 gmSkillSettings 讀取當前角色的技能列表
+      // 優先使用 runtime 的 __gmSkillMap（由 refreshSkillDatalist 從 DOM 掃描）
+      var skillMap=window.__gmSkillMap||{};
+      var skillKeys=Object.keys(skillMap);
+
+      if(skillKeys.length>0){
+        // 直接使用 __gmSkillMap（最即時，有中文名）
+        buildDropdowns(skillKeys, function(id){ return skillMap[id] || id; });
+        return;
+      }
+
+      // Fallback 1: 從 __pmSkillNames runtime 物件
+      if(window.__pmSkillNames && typeof window.__pmSkillNames === 'object'){
+        var names=window.__pmSkillNames;
+        var keys=Object.keys(names);
+        if(keys.length>0){
+          buildDropdowns(keys, function(id){ return names[id] || id; });
+          return;
+        }
+      }
+
+      // Fallback 2: 從 gmSkillSettings (chrome.storage)
       var charName=window.__gmCharName||(window.lastState&&window.lastState.charName)||'';
       __gmStorageGet(['gmSkillSettings']).then(function(result){
         var arr=result&&result.gmSkillSettings||[];
@@ -2380,54 +2400,55 @@ function __gmBuildPanel(){
           if(arr[i].charName===charName){entry=arr[i];break;}
         }
         if(!entry||!entry.skills)return;
-
-        // 建立下拉選項：取出所有技能 ID
         var skillIds=Object.keys(entry.skills);
         var names=entry.skillNames||{};
+        buildDropdowns(skillIds, function(id){ return names[id] || id; });
+      }).catch(function(){});
+    }catch(e){console.warn('[GM] load entry skills error:',e);}
 
-        // 過濾：只留 checkbox 類型的技能（排除數值類設定）
-        // skills 中 value 為 "1" 或 "true" 的通常是技能開關
-        var validSkills=[];
-        for(var si=0;si<skillIds.length;si++){
-          var sid=skillIds[si];
-          var val=entry.skills[sid];
-          // 只取技能類 key（以 sk_ 開頭）或值為 "1"/"true" 的
-          if(sid.indexOf('sk_')===0||val==='1'||val==='true'){
-            validSkills.push(sid);
-          }
-        }
-        // 若過濾後太少，改用全部
-        if(validSkills.length<3)validSkills=skillIds;
+    function buildDropdowns(ids, labelFn){
+      try{
+        var atkSel=document.getElementById('__gmp_boss_entry_atkSkill');
+        var healSel=document.getElementById('__gmp_boss_entry_healSkill');
+        if(!atkSel||!healSel)return;
 
-        // 填入攻擊技能下拉
+        // 過濾掉數值類 key，只留技能
+        var valid=ids.filter(function(id){
+          return id.indexOf('sk_')===0;
+        });
+        if(valid.length<3)valid=ids; // 過濾太少就用全部
+
+        // 排除非技能 key (如 hpThreshold, mpThreshold 等)
+        var skip=/^(hpThreshold|mpThreshold|hp_|mp_|target_|monster_|delay_|auto_|farm_|timeout_|scroll_)/;
+        valid=valid.filter(function(id){ return !skip.test(id); });
+
+        if(valid.length<3)valid=ids;
+
         var atkOpts='<option value="">-- 請選擇 --</option>';
-        for(var si=0;si<validSkills.length;si++){
-          var sid=validSkills[si];
-          var label=names[sid]||sid;
-          atkOpts+='<option value="'+sid+'">'+label+'</option>';
+        var healOpts='<option value="">-- 請選擇 --</option>';
+        for(var i=0;i<valid.length;i++){
+          var id=valid[i];
+          var label=labelFn(id);
+          var opt='<option value="'+id+'">'+label+'</option>';
+          atkOpts+=opt;
+          healOpts+=opt;
         }
         atkSel.innerHTML=atkOpts;
-
-        // 填入治療魔法下拉（跟攻擊技能用同樣的技能列表）
-        var healOpts='<option value="">-- 請選擇 --</option>';
-        for(var si=0;si<validSkills.length;si++){
-          var sid=validSkills[si];
-          var label=names[sid]||sid;
-          healOpts+='<option value="'+sid+'">'+label+'</option>';
-        }
         healSel.innerHTML=healOpts;
 
-        // 載入已儲存的 wb_boss_entry_settings 並選取值
+        // 載入已儲存的設定
         __gmStorageGet(['wb_boss_entry_settings']).then(function(r2){
           if(r2&&r2.wb_boss_entry_settings){
             var s=r2.wb_boss_entry_settings;
-            if(s.atkSkill&&atkSel){atkSel.value=s.atkSkill;checkEntryField('atkSkill');}
+            if(s.atkSkill){atkSel.value=s.atkSkill;checkEntryField('atkSkill');}
             if(s.potType){var el=document.getElementById('__gmp_boss_entry_potType');if(el){el.value=s.potType;checkEntryField('potType');}}
-            if(s.healSkill&&healSel){healSel.value=s.healSkill;checkEntryField('healSkill');}
+            if(s.healSkill){healSel.value=s.healSkill;checkEntryField('healSkill');}
           }
         }).catch(function(){});
-      }).catch(function(){});
-    }catch(e){console.warn('[GM] load entry skills error:',e);}
+      }catch(e){
+        console.warn('[GM] buildDropdowns error:',e);
+      }
+    }
   }
 
   // 監聽按鈕與下拉變更
