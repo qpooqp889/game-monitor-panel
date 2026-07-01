@@ -2370,26 +2370,64 @@ function __gmBuildPanel(){
       var atkSel=document.getElementById('__gmp_boss_entry_atkSkill');
       var healSel=document.getElementById('__gmp_boss_entry_healSkill');
       if(!atkSel&&!healSel)return;
-      try{
-        var panel=document.getElementById('panel-scroll');
-        if(panel){
-          var atkCell=panel.querySelector('.bcell[data-k="atk"] select');
-          var healCell=panel.querySelector('.bcell[data-k="heal"] select');
-          if(atkSel&&atkCell) atkSel.innerHTML=atkCell.innerHTML;
-          if(healSel&&healCell) healSel.innerHTML=healCell.innerHTML;
+
+      // 從 gmSkillSettings 讀取當前角色的技能列表
+      var charName=window.__gmCharName||(window.lastState&&window.lastState.charName)||'';
+      __gmStorageGet(['gmSkillSettings']).then(function(result){
+        var arr=result&&result.gmSkillSettings||[];
+        var entry=null;
+        for(var i=0;i<arr.length;i++){
+          if(arr[i].charName===charName){entry=arr[i];break;}
         }
-      }catch(e){}
-      setTimeout(function(){
-        if(typeof window.__gmStorageGet==='undefined')return;
-        __gmStorageGet(['wb_boss_entry_settings']).then(function(r){
-          if(!r||!r.wb_boss_entry_settings)return;
-          var s=r.wb_boss_entry_settings;
-          if(s.atkSkill){var el=document.getElementById('__gmp_boss_entry_atkSkill');if(el){el.value=s.atkSkill;checkEntryField('atkSkill');}}
-          if(s.potType){var el=document.getElementById('__gmp_boss_entry_potType');if(el){el.value=s.potType;checkEntryField('potType');}}
-          if(s.healSkill){var el=document.getElementById('__gmp_boss_entry_healSkill');if(el){el.value=s.healSkill;checkEntryField('healSkill');}}
+        if(!entry||!entry.skills)return;
+
+        // 建立下拉選項：取出所有技能 ID
+        var skillIds=Object.keys(entry.skills);
+        var names=entry.skillNames||{};
+
+        // 過濾：只留 checkbox 類型的技能（排除數值類設定）
+        // skills 中 value 為 "1" 或 "true" 的通常是技能開關
+        var validSkills=[];
+        for(var si=0;si<skillIds.length;si++){
+          var sid=skillIds[si];
+          var val=entry.skills[sid];
+          // 只取技能類 key（以 sk_ 開頭）或值為 "1"/"true" 的
+          if(sid.indexOf('sk_')===0||val==='1'||val==='true'){
+            validSkills.push(sid);
+          }
+        }
+        // 若過濾後太少，改用全部
+        if(validSkills.length<3)validSkills=skillIds;
+
+        // 填入攻擊技能下拉
+        var atkOpts='<option value="">-- 請選擇 --</option>';
+        for(var si=0;si<validSkills.length;si++){
+          var sid=validSkills[si];
+          var label=names[sid]||sid;
+          atkOpts+='<option value="'+sid+'">'+label+'</option>';
+        }
+        atkSel.innerHTML=atkOpts;
+
+        // 填入治療魔法下拉（跟攻擊技能用同樣的技能列表）
+        var healOpts='<option value="">-- 請選擇 --</option>';
+        for(var si=0;si<validSkills.length;si++){
+          var sid=validSkills[si];
+          var label=names[sid]||sid;
+          healOpts+='<option value="'+sid+'">'+label+'</option>';
+        }
+        healSel.innerHTML=healOpts;
+
+        // 載入已儲存的 wb_boss_entry_settings 並選取值
+        __gmStorageGet(['wb_boss_entry_settings']).then(function(r2){
+          if(r2&&r2.wb_boss_entry_settings){
+            var s=r2.wb_boss_entry_settings;
+            if(s.atkSkill&&atkSel){atkSel.value=s.atkSkill;checkEntryField('atkSkill');}
+            if(s.potType){var el=document.getElementById('__gmp_boss_entry_potType');if(el){el.value=s.potType;checkEntryField('potType');}}
+            if(s.healSkill&&healSel){healSel.value=s.healSkill;checkEntryField('healSkill');}
+          }
         }).catch(function(){});
-      },50);
-    }catch(e){}
+      }).catch(function(){});
+    }catch(e){console.warn('[GM] load entry skills error:',e);}
   }
 
   // 監聽按鈕與下拉變更
