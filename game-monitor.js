@@ -217,7 +217,7 @@ function __wbUpdateWorldBossUI(autoNav){
         var rsStr=b.respawn!==null?'\u91cd\u751f:'+Math.floor(b.respawn/60)+'m '+String((b.respawn%60)+'s').padStart(3,'0'):(b.status==='alive'?'\u5b58\u6d3b\u4e2d':'--');
         var sc={alive:'#4ade80',dead:'#888',waiting:'#fbbf24',unknown:'#555'};
         var inHunt=huntIds.indexOf(b.id)!==-1;
-        var addBtn=inHunt?'<span style="color:#4caf50;font-size:11px;min-width:18px;">\u2713</span>':'<span onclick="__wbAddToHuntList(\''+b.id+'\',\''+b.name+'\','+b.lv+')" style="color:#4caf50;font-size:14px;cursor:pointer;min-width:18px;text-align:center;">[+]</span>';
+        var addBtn=inHunt?'<span style="color:#4caf50;font-size:11px;min-width:18px;">\u2713</span>':'<span data-wb-add-hunt="'+b.id+'|'+b.name.replace(/'/g,'')+'|'+b.lv+'" style="color:#4caf50;font-size:14px;cursor:pointer;min-width:18px;text-align:center;">[+]</span>';
         return '<div style="display:flex;align-items:center;gap:4px;padding:4px 6px;background:rgba(233,69,96,0.06);border-radius:5px;margin-bottom:2px;border-left:3px solid '+sc[b.status]+';">'+
           addBtn+
           '<span style="font-size:10px;color:#e94560;min-width:70px;">'+b.name+'</span>'+
@@ -279,8 +279,16 @@ setTimeout(function(){
 },5000);
 
 // ====== Boss Auto ======
-window.__wbBossAuto={running:false,timer:null,config:{pot:true,heal:false,barrier:false,atk:false,hpPct:50,barrierPct:30,atkCondEnabled:false,atkHpPct:50,atkLogic:'AND',atkOnline:1}};
-function __wbBossLoop(){if(!window.__wbBossAuto.running)return;var ls=window.lastState||{};var ch=ls.char||{};var boss=ls.boss||{};var cd=boss.cd||{};var cfg=window.__wbBossAuto.config;var hpPct=ch.maxHp>0?ch.hp/ch.maxHp:1;try{if(cfg.pot&&hpPct<(cfg.hpPct/100)&&cd.pot<0.05)__wbSend('pot');if(cfg.heal&&cd.heal<0.05)__wbSend('heal');if(cfg.barrier&&boss.hp>0&&boss.maxHp>0&&(boss.hp/boss.maxHp)<(cfg.barrierPct/100)&&cd.barrier<0.05&&boss.barrierHas)__wbSend('barrier');if(cfg.atk&&ls.mode==='bosscombat'){var _atkOk=true;if(cfg.atkCondEnabled&&boss.maxHp>0){var _bh=boss.hp/boss.maxHp;var _hpC=_bh<(cfg.atkHpPct/100);var _olC=(window.__gmOnlineCount||9999)>cfg.atkOnline;if(cfg.atkLogic==='AND')_atkOk=_hpC&&_olC;else if(cfg.atkLogic==='OR')_atkOk=_hpC||_olC;else if(cfg.atkLogic==='NOT')_atkOk=!_hpC&&_olC;}if(_atkOk&&cd.atk<0.05)__wbSend('atk');}}catch(e){}window.__wbBossAuto.timer=setTimeout(__wbBossLoop,500);}
+window.__wbBossAuto={
+    atk:true,atkHpPct:100,atkLogic:'AND',atkOnline:0,
+    stop:false,stopHp:30,
+    pot:true,potHp:80,
+    atkSkill:true,
+    heal:true,healHp:70,
+    barrier:true,
+    bypass:false
+  };
+function __wbBossLoop(){if(!window.__wbBossAuto.running)return;var ls=window.lastState||{};var ch=ls.char||{};var boss=ls.boss||{};var cd=boss.cd||{};var cfg=window.__wbBossAuto.config;var hpPct=ch.maxHp>0?ch.hp/ch.maxHp:1;try{if(cfg.stop&&hpPct<(cfg.stopHp/100)&&cd.atk<0.05)__wbSend('stop');if(cfg.pot&&hpPct<(cfg.potHp/100)&&cd.pot<0.05)__wbSend('pot');if(cfg.atkSkill&&cd.atk<0.05)__wbSend('atk');if(cfg.heal&&hpPct<(cfg.healHp/100)&&cd.heal<0.05)__wbSend('heal');if(cfg.barrier&&cd.barrier<0.05&&boss.barrierHas)__wbSend('barrier');if(cfg.atk&&ls.mode==='bosscombat'){var _bh=boss.hp/boss.maxHp;var _hpC=_bh<(cfg.atkHpPct/100);var _olC=(window.__gmOnlineCount||0)>=cfg.atkOnline;var _atkOk=_hpC;if(cfg.atkLogic==='AND')_atkOk=_hpC&&_olC;else if(cfg.atkLogic==='OR')_atkOk=_hpC||_olC;else if(cfg.atkLogic==='NOT')_atkOk=!_hpC;}if(_atkOk)__wbSend('atk');}catch(e){}window.__wbBossAuto.timer=setTimeout(__wbBossLoop,500);}
 function __wbBossAutoStart(){window.__wbBossAuto.running=true;__wbBossLoop();}
 function __wbBossAutoStop(){window.__wbBossAuto.running=false;if(window.__wbBossAuto.timer)clearTimeout(window.__wbBossAuto.timer);}
 
@@ -1168,45 +1176,36 @@ function __gmBuildPanel(){
       '</div>'+
       '<div style="font-size:10px;color:#555;padding-left:22px;">&#x26A0;&#xFE0F; 伺服器仍會驗證冷卻</div>'+
     '</div>'+
+    '<div style="margin-top:6px;margin-bottom:6px;display:flex;align-items:center;gap:6px;">'+
+    '<input type="checkbox" id="__gmp_boss_auto_loot" style="width:13px;height:13px;cursor:pointer;">'+
+    '<label for="__gmp_boss_auto_loot" style="font-size:10px;color:#fbbf24;cursor:pointer;margin-right:4px;">\uD83D\uDCB0</label>'+
+    '<button id="__gmp_boss_history_btn" style="flex:1;padding:5px;background:#1a1a3e;border:1px solid #0f3460;color:#86c5ff;border-radius:4px;cursor:pointer;font-size:10px;font-weight:bold;">\uD83D\uDCCB BOSS \u5386\u53f2\u8bb0\u5f55</button>'+
+    '<button id="__gmp_boss_loot_btn" style="flex:1;padding:5px;background:#1a1a1a;border:1px solid #6b4226;color:#fbbf24;border-radius:4px;cursor:pointer;font-size:10px;font-weight:bold;">\uD83D\uDCB0 \u6389\u843d\u8A18\u9304</button>'+
+    '</div>'+
     // === 自動掛機 BOSS ===
 // === BOSS 自動設定 Modal ===
 '<div id="__gmp_boss_auto_modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9999;justify-content:center;align-items:center;">'+
 '<div style="background:#1a1a2e;border:2px solid #0f3460;border-radius:10px;padding:16px;width:350px;max-height:80vh;overflow-y:auto;">'+
 '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">'+
-'<span style="font-size:14px;color:#e94560;font-weight:bold;">\u2694\uFE0F BOSS 自動掛機設定</span>'+
+'<span style="font-size:14px;color:#e94560;font-weight:bold;">\u2694\uFE0F BOSS \u81ea\u52d5\u639b\u6a5f\u8a2d\u5b9a</span>'+
 '<button id="__gmp_boss_auto_modal_close" style="background:transparent;border:none;color:#888;font-size:18px;cursor:pointer;">\u2716</button>'+
 '</div>'+
-'<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">'+
-'<input type="checkbox" id="__gmp_boss_auto_pot" style="width:13px;height:13px;cursor:pointer;">'+
-'<label for="__gmp_boss_auto_pot" style="font-size:11px;color:#4ade80;cursor:pointer;">\u1F48A HP&lt;</label>'+
-'<input id="__gmp_boss_auto_hp" type="number" value="50" min="1" max="100" style="width:50px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;text-align:center;">'+
-'<span style="font-size:10px;color:#555;">%</span>'+
+// === Attack ===
+'<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+
+'<input type="checkbox" id="__gmp_boss_auto_atk" style="width:13px;height:13px;cursor:pointer;" checked>'+
+'<label for="__gmp_boss_auto_atk" style="font-size:11px;color:#f87171;cursor:pointer;">\u2694\uFE0F \u958b\u59cb\u653b\u64caBOSS</label>'+
 '</div>'+
-'<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">'+
-'<input type="checkbox" id="__gmp_boss_auto_heal" style="width:13px;height:13px;cursor:pointer;">'+
-'<label for="__gmp_boss_auto_heal" style="font-size:11px;color:#86efac;cursor:pointer;">\u1F49A 自動治療魔法</label>'+
-'</div>'+
-'<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">'+
-'<input type="checkbox" id="__gmp_boss_auto_barrier" style="width:13px;height:13px;cursor:pointer;">'+
-'<label for="__gmp_boss_auto_barrier" style="font-size:11px;color:#818cf8;cursor:pointer;">\u1F6E1\uFE0F Boss HP&lt;</label>'+
-'<input id="__gmp_boss_auto_barrier_pct" type="number" value="30" min="1" max="100" style="width:50px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;text-align:center;">'+
-'<span style="font-size:10px;color:#555;">%</span>'+
-'</div>'+
-'<div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;">'+
-'<input type="checkbox" id="__gmp_boss_auto_atk" style="width:13px;height:13px;cursor:pointer;">'+
-'<label for="__gmp_boss_auto_atk" style="font-size:11px;color:#f87171;cursor:pointer;">\u2694\uFE0F 自動攻擊</label>'+
-'</div>'+
-'<div style="display:flex;align-items:center;gap:4px;margin-bottom:12px;padding:8px;background:rgba(248,113,113,0.08);border-radius:4px;">'+
-'<input type="checkbox" id="__gmp_boss_auto_atk_cond_enable" style="width:13px;height:13px;cursor:pointer;">'+
-'<span style="font-size:10px;color:#f87171;">BOSS HP&lt;</span>'+
-'<input id="__gmp_boss_auto_atk_hp_pct" type="number" value="50" min="1" max="100" style="width:40px;padding:2px 4px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;text-align:center;">'+
+'<div style="display:flex;align-items:center;gap:4px;margin-bottom:8px;padding:6px 8px;background:rgba(248,113,113,0.08);border-radius:4px;">'+
+'<span style="font-size:10px;color:#f87171;">\u8a2d\u5b9aBOSS\u8840\u91cf\u5c11\u65bc</span>'+
+'<input id="__gmp_boss_auto_atk_hp_pct" type="number" value="100" min="0" max="100" style="width:45px;padding:2px 4px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;text-align:center;">'+
 '<span style="font-size:10px;color:#555;">%</span>'+
 '<select id="__gmp_boss_auto_atk_logic" style="padding:2px 4px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;">'+
-'<option value="AND">AND</option><option value="OR">OR</option><option value="NOT">NOT</option>'+
+'<option value="AND" selected>AND</option><option value="OR">OR</option><option value="NOT">NOT</option>'+
 '</select>'+
-'<span style="font-size:10px;color:#888;">人數&gt;</span>'+
+'<span style="font-size:10px;color:#888;">\u4eba\u6578</span>'+
 '<select id="__gmp_boss_auto_atk_online" style="padding:2px 4px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;">'+
-'<option value="1" selected>1</option>'+
+'<option value="0" selected>0</option>'+
+'<option value="1">1</option>'+
 '<option value="2">2</option>'+
 '<option value="3">3</option>'+
 '<option value="4">4</option>'+
@@ -1216,67 +1215,61 @@ function __gmBuildPanel(){
 '<option value="8">8</option>'+
 '<option value="9">9</option>'+
 '<option value="10">10</option>'+
-'<option value="11">11</option>'+
-'<option value="12">12</option>'+
-'<option value="13">13</option>'+
-'<option value="14">14</option>'+
-'<option value="15">15</option>'+
-'<option value="16">16</option>'+
-'<option value="17">17</option>'+
-'<option value="18">18</option>'+
-'<option value="19">19</option>'+
-'<option value="20">20</option>'+
 '</select>'+
+'<span style="font-size:10px;color:#888;">\u89f8\u767c &gt;0</span>'+
 '</div>'+
+// === Stop ===
+'<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+
+'<input type="checkbox" id="__gmp_boss_auto_stop" style="width:13px;height:13px;cursor:pointer;">'+
+'<label for="__gmp_boss_auto_stop" style="font-size:11px;color:#ffa500;cursor:pointer;">\uD83D\uDED1 \u505c\u6b62\u653b\u64ca</label>'+
+'</div>'+
+'<div style="display:flex;align-items:center;gap:4px;margin-bottom:8px;padding:6px 8px;background:rgba(255,165,0,0.08);border-radius:4px;">'+
+'<span style="font-size:10px;color:#ffa500;">\u73a9\u5bb6HP\u5c11\u65bc</span>'+
+'<input id="__gmp_boss_auto_stop_hp" type="number" value="30" min="1" max="100" style="width:45px;padding:2px 4px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;text-align:center;">'+
+'<span style="font-size:10px;color:#555;">% \u89f8\u767c</span>'+
+'</div>'+
+// === Pot ===
+'<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+
+'<input type="checkbox" id="__gmp_boss_auto_pot" style="width:13px;height:13px;cursor:pointer;" checked>'+
+'<label for="__gmp_boss_auto_pot" style="font-size:11px;color:#4ade80;cursor:pointer;">\uD83D\uDC8A \u559d\u6c34</label>'+
+'</div>'+
+'<div style="display:flex;align-items:center;gap:4px;margin-bottom:8px;padding:6px 8px;background:rgba(74,222,128,0.08);border-radius:4px;">'+
+'<span style="font-size:10px;color:#4ade80;">\u73a9\u5bb6HP\u5c11\u65bc</span>'+
+'<input id="__gmp_boss_auto_pot_hp" type="number" value="80" min="1" max="100" style="width:45px;padding:2px 4px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;text-align:center;">'+
+'<span style="font-size:10px;color:#555;">% \u4f7f\u7528</span>'+
+'</div>'+
+// === AtkSkill ===
+'<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">'+
+'<input type="checkbox" id="__gmp_boss_auto_atk_skill" style="width:13px;height:13px;cursor:pointer;" checked>'+
+'<label for="__gmp_boss_auto_atk_skill" style="font-size:11px;color:#fbbf24;cursor:pointer;">\u26A1 \u653b\u64ca\u6280\u80fd</label>'+
+'</div>'+
+// === Heal ===
+'<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+
+'<input type="checkbox" id="__gmp_boss_auto_heal" style="width:13px;height:13px;cursor:pointer;" checked>'+
+'<label for="__gmp_boss_auto_heal" style="font-size:11px;color:#86efac;cursor:pointer;">\uD83D\uDC9A \u6cbb\u7642\u9b54\u6cd5</label>'+
+'</div>'+
+'<div style="display:flex;align-items:center;gap:4px;margin-bottom:8px;padding:6px 8px;background:rgba(134,239,172,0.08);border-radius:4px;">'+
+'<span style="font-size:10px;color:#86efac;">\u73a9\u5bb6HP\u5c11\u65bc</span>'+
+'<input id="__gmp_boss_auto_heal_hp" type="number" value="70" min="1" max="100" style="width:45px;padding:2px 4px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;text-align:center;">'+
+'<span style="font-size:10px;color:#555;">% \u4f7f\u7528</span>'+
+'</div>'+
+// === Barrier ===
+'<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">'+
+'<input type="checkbox" id="__gmp_boss_auto_barrier" style="width:13px;height:13px;cursor:pointer;" checked>'+
+'<label for="__gmp_boss_auto_barrier" style="font-size:11px;color:#818cf8;cursor:pointer;">\uD83D\uDEE1\uFE0F \u4f7f\u7528\u9b54\u6cd5\u5c4f\u969c</label>'+
+'</div>'+
+// === Bypass ===
 '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:8px;background:rgba(255,215,0,0.05);border-radius:4px;">'+
 '<input type="checkbox" id="__gmp_boss_bypass" style="width:14px;height:14px;cursor:pointer;">'+
-'<label for="__gmp_boss_bypass" style="font-size:11px;color:#ffd700;cursor:pointer;">\u1F513 解除冷卻限制</label>'+
+'<label for="__gmp_boss_bypass" style="font-size:11px;color:#ffd700;cursor:pointer;">\uD83D\uDD13 \u89e3\u9664\u51b7\u5374\u9650\u5236</label>'+
 '</div>'+
+// === Status + Action Button ===
 '<div style="text-align:center;margin-top:4px;">'+
-'<span id="__gmp_boss_auto_status" style="font-size:11px;color:#888;display:block;margin-bottom:8px;">停止中</span>'+
-'<button id="__gmp_boss_auto_btn" style="width:100%;padding:10px;background:#e94560;border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:13px;font-weight:bold;">\u25B6 啟動自動戰鬥</button>'+
-'</div>'+
-'</div>'+
-'<div style="margin-top:12px;margin-bottom:12px;border-top:1px solid #333;padding-top:10px;">'+
-'<div style="font-size:12px;color:#ffd700;font-weight:bold;margin-bottom:8px;">\u2694\uFE0F BOSS 進入設定</div>'+
-'<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
-'<span id="__gmp_boss_entry_atkSkill_chk" style="font-size:14px;color:#555;">\u25CB</span>'+
-'<span style="font-size:11px;color:#f87171;">攻擊技能</span>'+
-'<select id="__gmp_boss_entry_atkSkill" style="flex:1;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;">'+
-'<option value="">-- 請選擇 --</option>'+
-'</select>'+
-'</div>'+
-'<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
-'<span id="__gmp_boss_entry_potType_chk" style="font-size:14px;color:#555;">\u25CB</span>'+
-'<span style="font-size:11px;color:#4ade80;">喝水設定</span>'+
-'<select id="__gmp_boss_entry_potType" style="flex:1;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;">'+
-'<option value="">-- 請選擇 --</option>'+
-'<option value="potion_ult" selected>白色藥水</option>'+
-'<option value="potion_s">小型藥水</option>'+
-'<option value="potion_m">中型藥水</option>'+
-'<option value="potion_l">大型藥水</option>'+
-'</select>'+
-'</div>'+
-'<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
-'<span id="__gmp_boss_entry_healSkill_chk" style="font-size:14px;color:#555;">\u25CB</span>'+
-'<span style="font-size:11px;color:#86efac;">治療魔法</span>'+
-'<select id="__gmp_boss_entry_healSkill" style="flex:1;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;">'+
-'<option value="">-- 請選擇 --</option>'+
-'</select>'+
-'</div>'+
-'<div style="display:flex;gap:4px;margin-top:8px;">'+
-'<button id="__gmp_boss_entry_save" style="flex:1;padding:6px;background:#1a4a1a;border:1px solid #4ade80;color:#4ade80;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;">儲存設定</button>'+
-'<button id="__gmp_boss_entry_reset" style="padding:6px 10px;background:#4a1a1a;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:11px;">清除</button>'+
+'<span id="__gmp_boss_auto_status" style="font-size:11px;color:#888;display:block;margin-bottom:8px;">\u505c\u6b62\u4e2d</span>'+
+'<button id="__gmp_boss_auto_btn" style="width:100%;padding:10px;background:#e94560;border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:13px;font-weight:bold;">\u25B6 \u5553\u52d5\u81ea\u52d5\u6230\u9b25</button>'+
 '</div>'+
 '</div>'+
 
-'</div>'+
-    '<div style="margin-top:6px;margin-bottom:6px;display:flex;align-items:center;gap:6px;">'+
-    '<input type="checkbox" id="__gmp_boss_auto_loot" style="width:13px;height:13px;cursor:pointer;">'+
-    '<label for="__gmp_boss_auto_loot" style="font-size:10px;color:#fbbf24;cursor:pointer;margin-right:4px;">\uD83D\uDCB0</label>'+
-    '<button id="__gmp_boss_history_btn" style="flex:1;padding:5px;background:#1a1a3e;border:1px solid #0f3460;color:#86c5ff;border-radius:4px;cursor:pointer;font-size:10px;font-weight:bold;">\U0001F4CB BOSS \u5386\u53f2\u8bb0\u5f55</button>'+
-    '<button id="__gmp_boss_loot_btn" style="flex:1;padding:5px;background:#1a1a1a;border:1px solid #6b4226;color:#fbbf24;border-radius:4px;cursor:pointer;font-size:10px;font-weight:bold;">\uD83D\uDCB0 \u6389\u843d\u8A18\u9304</button>'+
-    '</div>'+
 
     // === Socket 狀態 + 匯入匯出 ===
     '<div style="margin-bottom:6px;">'+
@@ -1301,6 +1294,7 @@ function __gmBuildPanel(){
       '<span style="font-size:9px;color:#555;">事件:</span>'+
       '<span id="__gmp_wb_evt_name" style="font-size:9px;color:#ffd700;">DOM 即時讀取</span>'+
     '</div>'+
+  '</div>'+  // closes __gmp_tab_content_boss
   '</div>'+// === MONITOR TAB ===
     '<div id="__gmp_tab_content_monitor" style="display:none;">'+
       '<div style="background:rgba(74,222,128,0.08);padding:8px;border-radius:6px;margin-bottom:8px;">'+
@@ -1438,7 +1432,7 @@ function __gmBuildPanel(){
       '<input id="__gmp_farm_char_name" type="text" placeholder="角色名稱" style="flex:1;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;">'+
     '</div>'+
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:10px;color:#888;">'+
-      '檢測間隔 <input id="__gmp_farm_reconnect_interval" type="number" value="60" min="10" max="300" style="width:50px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;outline:none;text-align:center;"> 秒'+
+      '檢測間隔 <input id="__gmp_farm_reconnect_interval" type="number" value="600" min="10" max="900" style="width:50px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;outline:none;text-align:center;"> 秒'+
     '</div>'+
     // Auto attack
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
@@ -1604,6 +1598,16 @@ function __gmBuildPanel(){
   document.getElementById('__gmp_tab_farm').onclick=function(){switchTab('farm')};
   document.getElementById('__gmp_tab_boss').onclick=function(){switchTab('boss');};
   document.getElementById('__gmp_tab_monitor').onclick=function(){switchTab('monitor')};
+  document.getElementById('__gmp').addEventListener('click',function(e){
+    var t=e.target;
+    if(t&&t.getAttribute&&t.getAttribute('data-wb-add-hunt')){
+      var parts=t.getAttribute('data-wb-add-hunt').split('|');
+      if(parts.length>=3&&typeof __wbAddToHuntList==='function'){
+        __wbAddToHuntList(parts[0],parts[1],parseInt(parts[2],10));
+        __wbUpdateWorldBossUI();
+      }
+    }
+  });
 
   // ========== Monitor Tab Logic ==========
   window.__pmLog=[];
@@ -2345,12 +2349,19 @@ function __gmBuildPanel(){
   // Auto boss
   function __wbSyncAutoConfig(){
     var cfg=window.__wbBossAuto.config;
+    cfg.atk=document.getElementById('__gmp_boss_auto_atk').checked;
+    cfg.atkHpPct=parseInt(document.getElementById('__gmp_boss_auto_atk_hp_pct').value)||100;
+    cfg.atkLogic=document.getElementById('__gmp_boss_auto_atk_logic').value;
+    cfg.atkOnline=parseInt(document.getElementById('__gmp_boss_auto_atk_online').value)||0;
+    cfg.stop=document.getElementById('__gmp_boss_auto_stop').checked;
+    cfg.stopHp=parseInt(document.getElementById('__gmp_boss_auto_stop_hp').value)||30;
     cfg.pot=document.getElementById('__gmp_boss_auto_pot').checked;
+    cfg.potHp=parseInt(document.getElementById('__gmp_boss_auto_pot_hp').value)||80;
+    cfg.atkSkill=document.getElementById('__gmp_boss_auto_atk_skill').checked;
     cfg.heal=document.getElementById('__gmp_boss_auto_heal').checked;
+    cfg.healHp=parseInt(document.getElementById('__gmp_boss_auto_heal_hp').value)||70;
     cfg.barrier=document.getElementById('__gmp_boss_auto_barrier').checked;
-    cfg.atk=document.getElementById('__gmp_boss_auto_atk').checked;cfg.atkCondEnabled=document.getElementById('__gmp_boss_auto_atk_cond_enable').checked;cfg.atkHpPct=parseInt(document.getElementById('__gmp_boss_auto_atk_hp_pct').value)||50;cfg.atkLogic=document.getElementById('__gmp_boss_auto_atk_logic').value;cfg.atkOnline=parseInt(document.getElementById('__gmp_boss_auto_atk_online').value)||1;
-    cfg.hpPct=parseInt(document.getElementById('__gmp_boss_auto_hp').value)||50;
-    cfg.barrierPct=parseInt(document.getElementById('__gmp_boss_auto_barrier_pct').value)||30;
+    cfg.bypass=document.getElementById('__gmp_boss_bypass')?document.getElementById('__gmp_boss_bypass').checked:false;
   }
   document.getElementById('__gmp_boss_auto_pot').addEventListener('change',__wbSyncAutoConfig);
   document.getElementById('__gmp_boss_auto_heal').addEventListener('change',__wbSyncAutoConfig);
@@ -2382,8 +2393,11 @@ function __gmBuildPanel(){
     if(modal){modal.style.display='flex';}
     setTimeout(function(){try{if(typeof __wbLoadEntrySkills==='function')__wbLoadEntrySkills();}catch(e){}},100);
   };
-    document.getElementById('__gmp_boss_history_btn').onclick=function(){
+    var _hbtn=document.getElementById('__gmp_boss_history_btn');if(_hbtn)_hbtn.onclick=function(){
     if(typeof __wbOpenBossHistoryModal==='function')__wbOpenBossHistoryModal();
+  };
+  var _lbtn=document.getElementById('__gmp_boss_loot_btn');if(_lbtn)_lbtn.onclick=function(){
+    if(typeof __wbOpenBossLootModal==='function')__wbOpenBossLootModal();
   };
 
   window.__wbOpenBossHistoryModal=function(){
@@ -2692,8 +2706,8 @@ function __gmBuildPanel(){
     var modal=document.getElementById('__gmp_boss_auto_modal');
     if(modal){modal.style.display='none';}
   };
-  document.getElementById('__gmp_boss_auto_hp').addEventListener('input',__wbSyncAutoConfig);
-  document.getElementById('__gmp_boss_auto_barrier_pct').addEventListener('input',__wbSyncAutoConfig);
+  var _ph=document.getElementById('__gmp_boss_auto_pot_hp');if(_ph)_ph.addEventListener('input',__wbSyncAutoConfig);
+  var _bpct=document.getElementById('__gmp_boss_auto_barrier_pct');if(_bpct)_bpct.addEventListener('input',__wbSyncAutoConfig);
 
   // === BOSS config save/load ===
 
@@ -2870,19 +2884,28 @@ function __gmBuildPanel(){
     var cfg=window.__wbBossAuto.config;
     var el=document.getElementById('__gmp_boss_auto_pot');if(el)el.checked=cfg.pot;
     el=document.getElementById('__gmp_boss_auto_heal');if(el)el.checked=cfg.heal;
-    el=document.getElementById('__gmp_boss_auto_barrier');if(el)el.checked=cfg.barrier;
     el=document.getElementById('__gmp_boss_auto_atk');if(el)el.checked=cfg.atk;
-    el=document.getElementById('__gmp_boss_auto_hp');if(el)el.value=cfg.hpPct;
-    el=document.getElementById('__gmp_boss_auto_barrier_pct');if(el)el.value=cfg.barrierPct;
-    el=document.getElementById('__gmp_boss_auto_atk_cond_enable');if(el)el.checked=cfg.atkCondEnabled;
-    el=document.getElementById('__gmp_boss_auto_atk_hp_pct');if(el)el.value=cfg.atkHpPct||50;
+    el=document.getElementById('__gmp_boss_auto_atk_hp_pct');if(el)el.value=cfg.atkHpPct||100;
     el=document.getElementById('__gmp_boss_auto_atk_logic');if(el)el.value=cfg.atkLogic||'AND';
-    el=document.getElementById('__gmp_boss_auto_atk_online');if(el)el.value=cfg.atkOnline||1;
+    el=document.getElementById('__gmp_boss_auto_atk_online');if(el)el.value=cfg.atkOnline||0;
+    el=document.getElementById('__gmp_boss_auto_stop');if(el)el.checked=cfg.stop;
+    el=document.getElementById('__gmp_boss_auto_stop_hp');if(el)el.value=cfg.stopHp||30;
+    el=document.getElementById('__gmp_boss_auto_pot');if(el)el.checked=cfg.pot;
+    el=document.getElementById('__gmp_boss_auto_pot_hp');if(el)el.value=cfg.potHp||80;
+    el=document.getElementById('__gmp_boss_auto_atk_skill');if(el)el.checked=cfg.atkSkill;
+    el=document.getElementById('__gmp_boss_auto_heal');if(el)el.checked=cfg.heal;
+    el=document.getElementById('__gmp_boss_auto_heal_hp');if(el)el.value=cfg.healHp||70;
+    el=document.getElementById('__gmp_boss_auto_barrier');if(el)el.checked=cfg.barrier;
+    el=document.getElementById('__gmp_boss_bypass');if(el)el.checked=cfg.bypass;
   }
   // Auto-save on any change
-  ['__gmp_boss_auto_pot','__gmp_boss_auto_heal','__gmp_boss_auto_barrier','__gmp_boss_auto_atk',
-   '__gmp_boss_auto_hp','__gmp_boss_auto_barrier_pct','__gmp_boss_auto_atk_hp_pct',
-   '__gmp_boss_auto_atk_logic','__gmp_boss_auto_atk_online','__gmp_boss_auto_atk_cond_enable',
+  ['__gmp_boss_auto_atk','__gmp_boss_auto_atk_hp_pct','__gmp_boss_auto_atk_logic','__gmp_boss_auto_atk_online',
+   '__gmp_boss_auto_stop','__gmp_boss_auto_stop_hp',
+   '__gmp_boss_auto_pot','__gmp_boss_auto_pot_hp',
+   '__gmp_boss_auto_atk_skill',
+   '__gmp_boss_auto_heal','__gmp_boss_auto_heal_hp',
+   '__gmp_boss_auto_barrier',
+   '__gmp_boss_bypass',
   ].forEach(function(id){
     var el=document.getElementById(id);
     if(el)el.addEventListener('change',function(){setTimeout(__wbSaveBossConfig,100);});
@@ -3179,8 +3202,8 @@ function __gmBuildPanel(){
     document.getElementById('__gmp_farm_mp_chk').checked=data.mpEnabled!==false;
     if(data.hpGtThresh)document.getElementById('__gmp_farm_hp_gt').value=data.hpGtThresh;
     if(data.mpGtThresh)document.getElementById('__gmp_farm_mp_gt').value=data.mpGtThresh;
-    document.getElementById('__gmp_farm_hp_gt_chk').checked=data.hpGtEnabled||false;
-    document.getElementById('__gmp_farm_mp_gt_chk').checked=data.mpGtEnabled||false;
+    document.getElementById('__gmp_farm_hp_gt_chk').checked=data.hpGtEnabled!==false;
+    document.getElementById('__gmp_farm_mp_gt_chk').checked=data.mpGtEnabled!==false;
     if(data.logicOp)document.getElementById('__gmp_farm_logic').value=data.logicOp;
     document.getElementById('__gmp_farm_logic_chk').checked=data.logicEnabled!==false;
     document.getElementById('__gmp_farm_atk').checked=data.autoAtk!==false;

@@ -876,7 +876,7 @@ function __wbUpdateWorldBossUI(){
         var rsStr=b.respawn!==null?'\u91cd\u751f:'+Math.floor(b.respawn/60)+'m '+String((b.respawn%60)+'s').padStart(3,'0'):(b.status==='alive'?'\u5b58\u6d3b\u4e2d':'--');
         var sc={alive:'#4ade80',dead:'#888',waiting:'#fbbf24',unknown:'#555'};
         var inHunt=huntIds.indexOf(b.id)!==-1;
-        var addBtn=inHunt?'<span style="color:#4caf50;font-size:11px;min-width:18px;">\u2713</span>':'<span onclick="__wbAddToHuntList(\''+b.id+'\',\''+b.name+'\','+b.lv+')" style="color:#4caf50;font-size:14px;cursor:pointer;min-width:18px;text-align:center;">[+]</span>';
+        var addBtn=inHunt?'<span style="color:#4caf50;font-size:11px;min-width:18px;">\u2713</span>':'<span data-wb-add-id="'+b.id+'" data-wb-add-name="'+b.name+'" data-wb-add-lv="'+b.lv+'" style="color:#4caf50;font-size:14px;cursor:pointer;min-width:18px;text-align:center;">[+]</span>';
         return '<div style="display:flex;align-items:center;gap:4px;padding:4px 6px;background:rgba(233,69,96,0.06);border-radius:5px;margin-bottom:2px;border-left:3px solid '+sc[b.status]+';">'+
           addBtn+
           '<span style="font-size:10px;color:#e94560;min-width:70px;">'+b.name+'</span>'+
@@ -913,7 +913,7 @@ function __wbDetectWorldBossEvt(){
   return null;
 }
 
-function __wbBossLoop(){if(!window.__wbBossAuto.running)return;var ls=window.lastState||{};var ch=ls.char||{};var boss=ls.boss||{};var cd=boss.cd||{};var cfg=window.__wbBossAuto.config;var hpPct=ch.maxHp>0?ch.hp/ch.maxHp:1;try{if(cfg.pot&&hpPct<(cfg.hpPct/100)&&cd.pot<0.05)__wbSend('pot');if(cfg.heal&&cd.heal<0.05)__wbSend('heal');if(cfg.barrier&&boss.hp>0&&boss.maxHp>0&&(boss.hp/boss.maxHp)<(cfg.barrierPct/100)&&cd.barrier<0.05&&boss.barrierHas)__wbSend('barrier');if(cfg.atk&&ls.mode==='bosscombat'&&cd.atk<0.05)__wbSend('atk');}catch(e){}window.__wbBossAuto.timer=setTimeout(__wbBossLoop,500);}
+function __wbBossLoop(){if(!window.__wbBossAuto.running)return;var ls=window.lastState||{};var ch=ls.char||{};var boss=ls.boss||{};var cd=boss.cd||{};var cfg=window.__wbBossAuto.config;var hpPct=ch.maxHp>0?ch.hp/ch.maxHp:1;try{if(cfg.stop&&hpPct<(cfg.stopHp/100)&&cd.stop<0.05)__wbSend('stop');if(cfg.pot&&hpPct<(cfg.potHp/100)&&cd.pot<0.05)__wbSend('pot');if(cfg.atkSkill&&cd.atk<0.05)__wbSend('atk');if(cfg.heal&&hpPct<(cfg.healHp/100)&&cd.heal<0.05)__wbSend('heal');if(cfg.barrier&&cd.barrier<0.05&&boss.barrierHas)__wbSend('barrier');if(cfg.atk&&ls.mode==='bosscombat')__wbSend('atk');}catch(e){}window.__wbBossAuto.timer=setTimeout(__wbBossLoop,500);}
 
 function __wbBossAutoStart(){
   window.__wbBossAuto.running=true;
@@ -996,8 +996,11 @@ function __wbToggleBypass(on){window.__wbBypassCD=on;if(on&&!window.__wbBypassPa
     cfg.heal=document.getElementById('__gmp_boss_auto_heal').checked;
     cfg.barrier=document.getElementById('__gmp_boss_auto_barrier').checked;
     cfg.atk=document.getElementById('__gmp_boss_auto_atk').checked;
-    cfg.hpPct=parseInt(document.getElementById('__gmp_boss_auto_hp').value)||50;
-    cfg.barrierPct=parseInt(document.getElementById('__gmp_boss_auto_barrier_pct').value)||30;
+    cfg.potHp=parseInt(document.getElementById('__gmp_boss_auto_pot_hp').value)||80;
+    cfg.healHp=parseInt(document.getElementById('__gmp_boss_auto_heal_hp').value)||70;
+    cfg.stop=document.getElementById('__gmp_boss_auto_stop').checked;
+    cfg.stopHp=parseInt(document.getElementById('__gmp_boss_auto_stop_hp').value)||30;
+    cfg.atkSkill=document.getElementById('__gmp_boss_auto_atk_skill').checked;
   }
 
   function __wbBossStartUpdater(){
@@ -1063,11 +1066,11 @@ function __wbUpdateHuntListUI(){
     if(countEl)countEl.textContent=list.length+' \u53ea';
     if(list.length){
       el.innerHTML=list.map(function(i,idx){
-        var upBtn=idx>0?'<span style="font-size:9px;color:#aaa;cursor:pointer;min-width:14px;text-align:center;" onclick="__wbMoveHuntItem(\''+i.id+'\',-1)">\u25B2</span>':'<span style="font-size:9px;color:#333;min-width:14px;text-align:center;">\u25B2</span>';
-        var dnBtn=idx<list.length-1?'<span style="font-size:9px;color:#aaa;cursor:pointer;min-width:14px;text-align:center;" onclick="__wbMoveHuntItem(\''+i.id+'\',1)">\u25BC</span>':'<span style="font-size:9px;color:#333;min-width:14px;text-align:center;">\u25BC</span>';
+        var upBtn=idx>0?'<span style="font-size:9px;color:#aaa;cursor:pointer;min-width:14px;text-align:center;" data-wb-move="'+i.id+'" data-wb-move-dir="up">\u25B2</span>':'<span style="font-size:9px;color:#333;min-width:14px;text-align:center;">\u25B2</span>';
+        var dnBtn=idx<list.length-1?'<span style="font-size:9px;color:#aaa;cursor:pointer;min-width:14px;text-align:center;" data-wb-move="'+i.id+'" data-wb-move-dir="down">\u25BC</span>':'<span style="font-size:9px;color:#333;min-width:14px;text-align:center;">\u25BC</span>';
         return '<div style="display:flex;align-items:center;gap:2px;padding:4px 6px;background:rgba(76,175,80,0.08);border-radius:5px;margin-bottom:2px;border-left:3px solid #4caf50;">'+
           upBtn+dnBtn+
-          '<span style="font-size:10px;color:#4caf50;min-width:18px;cursor:pointer;" onclick="__wbRemoveFromHuntList(\''+i.id+'\')">[x]</span>'+
+          '<span style="font-size:10px;color:#4caf50;min-width:18px;cursor:pointer;" data-wb-remove="'+i.id+'">[x]</span>'+
           '<span style="font-size:10px;color:#4caf50;min-width:70px;">'+i.name+'</span>'+
           '<span style="font-size:9px;color:#aaa;">Lv.'+i.lv+'</span>'+
         '</div>';
