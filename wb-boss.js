@@ -1,4 +1,4 @@
-/* wb-boss.js v3.08 - BOSS Auto Script */
+/* wb-boss.js v3.25 - BOSS Auto Script */
 // ====== wb-boss.js - World Boss Module ======
 // Extracted from game-monitor.js v2.30
 // Encapsulated in IIFE, all functions on window.__wb* namespace
