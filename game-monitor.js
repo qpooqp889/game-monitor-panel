@@ -1080,7 +1080,7 @@ function __gmBuildPanel(){
     // === BOSS 自動開關 ===
 '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:8px;background:rgba(233,69,96,0.12);border-radius:6px;">'+
 '<input type="checkbox" id="__gmp_boss_auto_enable" style="width:16px;height:16px;cursor:pointer;">'+
-'<label for="__gmp_boss_auto_enable" style="font-size:12px;color:#e94560;font-weight:bold;cursor:pointer;">\u2694\uFE0F 自動BOSS</label>'+
+'<label for="__gmp_boss_auto_enable" style="font-size:12px;color:#e94560;font-weight:bold;cursor:pointer;">\u2694\uFE0F 自動戰鬥</label>'+
 '<span id="__gmp_boss_auto_status_short" style="font-size:10px;color:#888;">停止中</span>'+
 '<div style="flex:1;"></div>'+
 '<button id="__gmp_boss_auto_config_btn" style="padding:4px 8px;background:#0f3460;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:10px;">\u2699 進階設定</button>'+
@@ -1095,7 +1095,7 @@ function __gmBuildPanel(){
           '<span>BOSS HP</span><span id="__gmp_boss_hp_text" style="color:#e94560;">--/--</span>'+
         '</div>'+'<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:6px 8px;background:rgba(76,175,80,0.10);border-radius:6px;">'+
 '<input type="checkbox" id="__gmp_boss_auto_script" style="width:16px;height:16px;cursor:pointer;">'+
-'<label for="__gmp_boss_auto_script" style="font-size:12px;color:#4caf50;font-weight:bold;cursor:pointer;">\uD83C\uDFAF 自動BOSS腳本</label>'+
+'<label for="__gmp_boss_auto_script" style="font-size:12px;color:#4caf50;font-weight:bold;cursor:pointer;">\uD83C\uDFAF 自動進入世界王</label>'+
 '<span id="__gmp_boss_script_status" style="font-size:9px;color:#888;">\u00B7 閒置中</span>'+
 '</div>'+
 
@@ -1229,7 +1229,7 @@ function __gmBuildPanel(){
 '</div>'+
 '<div style="text-align:center;margin-top:4px;">'+
 '<span id="__gmp_boss_auto_status" style="font-size:11px;color:#888;display:block;margin-bottom:8px;">停止中</span>'+
-'<button id="__gmp_boss_auto_btn" style="width:100%;padding:10px;background:#e94560;border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:13px;font-weight:bold;">\u25B6 啟動自動BOSS</button>'+
+'<button id="__gmp_boss_auto_btn" style="width:100%;padding:10px;background:#e94560;border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:13px;font-weight:bold;">\u25B6 啟動自動戰鬥</button>'+
 '</div>'+
 '</div>'+
 '<div style="margin-top:12px;margin-bottom:12px;border-top:1px solid #333;padding-top:10px;">'+
@@ -2283,15 +2283,15 @@ function __gmBuildPanel(){
       __wbSyncAutoConfig();
       __wbBossAutoStart();
       var btn=document.getElementById('__gmp_boss_auto_btn');
-      if(btn){btn.textContent='\u25A0 停止自動BOSS';btn.style.background='#e94560';}
+      if(btn){btn.textContent='\u25A0 停止自動戰鬥';btn.style.background='#e94560';}
       var s=document.getElementById('__gmp_boss_auto_status');
-      if(s){s.textContent='\u26A1 自動BOSS運行中...';s.style.color='#4ade80';}
+      if(s){s.textContent='\u26A1 自動戰鬥運行中...';s.style.color='#4ade80';}
       var ss=document.getElementById('__gmp_boss_auto_status_short');
-      if(ss){ss.textContent='\u26A1 自動BOSS運行中...';ss.style.color='#4ade80';}
+      if(ss){ss.textContent='\u26A1 自動戰鬥運行中...';ss.style.color='#4ade80';}
     } else {
       __wbBossAutoStop();
       var btn=document.getElementById('__gmp_boss_auto_btn');
-      if(btn){btn.textContent='\u25B6 啟動自動BOSS';btn.style.background='#0f3460';}
+      if(btn){btn.textContent='\u25B6 啟動自動戰鬥';btn.style.background='#0f3460';}
       var s=document.getElementById('__gmp_boss_auto_status');
       if(s){s.textContent='停止中';s.style.color='#888';}
       var ss=document.getElementById('__gmp_boss_auto_status_short');
@@ -2561,15 +2561,15 @@ function __gmBuildPanel(){
   document.getElementById('__gmp_boss_auto_btn').onclick=function(){
     if(window.__wbBossAuto.running){
       __wbBossAutoStop();
-      this.textContent='▶ 啟動自動BOSS';
+      this.textContent='▶ 啟動自動戰鬥';
       this.style.background='#0f3460';
       var s=document.getElementById('__gmp_boss_auto_status');
       if(s){s.textContent='停止中';s.style.color='#888';}var ce=document.getElementById('__gmp_boss_auto_enable');if(ce)ce.checked=false;var ss=document.getElementById('__gmp_boss_auto_status_short');if(ss){ss.textContent='停止中';ss.style.color='#888';}
     } else {
       __wbSyncAutoConfig();
       __wbBossAutoStart();
-      this.textContent='■ 停止自動BOSS';
-      this.style.background='#e94560';var ce=document.getElementById('__gmp_boss_auto_enable');if(ce)ce.checked=true;var ss=document.getElementById('__gmp_boss_auto_status_short');if(ss){ss.textContent='⚡ 自動BOSS運行中...';ss.style.color='#4ade80';}
+      this.textContent='■ 停止自動戰鬥';
+      this.style.background='#e94560';var ce=document.getElementById('__gmp_boss_auto_enable');if(ce)ce.checked=true;var ss=document.getElementById('__gmp_boss_auto_status_short');if(ss){ss.textContent='⚡ 自動戰鬥運行中...';ss.style.color='#4ade80';}
     }
   };
 
