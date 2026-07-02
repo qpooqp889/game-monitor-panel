@@ -102,7 +102,35 @@ function __wbHuntDeleteSelected(){
 
 // ====== BOSS 自動腳本狀態 ======
 // 全域狀態物件：running/停止中、timer/排程器、currentIdx/目前索引、phase/階段、farmWasRunning/農怪是否先前執行中
-window.__wbBossAutoScript={running:false,timer:null,currentIdx:0,phase:'idle',farmWasRunning:false};
+window.__wbBossAutoScript={running:false,timer:null,currentIdx:0,phase:'idle',farmWasRunning:false,
+mode:'scheduled',respawnTimer:null,respawnBoss:null,respawnAttempts:0};
+// mode: 'scheduled' (盯第一個+重生計時) 或 'realtime' (每輪掃全部)
+// respawnTimer: 重生專屬計時器
+// respawnBoss: 正在等重生的 BOSS 物件
+// respawnAttempts: 重進嘗試次數 (最多3次)
+
+// ====== 模式持久化 ======
+// 設定模式並立即儲存
+function __wbSetBossScriptMode(mode){
+  if(!window.__wbBossAutoScript)return;
+  window.__wbBossAutoScript.mode=mode;
+  __wbSaveBossScriptMode(mode);
+  console.log('[WB-BossScript] Mode set to:'+mode);
+}
+
+function __wbLoadBossScriptMode(){
+  if(!window.__gmStorageGet)return;
+  __gmStorageGet('wb_script_mode',function(v){
+    var el=document.getElementById('__gmp_boss_script_mode');
+    if(el&&v)el.value=v;
+    window.__wbBossAutoScript.mode=v||'scheduled';
+  });
+}
+function __wbSaveBossScriptMode(m){
+  window.__wbBossAutoScript.mode=m;
+  if(window.__gmStorageSet)window.__gmStorageSet('wb_script_mode',{mode:m});
+}
+
 
 // ====== BOSS 自動腳本主循環（開始/停止/主迴圈） ======
 
@@ -112,6 +140,7 @@ function __wbBossAutoScriptStart(){
   if(window.__wbBossAutoScript.running)return;
   var cfgChk=document.getElementById('__gmp_boss_auto_script_enable');
   if(!cfgChk||!cfgChk.checked)return;
+  __wbLoadBossScriptMode();
 
   // Remember & stop farming
   // 記住目前農怪狀態，稍後才能在結束時復原
@@ -145,6 +174,8 @@ function __wbBossAutoScriptStop(){
     clearTimeout(window.__wbBossAutoScript.timer);
     window.__wbBossAutoScript.timer=null;
   }
+  clearTimeout(window.__wbBossAutoScript.respawnTimer);
+  window.__wbBossAutoScript.respawnTimer=null;
   window.__wbBossAutoScript.currentIdx=0;
   window.__wbBossAutoScript.phase='idle';
   var statusEl=document.getElementById('__gmp_boss_script_status');
@@ -166,58 +197,153 @@ function __wbBossAutoScriptLoop(){
   if(!window.__wbBossAutoScript.running)return;
   var cfgChk=document.getElementById('__gmp_boss_auto_script_enable');
   if(!cfgChk||!cfgChk.checked){__wbBossAutoScriptStop();return;}
-
+  var mode=window.__wbBossAutoScript.mode||'scheduled';
   __wbGetHuntList(function(list){
     if(!list||!list.length){
-      // 討伐清單為空，還原農怪並等待 10 秒後重試
       window.__wbBossAutoScript.phase='idle';
       __wbBossAutoScriptRestoreFarm();
       window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,10000);
       return;
     }
-
+    // 即時模式：依序遍歷全部，找第一個存活的
+    if(mode==='realtime'){
+      __wbBossAutoScriptLoopRealtime(list,0);
+      return;
+    }
+    // 排定模式：只看 currentIdx
     var idx=window.__wbBossAutoScript.currentIdx;
     if(idx>=list.length){
-      // Reached end of hunt list → restore farm
-      // 討伐清單跑完一輪，重置索引，還原農怪，5 秒後再檢查一次
-      console.log('[WB-AutoScript] Completed hunt list, restoring farm');
       window.__wbBossAutoScript.currentIdx=0;
       __wbBossAutoScriptRestoreFarm();
       window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,5000);
       return;
     }
-
     var target=list[idx];
     window.__wbBossAutoScript.phase='checking';
     var statusEl=document.getElementById('__gmp_boss_script_status');
     if(statusEl)statusEl.textContent='[BOSS] '+target.name+' ('+(idx+1)+'/'+list.length+')...';
-
-    console.log('[WB-AutoScript] Checking #'+(idx+1)+': '+target.name);
-
-    // Step 1: Navigate to world boss tab
-    // 確保遊戲畫面切到世界王頁籤
     try{__wbEnsureWBTab();}catch(e){}
-
-    // Step 2: Wait for boss data, then check
-    // 等待 2 秒讓 DOM 更新後再檢查 BOSS 狀態
     window.__wbBossAutoScript.phase='waiting_boss';
     window.__wbBossAutoScript.timer=setTimeout(function(){
       __wbBossAutoScriptCheckBoss(target,idx,list);
     },2000);
   });
 }
-
-// 確保畫面切換到世界王頁籤
-// 先點擊 zone tab，再點擊世界王子頁籤 (special)
-function __wbEnsureWBTab(){
-  var zoneTab=document.querySelector('div.tab[data-tab="zone"]');
-  var wbSub=document.querySelector('div.subtab[data-c="special"]');
-  if(zoneTab){zoneTab.click();}
-  if(wbSub){wbSub.click();}
+// 即時模式：依序遍歷全部清單，找第一個符合進入條件的
+function __wbBossAutoScriptLoopRealtime(list,startIdx){
+  if(!window.__wbBossAutoScript.running)return;
+  var cfgChk=document.getElementById('__gmp_boss_auto_script_enable');
+  if(!cfgChk||!cfgChk.checked){__wbBossAutoScriptStop();return;}
+  var statusEl=document.getElementById('__gmp_boss_script_status');
+  if(statusEl)statusEl.textContent='即時掃描 '+list.length+' 項...';
+  if(startIdx>=list.length){
+    if(statusEl)statusEl.textContent='即時: 本輪無可進入BOSS,5秒後重掃';
+    window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,5000);
+    return;
+  }
+  __wbBossAutoScriptRTNext(list,startIdx,list.slice(startIdx));
 }
-
-
-// ====== BOSS 進入設定 & 狀態檢查 ======
+// 即時模式：檢查清單中第一個可進入的BOSS
+function __wbBossAutoScriptRTNext(fullList,startIdx,candidates){
+  if(!window.__wbBossAutoScript.running)return;
+  if(!candidates||!candidates.length){
+    var statusEl=document.getElementById('__gmp_boss_script_status');
+    if(statusEl)statusEl.textContent='即時: 本輪無可進入BOSS,5秒後重掃';
+    window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,5000);
+    return;
+  }
+  var target=candidates[0];
+  var remaining=candidates.slice(1);
+  var statusEl=document.getElementById('__gmp_boss_script_status');
+  if(statusEl)statusEl.textContent='即時: 檢查 '+target.name+'...';
+  try{__wbEnsureWBTab();}catch(e){}
+  window.__wbBossAutoScript.timer=setTimeout(function(){
+    __wbBossAutoScriptRTReadDOM(target,remaining,fullList);
+  },2000);
+}
+// 即時模式：讀取DOM判斷是否可進入
+function __wbBossAutoScriptRTReadDOM(target,remaining,fullList){
+  if(!window.__wbBossAutoScript.running)return;
+  var cards=document.querySelectorAll('.wb-card[data-boss]');
+  var found=null;
+  cards.forEach(function(card){
+    if(card.getAttribute('data-boss')===target.id)found=card;
+  });
+  if(!found){
+    window.__wbBossAutoScript.timer=setTimeout(function(){
+      __wbBossAutoScriptRTReadDOM(target,remaining,fullList);
+    },3000);
+    return;
+  }
+  var subEl=document.querySelector('.wb-sub[data-boss="'+target.id+'"]');
+  var subText=subEl?subEl.textContent.trim():'';
+  var isAlive=subText.indexOf('\u5B58\u6D3B')!==-1||subText.indexOf('\u6230\u9B25\u4E2D')!==-1||subText.indexOf('HP')!==-1;
+  var isDead=subText.indexOf('\u5DF2\u88AB\u64CA\u6557')!==-1||subText.indexOf('\u5DF2\u88AB\u5FB4\u670D')!==-1;
+  if(!isAlive){
+    console.log('[WB-Realtime] '+target.name+' state='+subText+', skipping');
+    window.__wbBossAutoScript.timer=setTimeout(function(){
+      __wbBossAutoScriptRTNext(fullList,0,remaining);
+    },500);
+    return;
+  }
+  // 可進入！
+  console.log('[WB-Realtime] '+target.name+' enterable, joining...');
+  __wbAddBossHistory(target.name,'enter','即時模式進入',0,null);
+  window.__wbBossAutoScript.entryRetry=0;
+  __wbBossAutoScriptRTEnter(target,found,fullList);
+}
+// 即時模式：進入BOSS（含重試）
+function __wbBossAutoScriptRTEnter(target,card,fullList){
+  if(!window.__wbBossAutoScript.running)return;
+  var retry=window.__wbBossAutoScript.entryRetry||0;
+  if(retry===0&&card)try{card.click();}catch(e){}
+  window.__wbBossAutoScript.timer=setTimeout(function(){
+    var ls=window.lastState||{};
+    if(ls.mode==='bosscombat'&&(ls.boss||{}).hp>0){
+      console.log('[WB-Realtime] Entered '+target.name);
+      window.__wbBossAutoScript.phase='attacking';
+      __wbBossAutoScriptRTHP(target,fullList);
+    } else if(retry<2){
+      window.__wbBossAutoScript.entryRetry=retry+1;
+      if(card)try{card.click();}catch(e){}
+      window.__wbBossAutoScript.timer=setTimeout(function(){
+        __wbBossAutoScriptRTEnter(target,card,fullList);
+      },3000);
+    } else {
+      console.log('[WB-Realtime] Failed to enter after 3 retries, next boss');
+      window.__wbBossAutoScript.entryRetry=0;
+      window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,3000);
+    }
+  },2500);
+}
+// 即時模式：監控HP（擊敗後不回原BOSS，切回主循環）
+function __wbBossAutoScriptRTHP(target,fullList){
+  if(!window.__wbBossAutoScript.running)return;
+  var ls=window.lastState||{};
+  var mode=ls.mode||'';
+  var bossHp=(ls.boss||{}).hp||0;
+  var bossMax=(ls.boss||{}).maxHp||1;
+  var statusEl=document.getElementById('__gmp_boss_script_status');
+  if(statusEl)statusEl.textContent='即時: '+target.name+' HP:'+Math.round(bossHp/bossMax*100)+'%';
+  if(bossHp<=0&&mode!=='bosscombat'){
+    console.log('[WB-Realtime] Boss defeated, back to loop');
+    window.__wbBossAutoScript.phase='idle';
+    window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,3000);
+    return;
+  }
+  if(mode==='bosscombat'){
+    var atkChk=document.getElementById('__gmp_boss_auto_atk');
+    if(atkChk&&!atkChk.checked)atkChk.checked=true;
+    var enChk=document.getElementById('__gmp_boss_auto_enable');
+    if(enChk&&!enChk.checked)enChk.checked=true;
+    if(window.__wbBossAuto&&!window.__wbBossAuto.running&&window.__wbBossAutoStart){
+      __wbBossAutoStart();
+    }
+  }
+  window.__wbBossAutoScript.timer=setTimeout(function(){
+    __wbBossAutoScriptRTHP(target,fullList);
+  },2000);
+}// ====== BOSS 進入設定 & 狀態檢查 ======
 
 // 檢查指定 BOSS 的 DOM 狀態，決定進入/跳過/等待
 // @param {Object} target - 討伐清單中的 BOSS 物件（含 id, name, minPlayers）
@@ -314,7 +440,15 @@ function __wbBossAutoScriptCheckBoss(target,idx,list){
     } else {
       console.log('[WB-AutoScript] '+target.name+' dead/no respawn, skipping');
     }
-    // 索引 +1，立刻檢查下一隻
+    // 排定模式：是優先目標 (idx=0) 且重生時間 ≤60s → 開專屬計時器
+    var isFirst=(idx===0);
+    var inScheduled=(window.__wbBossAutoScript.mode==='scheduled');
+    if(isFirst&&inScheduled&&hasRespawn&&secondsLeft>0&&secondsLeft<=60){
+      console.log('[WB-AutoScript] Scheduled mode: respawn in '+secondsLeft+'s, start own timer');
+      __wbStartRespawnTimer(target,secondsLeft,list);
+      return;
+    }
+    // 非排定/非優先/重生太久 → 正常跳下一個
     window.__wbBossAutoScript.currentIdx++;
     window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,500);
   } else {
@@ -446,6 +580,96 @@ function __wbBossAutoScriptDone(list){
   window.__wbBossAutoScript.currentIdx=0;
   __wbBossAutoScriptRestoreFarm();
   window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,5000);
+}
+
+
+// ====== 排定模式重生計時器 ======
+// 啟動重生倒數計時器（排定模式專用：只對 idx=0 的優先目標有效）
+function __wbStartRespawnTimer(target,seconds,list){
+  if(!window.__wbBossAutoScript.running)return;
+  clearTimeout(window.__wbBossAutoScript.respawnTimer);
+  window.__wbBossAutoScript.respawnTimer=null;
+  window.__wbBossAutoScript.respawnBoss=target;
+  window.__wbBossAutoScript.respawnAttempts=0;
+  var statusEl=document.getElementById('__gmp_boss_script_status');
+  if(statusEl)statusEl.textContent='計時: '+target.name+' '+seconds+'s';
+  console.log('[WB-RespawnTimer] '+target.name+' respawn in '+seconds+'s');
+  __wbRespawnTimerTick(target,seconds,list);
+}
+// 計時器遞迴：每秒更新，倒數至0時嘗試進入
+function __wbRespawnTimerTick(target,secondsLeft,list){
+  if(!window.__wbBossAutoScript.running||window.__wbBossAutoScript.mode!=='scheduled'){
+    clearTimeout(window.__wbBossAutoScript.respawnTimer);
+    window.__wbBossAutoScript.respawnTimer=null;
+    return;
+  }
+  if(secondsLeft<=0){
+    console.log('[WB-RespawnTimer] Timer expired, attempting entry...');
+    __wbRespawnAttempt(target,list);
+    return;
+  }
+  var statusEl=document.getElementById('__gmp_boss_script_status');
+  if(statusEl)statusEl.textContent='計時: '+target.name+' '+secondsLeft+'s';
+  window.__wbBossAutoScript.respawnTimer=setTimeout(function(){
+    __wbRespawnTimerTick(target,secondsLeft-1,list);
+  },1000);
+}
+// 嘗試進入重生後的BOSS（最多3次）
+function __wbRespawnAttempt(target,list){
+  if(!window.__wbBossAutoScript.running)return;
+  var attempt=(window.__wbBossAutoScript.respawnAttempts||0)+1;
+  window.__wbBossAutoScript.respawnAttempts=attempt;
+  console.log('[WB-RespawnTimer] Attempt #'+attempt+' for '+target.name);
+  var statusEl=document.getElementById('__gmp_boss_script_status');
+  if(statusEl)statusEl.textContent='計時: '+target.name+' 嘗試#'+attempt+'...';
+  try{__wbEnsureWBTab();}catch(e){}
+  window.__wbBossAutoScript.timer=setTimeout(function(){
+    __wbRespawnAttemptCheck(target,list,attempt);
+  },2000);
+}
+// 確認DOM中BOSS狀態後點擊進入
+function __wbRespawnAttemptCheck(target,list,attempt){
+  if(!window.__wbBossAutoScript.running)return;
+  var cards=document.querySelectorAll('.wb-card[data-boss]');
+  var found=null;
+  cards.forEach(function(card){if(card.getAttribute('data-boss')===target.id)found=card;});
+  if(!found){
+    window.__wbBossAutoScript.timer=setTimeout(function(){__wbRespawnAttemptCheck(target,list,attempt);},3000);
+    return;
+  }
+  var subEl=document.querySelector('.wb-sub[data-boss="'+target.id+'"]');
+  var subText=subEl?subEl.textContent.trim():'';
+  var isAlive=subText.indexOf('\u5B58\u6D3B')!==-1||subText.indexOf('\u6230\u9B25\u4E2D')!==-1||subText.indexOf('HP')!==-1;
+  if(!isAlive){
+    console.log('[WB-RespawnTimer] Not alive yet, retry 2s');
+    window.__wbBossAutoScript.timer=setTimeout(function(){__wbRespawnAttemptCheck(target,list,attempt);},2000);
+    return;
+  }
+  console.log('[WB-RespawnTimer] BOSS is alive, clicking!');
+  __wbAddBossHistory(target.name,'enter','重生進入(嘗試#'+attempt+')',0,null);
+  try{found.click();}catch(e){}
+  window.__wbBossAutoScript.timer=setTimeout(function(){
+    var ls=window.lastState||{};
+    if(ls.mode==='bosscombat'&&(ls.boss||{}).hp>0){
+      console.log('[WB-RespawnTimer] Entered successfully!');
+      window.__wbBossAutoScript.respawnAttempts=0;
+      window.__wbBossAutoScript.respawnTimer=null;
+      window.__wbBossAutoScript.respawnBoss=null;
+      window.__wbBossAutoScript.phase='attacking';
+      __wbBossAutoScriptMonitorBossHP(target,0,list);
+    } else if(attempt<3){
+      __wbRespawnAttempt(target,list);
+    } else {
+      console.log('[WB-RespawnTimer] 3 attempts failed, moving to next boss');
+      __wbAddBossHistory(target.name,'fail_entry','重生3次失敗',0,null);
+      window.__wbBossAutoScript.respawnAttempts=0;
+      clearTimeout(window.__wbBossAutoScript.respawnTimer);
+      window.__wbBossAutoScript.respawnTimer=null;
+      window.__wbBossAutoScript.respawnBoss=null;
+      window.__wbBossAutoScript.currentIdx++;
+      window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,3000);
+    }
+  },2500);
 }
 
 
@@ -1584,6 +1808,7 @@ setTimeout(function(){
   window.__wbUpdateBossStatus=__wbUpdateBossStatus;window.__wbSyncAutoConfig=__wbSyncAutoConfig;
   window.__wbBossStartUpdater=__wbBossStartUpdater;
   window.__wbLoadHuntList=__wbLoadHuntList;window.__wbGetHuntList=__wbGetHuntList;
+  window.__wbLoadBossScriptMode=__wbLoadBossScriptMode;window.__wbSetBossScriptMode=__wbSetBossScriptMode;
   window.__wbSaveHuntList=__wbSaveHuntList;window.__wbAddToHuntList=__wbAddToHuntList;
   window.__wbAddSelectedToHunt=__wbAddSelectedToHunt;
   window.__wbToggleSelectAll=__wbToggleSelectAll;

@@ -1107,7 +1107,8 @@ function __gmBuildPanel(){
 '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:6px 8px;background:rgba(76,175,80,0.10);border-radius:6px;">'+
 '<input type="checkbox" id="__gmp_boss_auto_script_enable" style="width:16px;height:16px;cursor:pointer;">'+
 '<label for="__gmp_boss_auto_script_enable" style="font-size:12px;color:#4caf50;font-weight:bold;cursor:pointer;">\uD83C\uDFAF 自動進入世界王</label>'+
-'<span id="__gmp_boss_script_status" style="font-size:9px;color:#888;">\u00B7 閒置中</span>'+
+'<span id="__gmp_boss_script_status" style="font-size:9px;color:#888;margin-left:4px;">\u00B7 閒置中</span>'+
+'<select id="__gmp_boss_script_mode" style="background:#1a3a1a;color:#fbbf24;border:1px solid #4ade80;border-radius:4px;padding:1px 3px;font-size:9px;margin-left:4px;cursor:pointer;"><option value="scheduled">排定模式</option><option value="realtime">即時模式</option></select>'+
 '</div>'+'<div style="display:flex;align-items:center;gap:2px;margin-top:4px;margin-bottom:4px;">'+
 '<input type="checkbox" id="__gmp_boss_auto_reenter" style="width:13px;height:13px;cursor:pointer;">'+
 '<label for="__gmp_boss_auto_reenter" style="font-size:11px;color:#86c5ff;cursor:pointer;">\u2620 \u6b7b\u4ea1\u81ea\u52a8\u56de\u5927\u5385\u91cd\u8fdb\u672c\u6b21\u4e16\u754c\u738b</label>'+
@@ -3317,6 +3318,18 @@ setTimeout(function() {
 
 __gmBuildPanel();
 document.addEventListener('__gm_show_panel',function(){__gmBuildPanel()});
+
+  // 自動進入模式下拉：監聽變更並儲存/廣播
+document.addEventListener('change',function(e){
+    var t=e.target;
+    if(t && t.id==='__gmp_boss_script_mode'){
+      var mode=t.value;console.log('[BossScript] Mode changed to:'+mode);
+      // 寫入 runtime state
+      if(window.__wbBossAutoScript)window.__wbBossAutoScript.mode=mode;
+      // 儲存到 chrome.storage
+      if(typeof __wbSaveBossScriptMode==='function')__wbSaveBossScriptMode(mode);
+    }
+  });
 console.log('[GM] Monitor injected '+ver);
 
 
