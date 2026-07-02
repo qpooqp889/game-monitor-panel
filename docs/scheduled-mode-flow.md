@@ -37,9 +37,10 @@ Loop 啟動
         │           └─ 失敗 → fail_entry 記錄 → currentIdx++
         │
         ├── [死亡 isDead]
-        │     ├─ idx===0 && 重生 ≤ 30s → TryEnterSpam 狂點
-        │     │     └─ 無重試上限，每 2s 點擊卡片直到進入
-        │     └─ 其他 → currentIdx++（直接跳過）
+        │     ├─ idx===0 && 重生 ≤ 30s → TryEnterSpam 狂點（無上限）
+        │     ├─ idx≥1  && 有重生時間 → 等復活後 TryEnterSpam 狂點
+        │     │     └─ 無 30s 限制，只要重生時間在未來就等
+        │     └─ 無重生資訊 → currentIdx++（直接跳過）
         │
         └── [不明]
               └─ 直接嘗試 TryEnter
@@ -109,8 +110,8 @@ Done
 | # | 規則 |
 |---|------|
 | 1 | 排定模式只檢查 currentIdx 指向的 BOSS |
-| 2 | 第一位 (idx=0) 死王 + 重生 ≤30s → 狂點進入（無上限） |
-| 3 | 第二位起 (idx≥1) 死王 → 直接跳下一位 |
+| 2 | idx=0 死王 + 重生 ≤30s → 狂點進入（無上限） |
+| 3 | idx≥1 死王 + 有重生時間 → 等復活後狂點進入（無 30s 限制） |
 | 4 | BOSS HP < 20% 時，每 2s 掃 DOM 找「世界王已被擊敗」 |
 | 5 | 找到 defeat 提示 → 記錄歷史 → selectChar[0] → currentIdx++ → 不關自動攻擊 |
 | 6 | 擊敗後 selectChar[0] 回村，3s 後繼續下一隻 |
