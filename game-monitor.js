@@ -1617,6 +1617,21 @@ function __gmBuildPanel(){
     if(act==='huntUp'){if(window.__wbHuntMoveSelected)window.__wbHuntMoveSelected(-1);return;}
     if(act==='huntDown'){if(window.__wbHuntMoveSelected)window.__wbHuntMoveSelected(1);return;}
     if(act==='huntDelete'){if(window.__wbHuntDeleteSelected)window.__wbHuntDeleteSelected();return;}
+    if(act==='huntBatchMinp'){
+      var val=parseInt(document.getElementById('__gmp_hunt_batch_minp').value)||0;
+      var boxes=document.querySelectorAll('.__gmp_hunt_chk:checked');
+      if(boxes.length&&typeof window.__wbGetHuntList==='function'){
+        var ids=new Set();
+        boxes.forEach(function(b){ids.add(b.value);});
+        window.__wbGetHuntList(function(list){
+          list.forEach(function(item,i){
+            if(ids.has(item.id)){list[i].minPlayers=val;}
+          });
+          if(typeof window.__wbSaveHuntList==='function')window.__wbSaveHuntList(list);
+        });
+      }
+      return;
+    }
     if(t.getAttribute('data-wb-add-hunt')){
       var parts=t.getAttribute('data-wb-add-hunt').split('|');
       if(parts.length>=3&&typeof window.__wbAddToHuntList==='function'){
