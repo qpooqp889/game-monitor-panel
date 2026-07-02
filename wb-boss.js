@@ -455,7 +455,8 @@ function __wbBossAutoScriptCheckBoss(target,idx,list){
     }
 
     // 重生時間 ≤ 60 秒 → 狂點卡片嘗試進入（無重試上限，卡在門口直到進去）
-    if(respawnStr&&secondsLeft!==null&&secondsLeft<=60&&secondsLeft>0){
+    // 僅限優先清單第一位 (idx===0)，其餘順位直接跳過
+    if(idx===0&&respawnStr&&secondsLeft!==null&&secondsLeft<=60&&secondsLeft>0){
       var _reason='BOSS\u5DF2\u88AB\u64CA\u6557,\u91CD\u751F\u5012\u6578'+secondsLeft+'s(\u7D04'+respawnStr+')\uFF0C\u72C2\u9EDE\u9032\u5165';
       console.log('[WB-AutoScript] '+target.name+': '+_reason);
       __wbAddBossHistory(target.name,'enter',_reason,0,respawnStr);
