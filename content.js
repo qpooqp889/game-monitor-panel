@@ -32,16 +32,16 @@ function __gmSafeSendMessage(msg, cb) {
   }
   try {
     _gmChrome.runtime.sendMessage(msg, function(resp) {
+      // 注意：sendMessage 失敗不一定是永久斷線
+      // background.js 可能在 document_start 階段尚未就緒，這是暫時性的
+      // 只有 storage.local API 失敗才能確認 runtime 永久失效
       if (_gmChrome.runtime.lastError) {
-        // Runtime disconnected mid-flight
-        __gmRuntimeDead = true;
         if (cb) cb(null);
         return;
       }
       if (cb) cb(resp);
     });
   } catch(e) {
-    __gmRuntimeDead = true;
     if (cb) cb(null);
   }
 }
