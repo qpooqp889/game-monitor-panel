@@ -2994,6 +2994,7 @@ function __gmBuildPanel(){
       if(s){s.textContent='停止中';s.style.color='#888';}var ce=document.getElementById('__gmp_boss_auto_enable');if(ce)ce.checked=false;var ss=document.getElementById('__gmp_boss_auto_status_short');if(ss){ss.textContent='停止中';ss.style.color='#888';}
     } else {
       __wbSyncAutoConfig();
+      __wbSaveBossConfig();
       __wbBossAutoStart();
       this.textContent='■ 停止自動戰鬥';
       this.style.background='#e94560';var ce=document.getElementById('__gmp_boss_auto_enable');if(ce)ce.checked=true;var ss=document.getElementById('__gmp_boss_auto_status_short');if(ss){ss.textContent='⚡ 自動戰鬥運行中...';ss.style.color='#4ade80';}
