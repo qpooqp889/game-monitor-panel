@@ -281,7 +281,7 @@ setTimeout(function(){
 // ====== Boss Auto ======
 window.__wbBossAuto={
     atk:true,atkHpPct:100,atkLogic:'AND',atkOnline:0,
-    stop:false,stopHp:30,
+    stop:false,stopHp:30,stopHpEnable:true,stopMp:10,stopMpEnable:false,
     pot:true,potHp:80,
     atkSkill:true,
     heal:true,healHp:70,
@@ -1105,8 +1105,8 @@ function __gmBuildPanel(){
           '<span>BOSS HP</span><span id="__gmp_boss_hp_text" style="color:#e94560;">--/--</span>'+
         '</div>'+
 '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:6px 8px;background:rgba(76,175,80,0.10);border-radius:6px;">'+
-'<input type="checkbox" id="__gmp_boss_auto_enable" style="width:16px;height:16px;cursor:pointer;">'+
-'<label for="__gmp_boss_auto_enable" style="font-size:12px;color:#4caf50;font-weight:bold;cursor:pointer;">\uD83C\uDFAF 自動進入世界王</label>'+
+'<input type="checkbox" id="__gmp_boss_auto_script_enable" style="width:16px;height:16px;cursor:pointer;">'+
+'<label for="__gmp_boss_auto_script_enable" style="font-size:12px;color:#4caf50;font-weight:bold;cursor:pointer;">\uD83C\uDFAF 自動進入世界王</label>'+
 '<span id="__gmp_boss_script_status" style="font-size:9px;color:#888;">\u00B7 閒置中</span>'+
 '</div>'+'<div style="display:flex;align-items:center;gap:2px;margin-top:4px;margin-bottom:4px;">'+
 '<input type="checkbox" id="__gmp_boss_auto_reenter" style="width:13px;height:13px;cursor:pointer;">'+
@@ -1225,10 +1225,17 @@ function __gmBuildPanel(){
 '<input type="checkbox" id="__gmp_boss_auto_stop" style="width:13px;height:13px;cursor:pointer;">'+
 '<label for="__gmp_boss_auto_stop" style="font-size:11px;color:#ffa500;cursor:pointer;">\uD83D\uDED1 \u505c\u6b62\u653b\u64ca</label>'+
 '</div>'+
-'<div style="display:flex;align-items:center;gap:4px;margin-bottom:8px;padding:6px 8px;background:rgba(255,165,0,0.08);border-radius:4px;">'+
+'<div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;padding:6px 8px;background:rgba(255,165,0,0.08);border-radius:4px;">'+
+'<input type="checkbox" id="__gmp_boss_auto_stop_hp_enable" style="width:13px;height:13px;cursor:pointer;">'+
 '<span style="font-size:10px;color:#ffa500;">\u73a9\u5bb6HP\u5c11\u65bc</span>'+
 '<input id="__gmp_boss_auto_stop_hp" type="number" value="30" min="1" max="100" style="width:45px;padding:2px 4px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;text-align:center;">'+
 '<span style="font-size:10px;color:#555;">% \u89f8\u767c</span>'+
+'</div>'+
+'<div style="display:flex;align-items:center;gap:4px;margin-bottom:8px;padding:6px 8px;background:rgba(147,197,253,0.08);border-radius:4px;">'+
+'<input type="checkbox" id="__gmp_boss_auto_stop_mp_enable" style="width:13px;height:13px;cursor:pointer;">'+
+'<span style="font-size:10px;color:#93c5fd;">\u73a9\u5bb6MP\u5c11\u65bc</span>'+
+'<input id="__gmp_boss_auto_stop_mp" type="number" value="10" min="1" max="100" style="width:45px;padding:2px 4px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;text-align:center;">'+
+'<span style="font-size:10px;color:#555;">% \u505c\u653b</span>'+
 '</div>'+
 // === Pot ===
 '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+
@@ -1601,12 +1608,20 @@ function __gmBuildPanel(){
   document.getElementById('__gmp_tab_boss').onclick=function(){switchTab('boss');};
   document.getElementById('__gmp_tab_monitor').onclick=function(){switchTab('monitor')};
   document.addEventListener('click',function(e){
-    var t=e.target;
-    if(t&&t.getAttribute&&t.getAttribute('data-wb-add-hunt')){
+    var t=e.target;while(t&&t.nodeType===3)t=t.parentElement;
+    if(!t||!t.getAttribute)return;
+    var act=t.getAttribute('data-wb-action');
+    if(act==='selectAll'){if(window.__wbToggleSelectAll)window.__wbToggleSelectAll(true);return;}
+    if(act==='deselectAll'){if(window.__wbToggleSelectAll)window.__wbToggleSelectAll(false);return;}
+    if(act==='addSelected'){if(window.__wbAddSelectedToHunt)window.__wbAddSelectedToHunt();return;}
+    if(act==='huntUp'){if(window.__wbHuntMoveSelected)window.__wbHuntMoveSelected(-1);return;}
+    if(act==='huntDown'){if(window.__wbHuntMoveSelected)window.__wbHuntMoveSelected(1);return;}
+    if(act==='huntDelete'){if(window.__wbHuntDeleteSelected)window.__wbHuntDeleteSelected();return;}
+    if(t.getAttribute('data-wb-add-hunt')){
       var parts=t.getAttribute('data-wb-add-hunt').split('|');
       if(parts.length>=3&&typeof window.__wbAddToHuntList==='function'){
         window.__wbAddToHuntList(parts[0],parts[1],parseInt(parts[2],10));
-        __wbUpdateWorldBossUI();
+        if(typeof __wbUpdateWorldBossUI==='function')__wbUpdateWorldBossUI();
       }
     }
   });
@@ -2356,7 +2371,10 @@ function __gmBuildPanel(){
     cfg.atkLogic=document.getElementById('__gmp_boss_auto_atk_logic').value;
     cfg.atkOnline=parseInt(document.getElementById('__gmp_boss_auto_atk_online').value)||0;
     cfg.stop=document.getElementById('__gmp_boss_auto_stop').checked;
+    cfg.stopHpEnable=document.getElementById('__gmp_boss_auto_stop_hp_enable').checked;
     cfg.stopHp=parseInt(document.getElementById('__gmp_boss_auto_stop_hp').value)||30;
+    cfg.stopMpEnable=document.getElementById('__gmp_boss_auto_stop_mp_enable')?document.getElementById('__gmp_boss_auto_stop_mp_enable').checked:false;
+    cfg.stopMp=parseInt(document.getElementById('__gmp_boss_auto_stop_mp').value)||10;
     cfg.pot=document.getElementById('__gmp_boss_auto_pot').checked;
     cfg.potHp=parseInt(document.getElementById('__gmp_boss_auto_pot_hp').value)||80;
     cfg.atkSkill=document.getElementById('__gmp_boss_auto_atk_skill').checked;
@@ -2891,7 +2909,10 @@ function __gmBuildPanel(){
     el=document.getElementById('__gmp_boss_auto_atk_logic');if(el)el.value=cfg.atkLogic||'AND';
     el=document.getElementById('__gmp_boss_auto_atk_online');if(el)el.value=cfg.atkOnline||0;
     el=document.getElementById('__gmp_boss_auto_stop');if(el)el.checked=cfg.stop;
+    el=document.getElementById('__gmp_boss_auto_stop_hp_enable');if(el)el.checked=cfg.stopHpEnable!==false;
     el=document.getElementById('__gmp_boss_auto_stop_hp');if(el)el.value=cfg.stopHp||30;
+    el=document.getElementById('__gmp_boss_auto_stop_mp_enable');if(el)el.checked=cfg.stopMpEnable||false;
+    el=document.getElementById('__gmp_boss_auto_stop_mp');if(el)el.value=cfg.stopMp||10;
     el=document.getElementById('__gmp_boss_auto_pot');if(el)el.checked=cfg.pot;
     el=document.getElementById('__gmp_boss_auto_pot_hp');if(el)el.value=cfg.potHp||80;
     el=document.getElementById('__gmp_boss_auto_atk_skill');if(el)el.checked=cfg.atkSkill;
@@ -2916,7 +2937,7 @@ function __gmBuildPanel(){
   // Load saved config
   setTimeout(__wbLoadBossConfig,300);
   // === BOSS auto script save/load ===
-  document.getElementById('__gmp_boss_auto_enable').onchange=function(){
+  document.getElementById('__gmp_boss_auto_script_enable').onchange=function(){
     if(this.checked){
       if(window.__wbBossAutoScriptStart)window.__wbBossAutoScriptStart();
     } else {
@@ -2926,7 +2947,7 @@ function __gmBuildPanel(){
   };
   function __wbSaveBossAutoScriptState(){
     if(typeof window.__gmStorageSet==='undefined')return;
-    var chk=document.getElementById('__gmp_boss_auto_enable');
+    var chk=document.getElementById('__gmp_boss_auto_script_enable');
     window.__gmStorageSet('wb_auto_script_state',{enabled:chk?chk.checked:false}).catch(function(){});
   }
   function __wbLoadBossAutoScriptState(){
@@ -2934,40 +2955,13 @@ function __gmBuildPanel(){
     return window.__gmStorageGet(['wb_auto_script_state']).then(function(r){
       var s=r&&r.wb_auto_script_state||null;
       if(s){
-        var chk=document.getElementById('__gmp_boss_auto_enable');
+        var chk=document.getElementById('__gmp_boss_auto_script_enable');
         if(chk)chk.checked=s.enabled;
         if(s.enabled)setTimeout(function(){if(window.__wbBossAutoScriptStart)window.__wbBossAutoScriptStart();},800);
       }
     }).catch(function(){});
   }
   setTimeout(__wbLoadBossAutoScriptState,500);
-  // === BOSS auto script save/load ===
-  document.getElementById('__gmp_boss_auto_enable').onchange=function(){
-    if(this.checked){
-      if(window.__wbBossAutoScriptStart)window.__wbBossAutoScriptStart();
-    } else {
-      if(window.__wbBossAutoScriptStop)window.__wbBossAutoScriptStop();
-    }
-    __wbSaveBossAutoScriptState();
-  };
-  function __wbSaveBossAutoScriptState(){
-    if(typeof window.__gmStorageSet==='undefined')return;
-    var chk=document.getElementById('__gmp_boss_auto_enable');
-    window.__gmStorageSet('wb_auto_script_state',{enabled:chk?chk.checked:false}).catch(function(){});
-  }
-  function __wbLoadBossAutoScriptState(){
-    if(typeof window.__gmStorageGet==='undefined')return Promise.resolve();
-    return window.__gmStorageGet(['wb_auto_script_state']).then(function(r){
-      var s=r&&r.wb_auto_script_state||null;
-      if(s){
-        var chk=document.getElementById('__gmp_boss_auto_enable');
-        if(chk)chk.checked=s.enabled;
-        if(s.enabled)setTimeout(function(){if(window.__wbBossAutoScriptStart)window.__wbBossAutoScriptStart();},800);
-      }
-    }).catch(function(){});
-  }
-  setTimeout(__wbLoadBossAutoScriptState,500);
-
   document.getElementById('__gmp_boss_auto_btn').onclick=function(){
     if(window.__wbBossAuto.running){
       __wbBossAutoStop();
