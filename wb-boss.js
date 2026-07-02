@@ -440,49 +440,41 @@ function __wbBossAutoScriptCheckBoss(target,idx,list){
     __wbBossAutoScriptTryEnter(target,idx,list,foundBoss);
 
   } else if(isDead){
-    // Boss dead → next
-    // BOSS 已死亡：解析重生時間，記錄跳過原因，前進到下一隻
-    var hasRespawn=false;
+    // === BOSS 已死亡：解析重生時間，判斷是否已可進入 ===
+    // 從 subText 擷取重生時間 (e.g. "已被擊敗，20:00 重生")
+    var respawnMatch=subText.match(/(d{1,2}):(d{2})/);
     var respawnStr=null;
-    // 從文字中擷取重生時間 (e.g. "12:30")
-    var respawnMatch=subText.match(/(\d{1,2}):(\d{2})/);
+    var secondsLeft=null;
     if(respawnMatch){
       var h=parseInt(respawnMatch[1],10),min=parseInt(respawnMatch[2],10);
       respawnStr=h+':'+(min<10?'0':'')+min;
-      // 計算重生倒數秒數（若時間已過則視為明日）
       var now=new Date();
       var targetTime=new Date(now.getFullYear(),now.getMonth(),now.getDate(),h,min,0);
       if(targetTime<=now)targetTime.setDate(targetTime.getDate()+1);
-      var secondsLeft=Math.round((targetTime-now)/1000);
-      if(secondsLeft>0&&secondsLeft<86400){hasRespawn=true;}
+      secondsLeft=Math.round((targetTime-now)/1000);
     }
+
+    // 重生時間 ≤ 60 秒 → 狂點卡片嘗試進入（無重試上限，卡在門口直到進去）
+    if(respawnStr&&secondsLeft!==null&&secondsLeft<=60&&secondsLeft>0){
+      var _reason='BOSS\u5DF2\u88AB\u64CA\u6557,\u91CD\u751F\u5012\u6578'+secondsLeft+'s(\u7D04'+respawnStr+')\uFF0C\u72C2\u9EDE\u9032\u5165';
+      console.log('[WB-AutoScript] '+target.name+': '+_reason);
+      __wbAddBossHistory(target.name,'enter',_reason,0,respawnStr);
+      window.__wbBossAutoScript.phase='entering_spam';
+      // 等重生倒數歸零+2秒緩衝後開始狂點
+      var _waitMs=Math.max((secondsLeft+2)*1000,1000);
+      window.__wbBossAutoScript.spamCount=0;
+      window.__wbBossAutoScript.timer=setTimeout(function(){
+        __wbBossAutoScriptTryEnterSpam(target,idx,list,foundBoss);
+      }, _waitMs);
+      return;
+    }
+
+    // 重生時間 > 60 秒或無重生資訊 → 直接跳下一位
     var skipReason='BOSS\u5DF2\u88AB\u64CA\u6557';
-    if(respawnStr)skipReason+=', \u4E0B\u6B21\u91CD\u751F\u7D04 '+respawnStr;
-    else skipReason+=', \u7121\u91CD\u751F\u6642\u9593';
+    if(respawnStr){skipReason+=', \u91CD\u751F'+respawnStr+', \u5269'+secondsLeft+'s(>60s)\uFF0C\u8DF3\u4E0B\u4E00\u4F4D';}
+    else{skipReason+=', \u7121\u91CD\u751F\u6642\u9593\uFF0C\u8DF3\u4E0B\u4E00\u4F4D';}
+    console.log('[WB-AutoScript] '+target.name+' '+skipReason);
     __wbAddBossHistory(target.name,'skip',skipReason,0,respawnStr);
-    if(hasRespawn){
-      console.log('[WB-AutoScript] '+target.name+' dead, respawn:'+respawnStr+' found, skipping');
-    } else {
-      console.log('[WB-AutoScript] '+target.name+' dead/no respawn, skipping');
-    }
-    // 排定模式：是優先目標 (idx=0) 且重生時間 ≤60s → 開專屬計時器
-    var isFirst=(idx===0);
-    var inScheduled=(window.__wbBossAutoScript.mode==='scheduled');
-    if(isFirst&&inScheduled&&hasRespawn&&secondsLeft>0&&secondsLeft<=60){
-      console.log('[WB-AutoScript] Scheduled mode: respawn in '+secondsLeft+'s, start own timer');
-      __wbStartRespawnTimer(target,secondsLeft,list);
-      return;
-    }
-    // === 排定模式 + 優先項 (idx===0) + 重生>60s ===
-    // 固定在第一隻，持續輪詢直到復活；不跳下一個
-    if(idx===0&&inScheduled&&hasRespawn&&secondsLeft>60){
-      console.log('[WB-AutoScript] '+target.name+' respawn in '+secondsLeft+'s (>60s), polling every 30s');
-      window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,30000);
-      return;
-    }
-    // 排定模式 + 非優先項 (idx>0) → 跳下一個
-    // 即時模式 → 跳下一個
-    // 排定+優先+無重生資訊 → 也跳下一個（無法計算等待時間）
     window.__wbBossAutoScript.currentIdx++;
     window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,500);
   } else {
@@ -560,6 +552,58 @@ function __wbBossAutoScriptTryEnter(target,idx,list,card){
     window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,1000);
   }
 }
+// ====== 狂點進場模式（無重試上限，持續嘗試直到進去或停止） ======
+// 用在 BOSS 重生倒數 ≤60s 時，卡在門口一直點，不設 3 次上限
+// @param {Object} target - BOSS 物件
+// @param {number} idx   - 清單索引
+// @param {Array}  list  - 完整討伐清單
+// @param {Element} card  - .wb-card DOM 元素
+function __wbBossAutoScriptTryEnterSpam(target,idx,list,card){
+  if(!window.__wbBossAutoScript.running)return;
+
+  // 檢查是否已闖入（可能在上一輪狂點中進去了）
+  var ls=window.lastState||{};
+  if(ls.mode==='bosscombat'){
+    var boss=ls.boss||{};
+    var bossHp=boss.hp||0;
+    if(bossHp>0){
+      var hpPct=Math.round(bossHp/(boss.maxHp||1)*100);
+      console.log('[WB-AutoScript] Spam enter: already in bosscombat! HP='+hpPct+'%');
+      __wbAddBossHistory(target.name,'enter','Spam\u9032\u5165\u6210\u529F',bossHp,null);
+      var atkChk=document.getElementById('__gmp_boss_auto_atk');
+      if(atkChk)atkChk.checked=true;
+      var enableChk=document.getElementById('__gmp_boss_auto_enable');
+      if(enableChk)enableChk.checked=true;
+      window.__wbBossAutoScript.phase='attacking';
+      __wbBossAutoScriptMonitorBossHP(target,idx,list);
+      return;
+    }
+  }
+
+  // 重新查詢 DOM 卡片
+  if(!card){
+    document.querySelectorAll('.wb-card[data-boss]').forEach(function(_c){if(_c.getAttribute('data-boss')===target.id)card=_c;});
+  }
+
+  // 狂點卡片
+  if(card){
+    try{card.click();}catch(e){}
+    var spamCount=(window.__wbBossAutoScript.spamCount||0)+1;
+    window.__wbBossAutoScript.spamCount=spamCount;
+    var statusEl=document.getElementById('__gmp_boss_script_status');
+    if(statusEl)statusEl.textContent='[SPAM]'+target.name+' #'+spamCount;
+    if(spamCount%10===0){console.log('[WB-AutoScript] Spam click '+target.name+' #'+spamCount);}
+  } else {
+    console.warn('[WB-AutoScript] Spam: card not in DOM for '+target.name+', retrying in 2s');
+  }
+
+  // 每 2 秒重試（無上限）
+  window.__wbBossAutoScript.phase='entering_spam';
+  window.__wbBossAutoScript.timer=setTimeout(function(){
+    __wbBossAutoScriptTryEnterSpam(target,idx,list,card);
+  },2000);
+}
+
 
 // 監控 BOSS HP（每 2 秒輪詢一次）
 // 當 HP 歸零且不在戰鬥模式時觸發掉落擷取流程；若仍在戰鬥中則確保自動攻擊保持開啟
@@ -649,20 +693,19 @@ function __wbBossAutoScriptRestoreFarm(){
 // 排定模式：計算列表中最早復活時間，設定醒來計時器
 // 即時模式：直接恢復掛機
 function __wbBossAutoScriptDone(list){
-  console.log('[WB-AutoScript] All bosses processed, calculating next check...');
+  console.log('[WB-AutoScript] All bosses processed, looping back to first');
   window.__wbBossAutoScript.currentIdx=0;
+  window.__wbBossAutoScript.spamCount=0;
 
-  // 排定模式：掃描所有 priority list 的復活時間，取最早的
-  if((window.__wbBossAutoScript.mode||'scheduled')==='scheduled'){
-    var now=new Date();
-    var nearestSec=null;
+  // 計算列表中最早復活時間，設定醒來計時器（避免空轉）
+  var now=new Date();
+  var nearestSec=null;
+  if(list&&list.length){
     list.forEach(function(item){
-      var card=document.querySelector('.wb-card[data-boss="'+item.id+'"]');
-      if(!card)return;
       var subEl=document.querySelector('.wb-sub[data-boss="'+item.id+'"]');
       if(!subEl)return;
       var txt=subEl.textContent.trim();
-      var m=txt.match(/(\d{1,2}):(\d{2})/);
+      var m=txt.match(/(d{1,2}):(d{2})/);
       if(!m)return;
       var h=parseInt(m[1],10),min=parseInt(m[2],10);
       var t=new Date(now.getFullYear(),now.getMonth(),now.getDate(),h,min,0);
@@ -670,19 +713,20 @@ function __wbBossAutoScriptDone(list){
       var sec=Math.round((t-now)/1000);
       if(sec>0&&(nearestSec===null||sec<nearestSec))nearestSec=sec;
     });
-    if(nearestSec!==null){
-      // 最早復活時間在 reasonable range 內 → 醒來再檢查
-      var wakeSec=Math.min(nearestSec,3600); // 最多等1小時
-      console.log('[WB-AutoScript] Next respawn in '+wakeSec+'s, waking up then');
-      __wbBossAutoScriptRestoreFarm();
-      window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,wakeSec*1000+5000);
-      return;
-    }
   }
 
-  // 即時模式 或 排定無復活資訊 → 恢復掛機，10 秒後重試
+  // 恢復掛機
   __wbBossAutoScriptRestoreFarm();
-  window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,10000);
+
+  if(nearestSec!==null&&nearestSec<=3600){
+    // 有合理復活時間 → 設定醒來計時器
+    console.log('[WB-AutoScript] Next respawn in '+nearestSec+'s, waking up then');
+    window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,nearestSec*1000+5000);
+  } else {
+    // 無復活資訊或太久 → 每 30 秒輪詢一次
+    console.log('[WB-AutoScript] No near respawn, polling every 30s');
+    window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,30000);
+  }
 }
 
 
@@ -1917,6 +1961,8 @@ setTimeout(function(){
   window.__wbBossAutoScriptWaitForLoot=__wbBossAutoScriptWaitForLoot;
   window.__wbBossAutoScriptStart=__wbBossAutoScriptStart;
   window.__wbBossAutoScriptStop=__wbBossAutoScriptStop;
+  window.__wbBossAutoScriptTryEnter=__wbBossAutoScriptTryEnter;
+  window.__wbBossAutoScriptTryEnterSpam=__wbBossAutoScriptTryEnterSpam;
 
   console.log("[WB] World Boss module loaded");
 })();
