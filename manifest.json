@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Game Monitor Panel",
-  "version": "3.45",
+  "version": "3.46",
   "description": "Game Monitor Panel",
   "permissions": [
     "activeTab",
