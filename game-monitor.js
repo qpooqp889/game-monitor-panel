@@ -281,7 +281,7 @@ setTimeout(function(){
 // ====== Boss Auto ======
 window.__wbBossAuto={
     atk:true,atkHpPct:100,atkLogic:'AND',atkOnline:0,
-    stop:false,stopHp:30,stopHpEnable:true,stopMp:10,stopMpEnable:false,
+    stop:false,stopHp:30,stopHpEnable:false,stopMp:10,stopMpEnable:false,
     pot:true,potHp:80,
     atkSkill:true,
     heal:true,healHp:70,
