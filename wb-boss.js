@@ -489,16 +489,16 @@ function __wbBossAutoScriptCheckBoss(target,idx,list){
   } else if(isDead){
     // === BOSS 已死亡：解析重生時間，判斷是否已可進入 ===
     // 從 subText 擷取重生時間 (e.g. "已被擊敗，20:00 重生")
-    var respawnMatch=subText.match(/(d{1,2}):(d{2})/);
+    var respawnMatch=subText.match(/(\d{1,2})\/(\d{1,2})\s*(\d{1,2}):(\d{2})/);
     var respawnStr=null;
     var secondsLeft=null;
     if(respawnMatch){
-      var h=parseInt(respawnMatch[1],10),min=parseInt(respawnMatch[2],10);
-      respawnStr=h+':'+(min<10?'0':'')+min;
-      var now=new Date();
-      var targetTime=new Date(now.getFullYear(),now.getMonth(),now.getDate(),h,min,0);
-      if(targetTime<=now)targetTime.setDate(targetTime.getDate()+1);
-      secondsLeft=Math.round((targetTime-now)/1000);
+      var mo=parseInt(respawnMatch[1],10),d=parseInt(respawnMatch[2],10),h=parseInt(respawnMatch[3],10),min=parseInt(respawnMatch[4],10);
+      respawnStr=mo+'/'+d+' '+h+':'+(min<10?'0':'')+min;
+      var _now2=new Date();
+      var targetTime=new Date(_now2.getFullYear(),mo-1,d,h,min,0);
+      if(targetTime<=_now2)targetTime.setDate(targetTime.getDate()+1);
+      secondsLeft=Math.round((targetTime-_now2)/1000);
     }
 
     // 重生時間 ≤ 30 秒 → 狂點卡片嘗試進入（無重試上限，卡在門口直到進去）
@@ -538,7 +538,7 @@ function __wbBossAutoScriptCheckBoss(target,idx,list){
     else{skipReason+=', \u7121\u91CD\u751F\u6642\u9593\uFF0C\u8DF3\u4E0B\u4E00\u4F4D';}
     console.log('[WB-AutoScript] '+target.name+' '+skipReason);
     __wbAddBossHistory(target.name,'skip',skipReason,0,respawnStr);
-    window.__wbBossAutoScript.currentIdx++;
+    window.__wbBossAutoScript.currentIdx=0;
     window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,500);
   } else {
     // Unknown → try enter (寧可嘗試進入也不要卡住)
