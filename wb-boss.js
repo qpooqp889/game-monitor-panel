@@ -233,7 +233,7 @@ function __wbBossAutoScriptLoop(){
       __wbBossAutoScriptLoopRealtime(list,0);
       return;
     }
-    // === 固定順序模式：收集所有 BOSS 狀態，按重生時間排序 ===
+    // === 智能模式：收集所有 BOSS 狀態，按重生時間排序 ===
     var now=new Date();
     var scoredList=[]; // {idx, target, priority:0=已可進,1=<60s,2=>60s, secondsLeft}
     for(var si=0;si<list.length;si++){
@@ -759,7 +759,7 @@ function __wbBossAutoScriptRestoreFarm(){
 // BOSS 腳本完成（最後一隻處理完畢的收尾）
 // @param {Array} list - 討伐清單
 // 所有 BOSS 處理完畢後的收尾
-// 排定模式：計算列表中最早復活時間，設定醒來計時器
+// 智能模式：計算列表中最早復活時間，設定醒來計時器
 // 即時模式：直接恢復掛機
 function __wbBossAutoScriptDone(list){
   console.log('[WB-AutoScript] All bosses processed, looping back to first');
@@ -799,8 +799,8 @@ function __wbBossAutoScriptDone(list){
 }
 
 
-// ====== 排定模式重生計時器 ======
-// 啟動重生倒數計時器（排定模式專用：只對 idx=0 的優先目標有效）
+// ====== 智能模式重生計時器 ======
+// 啟動重生倒數計時器（智能模式專用：只對 idx=0 的優先目標有效）
 function __wbStartRespawnTimer(target,seconds,list){
   if(!window.__wbBossAutoScript.running)return;
   clearTimeout(window.__wbBossAutoScript.respawnTimer);
@@ -1315,7 +1315,7 @@ console.log('[WB-Loot] Waiting for loot popup (.ip-box) after ' + target.name + 
 // @param {number} idx   - 清單索引
 // @param {Array}  list  - 完整討伐清單
 // 處理 BOSS 擊敗後續：記錄擊敗 → selectChar[0] 回村 → currentIdx++ 跳下一位
-// 排定模式：打完第一隻自動輪第二隻，以此類推，最後一隻打完回到掛機
+// 智能模式：打完第一隻自動輪第二隻，以此類推，最後一隻打完回到掛機
 // @param {Object} target - BOSS 物件
 // @param {number} idx   - 清單索引
 // @param {Array}  list  - 完整討伐清單
