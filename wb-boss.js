@@ -233,15 +233,34 @@ function __wbBossAutoScriptLoop(){
       __wbBossAutoScriptLoopRealtime(list,0);
       return;
     }
-    // 排定模式：只看 currentIdx
-    var idx=window.__wbBossAutoScript.currentIdx;
-    if(idx>=list.length){
-      window.__wbBossAutoScript.currentIdx=0;
+    // 固定順序模式：永遠從第一位 (idx=0) 開始掃描
+    // 找到第一個「可進入」的 BOSS（存活 或 已死但有重生時間）
+    var scanIdx=-1;
+    var scanTarget=null;
+    for(var si=0;si<list.length;si++){
+      var t=list[si];
+      var card=document.querySelector('.wb-card[data-boss="'+t.id+'"]');
+      if(!card)continue;
+      var subEl=document.querySelector('.wb-sub[data-boss="'+t.id+'"]');
+      var subText=subEl?subEl.textContent.trim():'';
+      var isAlive=subText.indexOf('\u5B58\u6D3B')!==-1||subText.indexOf('\u6230\u9B25\u4E2D')!==-1||subText.indexOf('HP')!==-1;
+      var isDead=subText.indexOf('\u5DF2\u88AB\u64CA\u6557')!==-1||subText.indexOf('\u5DF2\u88AB\u5FB4\u670D')!==-1;
+      if(isAlive){scanIdx=si;scanTarget=t;console.log('[WB-Scan] Found ALIVE: '+t.name+' (idx='+si+')');break;}
+      if(isDead){
+        var m=subText.match(/(\d{1,2}):(\d{2})/);
+        if(m){scanIdx=si;scanTarget=t;console.log('[WB-Scan] Found DEAD+respawn: '+t.name+' (idx='+si+')');break;}
+        console.log('[WB-Scan] '+t.name+' dead, no respawn, skip');
+      }
+    }
+    if(!scanTarget){
+      console.log('[WB-Scan] No boss available, retrying in 10s');
       __wbBossAutoScriptRestoreFarm();
-      window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,5000);
+      window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,10000);
       return;
     }
-    var target=list[idx];
+    var idx=scanIdx;
+    var target=scanTarget;
+    window.__wbBossAutoScript.currentIdx=idx;
     window.__wbBossAutoScript.phase='checking';
     var statusEl=document.getElementById('__gmp_boss_script_status');
     if(statusEl)statusEl.textContent='[BOSS] '+target.name+' ('+(idx+1)+'/'+list.length+')...';
@@ -676,8 +695,8 @@ function __wbBossAutoScriptMonitorBossHP(target,idx,list){
             console.log('[WB-SEND] selectChar [0]');
           }
         }catch(e){console.warn('[WB-AutoScript] selectChar failed:',e.message);}
-        // 移至下一個 BOSS（排定模式 currentIdx++ 輪流）
-        window.__wbBossAutoScript.currentIdx++;
+        // BOSS 已擊敗 → 回 Loop 從第一位重新掃描
+        window.__wbBossAutoScript.currentIdx=0;
         window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,3000);
         return;
       }
@@ -1287,8 +1306,8 @@ function __wbBossAutoScriptHandleDefeat(target, idx, list){
     }
   } catch(e){ console.warn('[WB-AutoScript] selectChar failed:', e.message); }
 
-  // 前進到下一個 BOSS
-  window.__wbBossAutoScript.currentIdx++;
+  // BOSS 已擊敗 → 回 Loop 從第一位重新掃描
+  window.__wbBossAutoScript.currentIdx=0;
   if(window.__wbBossAutoScript.timer) clearTimeout(window.__wbBossAutoScript.timer);
   // 等 3 秒角色回村後再循環檢查下一隻
   window.__wbBossAutoScript.timer = setTimeout(__wbBossAutoScriptLoop, 3000);
