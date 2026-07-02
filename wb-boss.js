@@ -1466,6 +1466,9 @@ function __wbUpdateHuntListUI(){
   var prev=document.querySelectorAll('.__gmp_hunt_chk:checked');
   var checkedIds={};
   prev.forEach(function(c){checkedIds[c.value]=true;});
+  // 保存批次人數輸入框的值，innerHTML 重繪後復原
+  var batchMinpEl=document.getElementById('__gmp_hunt_batch_minp');
+  var savedBatchMinp=batchMinpEl?batchMinpEl.value:'0';
   __wbGetHuntList(function(list){
     if(countEl)countEl.textContent=list.length+' \u53EA';
     var toolbar='<div style="display:flex;gap:4px;padding:2px 0 4px;flex-wrap:wrap;align-items:center;">'+
@@ -1474,7 +1477,7 @@ function __wbUpdateHuntListUI(){
       '<button data-wb-action="huntDelete" style="padding:2px 8px;background:#3a1a1a;border:1px solid #e94560;color:#e94560;border-radius:3px;cursor:pointer;font-size:10px;">\u2715 \u522A\u9664</button>'+
       '<span style="font-size:9px;color:#555;margin:0 2px;">|</span>'+
       '<span style="font-size:9px;color:#aaa;">\u6279\u91CF\u4EBA\u6578:</span>'+
-      '<input id="__gmp_hunt_batch_minp" type="number" value="0" min="0" max="20" style="width:32px;padding:1px 3px;background:#2a2a4a;border:1px solid #0f3460;border-radius:3px;color:#fbbf24;font-size:9px;outline:none;text-align:center;" title=\批\u91CF\u8A2D\u5B9A\u52FE\u9078\u9805\u76EE\u7684\u6700\u4F4E\u5728\u5834\u4EBA\u6578\">'+
+      '<input id="__gmp_hunt_batch_minp" type="number" value="'+savedBatchMinp+'" min="0" max="20" style="width:32px;padding:1px 3px;background:#2a2a4a;border:1px solid #0f3460;border-radius:3px;color:#fbbf24;font-size:9px;outline:none;text-align:center;" title=\批\u91CF\u8A2D\u5B9A\u52FE\u9078\u9805\u76EE\u7684\u6700\u4F4E\u5728\u5834\u4EBA\u6578\">'+
       '<button data-wb-action="huntBatchMinp" style="padding:2px 6px;background:#1a3a1a;border:1px solid #fbbf24;color:#fbbf24;border-radius:3px;cursor:pointer;font-size:10px;margin-left:auto;">\u2713 \u5957\u7528</button>'+
     '</div>';
     if(list.length){
