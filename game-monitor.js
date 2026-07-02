@@ -1588,6 +1588,8 @@ function __gmBuildPanel(){
   document.querySelectorAll('.__gmp_st').forEach(function(b){b.onclick=function(){renderZones(this.dataset.t)}});
 
   // === Tab switching ===
+  // 切換遊戲內 Tab（包含自動進入世界王的頁籤導航）
+  // @param {string} tab - Tab 名稱 ('zone','game','skill','status','farm','boss','monitor')
   function switchTab(tab){
     activeTab=tab;
     ['game','zone','farm','boss','monitor','skill','status'].forEach(function(t){

@@ -136,6 +136,29 @@ function __wbSaveBossScriptMode(m){
 
 // 啟動 BOSS 自動討伐腳本
 // 流程：先記下農怪狀態 → 停止農怪 → 載入歷史記錄 → 勾選自動重進 → 開始主循環
+
+// ====== 確保遊戲 UI 切換到世界王頁籤 ======
+// 導航流程：點擊「狩獵場」主頁籤 → 點擊「世界王」子頁籤
+// 找不到世界王子頁籤時仍記錄警告但不拋出例外（caller 用 try/catch 包裹）
+function __wbEnsureWBTab(){
+  // Step 1: 點擊遊戲的「狩獵場」主頁籤
+  var zoneTab=document.querySelector('div.tab[data-tab="zone"]');
+  if(!zoneTab){console.warn('[WB-Ensure] 找不到狩獵場主頁籤 (data-tab="zone")');return;}
+  zoneTab.click();console.log('[WB-Ensure] Clicked 狩獵場 main tab');
+  
+  // Step 2: 等待 DOM 更新後點擊「世界王」子頁籤
+  // 依序嘗試: data-tab="boss" → 文字含「世界王」的 tab → 假設卡片已可見
+  setTimeout(function(){
+    var wbSubTab=document.querySelector('div.tab[data-tab="boss"]');
+    if(!wbSubTab){
+      var allTabs=document.querySelectorAll('div.tab, button.tab, span.tab, a.tab, .zone-tab, .sub-tab');
+      allTabs.forEach(function(t){if(t.textContent.indexOf('\u4E16\u754C\u738B')!==-1)wbSubTab=t;});
+    }
+    if(wbSubTab){wbSubTab.click();console.log('[WB-Ensure] Clicked 世界王 sub-tab');}
+    else{console.log('[WB-Ensure] 世界王 sub-tab not found, cards may already be visible');}
+  },600);
+}
+
 function __wbBossAutoScriptStart(){
   if(window.__wbBossAutoScript.running)return;
   var cfgChk=document.getElementById('__gmp_boss_auto_script_enable');
@@ -362,8 +385,10 @@ function __wbBossAutoScriptCheckBoss(target,idx,list){
   });
 
   if(!foundBoss){
-    // BOSS 不在 DOM 中（可能尚未載入），等 3 秒重試
-    console.log('[WB-AutoScript] '+target.name+' not in DOM, waiting...');
+    // BOSS 不在 DOM 中（可能尚未載入或頁籤未切換），等 3 秒重試
+    var _domCardsCount=document.querySelectorAll('.wb-card[data-boss]').length;
+    console.log('[WB-AutoScript] '+target.name+'('+target.id+') not in DOM ('+_domCardsCount+' cards total), waiting...');
+    __wbAddBossHistory(target.name,'fail_entry','DOM查無卡片(共'+_domCardsCount+'張, 可能頁籤未切換)',0,null);
     window.__wbBossAutoScript.phase='waiting_boss';
     window.__wbBossAutoScript.timer=setTimeout(function(){
       __wbBossAutoScriptCheckBoss(target,idx,list);
@@ -473,6 +498,12 @@ function __wbBossAutoScriptTryEnter(target,idx,list,card){
   var retry=window.__wbBossAutoScript.entryRetry||0;
   var maxRetry=3;
 
+  // 每次進入時重新查詢 DOM 卡片（避免 reference 過期）
+  if(!card||retry>0){
+    document.querySelectorAll('.wb-card[data-boss]').forEach(function(_c){if(_c.getAttribute('data-boss')===target.id)card=_c;});
+  }
+  if(!card){console.warn('[WB-AutoScript] TryEnter: card ref is null for '+target.name);}
+
   // 點擊卡片觸發 joinBoss 封包
   if(card&&retry===0){
     // 第一次嘗試：點擊 + 等待 3 秒後驗證
@@ -501,14 +532,20 @@ function __wbBossAutoScriptTryEnter(target,idx,list,card){
     window.__wbBossAutoScript.entryRetry=retry+1;
     window.__wbBossAutoScript.phase='entering_retry';
     window.__wbBossAutoScript.timer=setTimeout(function(){
-      // 重試前再次點擊卡片（遊戲伺服器可能已就緒）
-      if(card)try{card.click();}catch(e){}
-      __wbBossAutoScriptTryEnter(target,idx,list,card);
+      // 重試前重新查詢 DOM 卡片（DOM 可能已重繪，舊 reference 無效）
+      var _rfCard=null;
+      document.querySelectorAll('.wb-card[data-boss]').forEach(function(_c){if(_c.getAttribute('data-boss')===target.id)_rfCard=_c;});
+      if(_rfCard){try{_rfCard.click();console.log('[WB-AutoScript] Retry click '+target.name+' (attempt '+(retry+2)+')');}catch(e){}}
+      else{console.warn('[WB-AutoScript] Retry: card not in DOM for '+target.name);}
+      __wbBossAutoScriptTryEnter(target,idx,list,_rfCard||card);
     },3000);
   } else {
-    // 重試 3 次後仍失敗 → 記錄並跳過
-    console.log('[WB-AutoScript] '+target.name+' entry failed after '+maxRetry+' retries, skipping');
-    __wbAddBossHistory(target.name, 'fail_entry', '無法進入('+maxRetry+'次重試, 狀態:'+ls.mode+')', 0, null);
+    // 重試 3 次後仍失敗 → 記錄 bossName/subText/mode 並跳過
+    var _failSubEl=document.querySelector('.wb-sub[data-boss="'+target.id+'"]');
+    var _failSubText=_failSubEl?_failSubEl.textContent.trim():'N/A';
+    var _failReason='無法進入('+maxRetry+'次重試) mode='+ls.mode+' sub='+_failSubText;
+    console.log('[WB-AutoScript] '+target.name+' entry FAILED: '+_failReason);
+    __wbAddBossHistory(target.name, 'fail_entry', _failReason, 0, null);
     window.__wbBossAutoScript.entryRetry=0;
     window.__wbBossAutoScript.currentIdx++;
     window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,1000);
@@ -1831,6 +1868,7 @@ setTimeout(function(){
   window.__wbSubscribeWorldBoss=__wbSubscribeWorldBoss;window.__wbQueryWorldBoss=__wbQueryWorldBoss;
   window.__wbStartWorldBossTimer=__wbStartWorldBossTimer;window.__wbStopWorldBossTimer=__wbStopWorldBossTimer;
   window.__wbParseWorldBossData=__wbParseWorldBossData;window.__wbUpdateWorldBossUI=__wbUpdateWorldBossUI;
+  window.__wbEnsureWBTab=__wbEnsureWBTab;
   window.__wbDetectWorldBossEvt=__wbDetectWorldBossEvt;
   window.__wbBossLoop=__wbBossLoop;window.__wbBossAutoStart=__wbBossAutoStart;window.__wbBossAutoStop=__wbBossAutoStop;
   window.__wbToggleBypass=__wbToggleBypass;
