@@ -473,7 +473,16 @@ function __wbBossAutoScriptCheckBoss(target,idx,list){
       __wbStartRespawnTimer(target,secondsLeft,list);
       return;
     }
-    // 非排定/非優先/重生太久 → 正常跳下一個
+    // === 排定模式 + 優先項 (idx===0) + 重生>60s ===
+    // 固定在第一隻，持續輪詢直到復活；不跳下一個
+    if(idx===0&&inScheduled&&hasRespawn&&secondsLeft>60){
+      console.log('[WB-AutoScript] '+target.name+' respawn in '+secondsLeft+'s (>60s), polling every 30s');
+      window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,30000);
+      return;
+    }
+    // 排定模式 + 非優先項 (idx>0) → 跳下一個
+    // 即時模式 → 跳下一個
+    // 排定+優先+無重生資訊 → 也跳下一個（無法計算等待時間）
     window.__wbBossAutoScript.currentIdx++;
     window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,500);
   } else {
@@ -636,11 +645,44 @@ function __wbBossAutoScriptRestoreFarm(){
 
 // BOSS 腳本完成（最後一隻處理完畢的收尾）
 // @param {Array} list - 討伐清單
+// 所有 BOSS 處理完畢後的收尾
+// 排定模式：計算列表中最早復活時間，設定醒來計時器
+// 即時模式：直接恢復掛機
 function __wbBossAutoScriptDone(list){
-  console.log('[WB-AutoScript] All bosses processed, restoring farm');
+  console.log('[WB-AutoScript] All bosses processed, calculating next check...');
   window.__wbBossAutoScript.currentIdx=0;
+
+  // 排定模式：掃描所有 priority list 的復活時間，取最早的
+  if((window.__wbBossAutoScript.mode||'scheduled')==='scheduled'){
+    var now=new Date();
+    var nearestSec=null;
+    list.forEach(function(item){
+      var card=document.querySelector('.wb-card[data-boss="'+item.id+'"]');
+      if(!card)return;
+      var subEl=document.querySelector('.wb-sub[data-boss="'+item.id+'"]');
+      if(!subEl)return;
+      var txt=subEl.textContent.trim();
+      var m=txt.match(/(\d{1,2}):(\d{2})/);
+      if(!m)return;
+      var h=parseInt(m[1],10),min=parseInt(m[2],10);
+      var t=new Date(now.getFullYear(),now.getMonth(),now.getDate(),h,min,0);
+      if(t<=now)t.setDate(t.getDate()+1);
+      var sec=Math.round((t-now)/1000);
+      if(sec>0&&(nearestSec===null||sec<nearestSec))nearestSec=sec;
+    });
+    if(nearestSec!==null){
+      // 最早復活時間在 reasonable range 內 → 醒來再檢查
+      var wakeSec=Math.min(nearestSec,3600); // 最多等1小時
+      console.log('[WB-AutoScript] Next respawn in '+wakeSec+'s, waking up then');
+      __wbBossAutoScriptRestoreFarm();
+      window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,wakeSec*1000+5000);
+      return;
+    }
+  }
+
+  // 即時模式 或 排定無復活資訊 → 恢復掛機，10 秒後重試
   __wbBossAutoScriptRestoreFarm();
-  window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,5000);
+  window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,10000);
 }
 
 
