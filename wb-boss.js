@@ -898,9 +898,22 @@ function __wbBossAutoScriptHandleDefeat(target, idx, list){
   } else {
     // Log leave before moving on（記錄離開並前進到下一隻）
     __wbAddBossHistory(target.name, 'leave', '\u96E2\u958B(\u7121\u91CD\u9032\u8A2D\u5B9A)', 0, null);
+
+    // 先 selectChar 回村，再檢查下一隻 BOSS
+    var slot = (window.__gmFarming && window.__gmFarming.charSlot) || 0;
+    console.log('[WB-AutoScript] Sending selectChar slot='+slot+' to return to town');
+    try {
+      if(window.__wbSocket && window.__wbSocket.emit){
+        window.__wbSocket.emit('selectChar', slot);
+      } else if(window.__ws && window.__ws.readyState===WebSocket.OPEN){
+        window.__ws.send('42["selectChar",'+slot+']');
+      }
+    } catch(e){ console.warn('[WB-AutoScript] selectChar failed:', e.message); }
+
     window.__wbBossAutoScript.currentIdx++;
     if(window.__wbBossAutoScript.timer) clearTimeout(window.__wbBossAutoScript.timer);
-    window.__wbBossAutoScript.timer = setTimeout(__wbBossAutoScriptLoop, 1000);
+    // 等 3 秒角色回村後再循環檢查下一隻
+    window.__wbBossAutoScript.timer = setTimeout(__wbBossAutoScriptLoop, 3000);
   }
 }
 

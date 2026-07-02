@@ -8,13 +8,11 @@ var __gmRuntimeDead = false;
 var _gmChrome = null;
 try {
   _gmChrome = chrome;
-  // Check if runtime is alive
-  if (_gmChrome.runtime && _gmChrome.runtime.id) {
-    // alive
-  } else {
-    __gmRuntimeDead = true;
-  }
+  // 不在初始化時預先判定 __gmRuntimeDead
+  // chrome.runtime.id 在 document_start 階段可能尚未就緒
+  // __gmRuntimeDead 只應在實際 API 呼叫失敗時設為 true（lazy detection）
 } catch(e) {
+  // chrome 物件本身不存在 → 非擴充環境，設死旗
   __gmRuntimeDead = true;
 }
 
