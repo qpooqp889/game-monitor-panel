@@ -552,6 +552,35 @@ function __wbBossAutoScriptMonitorBossHP(target,idx,list){
     if(window.__wbBossAuto&&!window.__wbBossAuto.running&&window.__wbBossAutoStart){
       __wbBossAutoStart();
     }
+
+    // === BOSS HP<20%：偵測已被擊敗提示，提前離開 ===
+    // 當 BOSS 血量低於 20% 時，檢查 DOM 中是否出現「世界王已被擊敗」
+    // 若出現表示戰鬥已結束但 lastState 未更新，發 selectChar[0] 離開
+    var hpPctCheck=bossMax>0?Math.round(bossHp/bossMax*100):100;
+    if(hpPctCheck<20){
+      var defeatedEl=document.querySelector('div[style*="color:#f87171"]');
+      if(defeatedEl&&defeatedEl.textContent.indexOf('\u4E16\u754C\u738B\u5DF2\u88AB\u64CA\u6557')!==-1){
+        console.log('[WB-AutoScript] Boss defeated at HP'+hpPctCheck+'%, leaving early');
+        __wbAddBossHistory(target.name,'defeat','HP<20% \u4E16\u754C\u738B\u5DF2\u88AB\u64CA\u6557 \u63D0\u524D\u96E2\u958B',bossHp,null);
+        if(statusEl)statusEl.textContent='[LEAVE]'+target.name+'\u5DF2\u64CA\u6557(HP'+hpPctCheck+'%)';
+        // 停止自動攻擊
+        var _ec=document.getElementById('__gmp_boss_auto_enable');
+        if(_ec)_ec.checked=false;
+        var _ac=document.getElementById('__gmp_boss_auto_atk');
+        if(_ac)_ac.checked=false;
+        // 發送 selectChar [0] 回村
+        try{
+          if(window.__wbSocket&&window.__wbSocket.emit){
+            window.__wbSocket.emit('selectChar',0);
+            console.log('[WB-SEND] selectChar [0]');
+          }
+        }catch(e){console.warn('[WB-AutoScript] selectChar failed:',e.message);}
+        // 移至下一個 BOSS
+        window.__wbBossAutoScript.currentIdx++;
+        window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,3000);
+        return;
+      }
+    }
   }
 
   // 每 2 秒遞迴輪詢
