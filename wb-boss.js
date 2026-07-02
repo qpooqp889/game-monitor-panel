@@ -600,19 +600,14 @@ function __wbBossAutoScriptMonitorBossHP(target,idx,list){
         console.log('[WB-AutoScript] Boss defeated at HP'+hpPctCheck+'%, leaving early');
         __wbAddBossHistory(target.name,'defeat','HP<20% \u4E16\u754C\u738B\u5DF2\u88AB\u64CA\u6557 \u63D0\u524D\u96E2\u958B',bossHp,null);
         if(statusEl)statusEl.textContent='[LEAVE]'+target.name+'\u5DF2\u64CA\u6557(HP'+hpPctCheck+'%)';
-        // 停止自動攻擊
-        var _ec=document.getElementById('__gmp_boss_auto_enable');
-        if(_ec)_ec.checked=false;
-        var _ac=document.getElementById('__gmp_boss_auto_atk');
-        if(_ac)_ac.checked=false;
-        // 發送 selectChar [0] 回村
+        // 發送 selectChar [0] 回村（不關閉自動攻擊，讓下場 BOSS 繼續用相同設定）
         try{
           if(window.__wbSocket&&window.__wbSocket.emit){
             window.__wbSocket.emit('selectChar',0);
             console.log('[WB-SEND] selectChar [0]');
           }
         }catch(e){console.warn('[WB-AutoScript] selectChar failed:',e.message);}
-        // 移至下一個 BOSS
+        // 移至下一個 BOSS（排定模式 currentIdx++ 輪流）
         window.__wbBossAutoScript.currentIdx++;
         window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,3000);
         return;
