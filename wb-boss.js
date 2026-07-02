@@ -454,9 +454,9 @@ function __wbBossAutoScriptCheckBoss(target,idx,list){
       secondsLeft=Math.round((targetTime-now)/1000);
     }
 
-    // 重生時間 ≤ 60 秒 → 狂點卡片嘗試進入（無重試上限，卡在門口直到進去）
+    // 重生時間 ≤ 30 秒 → 狂點卡片嘗試進入（無重試上限，卡在門口直到進去）
     // 僅限優先清單第一位 (idx===0)，其餘順位直接跳過
-    if(idx===0&&respawnStr&&secondsLeft!==null&&secondsLeft<=60&&secondsLeft>0){
+    if(idx===0&&respawnStr&&secondsLeft!==null&&secondsLeft<=30&&secondsLeft>0){
       var _reason='BOSS\u5DF2\u88AB\u64CA\u6557,\u91CD\u751F\u5012\u6578'+secondsLeft+'s(\u7D04'+respawnStr+')\uFF0C\u72C2\u9EDE\u9032\u5165';
       console.log('[WB-AutoScript] '+target.name+': '+_reason);
       __wbAddBossHistory(target.name,'enter',_reason,0,respawnStr);
@@ -470,9 +470,9 @@ function __wbBossAutoScriptCheckBoss(target,idx,list){
       return;
     }
 
-    // 重生時間 > 60 秒或無重生資訊 → 直接跳下一位
+    // 重生時間 > 30 秒或無重生資訊 → 直接跳下一位
     var skipReason='BOSS\u5DF2\u88AB\u64CA\u6557';
-    if(respawnStr){skipReason+=', \u91CD\u751F'+respawnStr+', \u5269'+secondsLeft+'s(>60s)\uFF0C\u8DF3\u4E0B\u4E00\u4F4D';}
+    if(respawnStr){skipReason+=', \u91CD\u751F'+respawnStr+', \u5269'+secondsLeft+'s(>30s)\uFF0C\u8DF3\u4E0B\u4E00\u4F4D';}
     else{skipReason+=', \u7121\u91CD\u751F\u6642\u9593\uFF0C\u8DF3\u4E0B\u4E00\u4F4D';}
     console.log('[WB-AutoScript] '+target.name+' '+skipReason);
     __wbAddBossHistory(target.name,'skip',skipReason,0,respawnStr);
@@ -554,7 +554,7 @@ function __wbBossAutoScriptTryEnter(target,idx,list,card){
   }
 }
 // ====== 狂點進場模式（無重試上限，持續嘗試直到進去或停止） ======
-// 用在 BOSS 重生倒數 ≤60s 時，卡在門口一直點，不設 3 次上限
+// 用在 BOSS 重生倒數 ≤30s 時，卡在門口一直點，不設 3 次上限
 // @param {Object} target - BOSS 物件
 // @param {number} idx   - 清單索引
 // @param {Array}  list  - 完整討伐清單
