@@ -470,9 +470,24 @@ function __wbBossAutoScriptCheckBoss(target,idx,list){
       return;
     }
 
-    // 重生時間 > 30 秒或無重生資訊 → 直接跳下一位
+    // idx≥1 且有重生時間（代表尚未復活）→ 也狂點進入
+    // 等重生倒數歸零後開始狂點，跟第一位邏輯相同但無 30s 限制
+    if(idx>0&&respawnStr&&secondsLeft!==null&&secondsLeft>0){
+      var _reasonN='BOSS\u5DF2\u88AB\u64CA\u6557,\u9810\u8A08\u91CD\u751F'+respawnStr+'(\u5269'+secondsLeft+'s)\uFF0C\u7B49\u5F85\u5FA9\u6D3B\u5F8C\u72C2\u9EDE\u9032\u5165';
+      console.log('[WB-AutoScript] '+target.name+': '+_reasonN);
+      __wbAddBossHistory(target.name,'enter',_reasonN,0,respawnStr);
+      window.__wbBossAutoScript.phase='entering_spam';
+      var _waitMsN=Math.max((secondsLeft+2)*1000,1000);
+      window.__wbBossAutoScript.spamCount=0;
+      window.__wbBossAutoScript.timer=setTimeout(function(){
+        __wbBossAutoScriptTryEnterSpam(target,idx,list,foundBoss);
+      },_waitMsN);
+      return;
+    }
+
+    // idx=0 且 >30s 或 idx≥1 且無重生資訊 → 跳下一位
     var skipReason='BOSS\u5DF2\u88AB\u64CA\u6557';
-    if(respawnStr){skipReason+=', \u91CD\u751F'+respawnStr+', \u5269'+secondsLeft+'s(>30s)\uFF0C\u8DF3\u4E0B\u4E00\u4F4D';}
+    if(respawnStr){skipReason+=', \u91CD\u751F'+respawnStr+', \u5269'+secondsLeft+'s\uFF0C\u8DF3\u4E0B\u4E00\u4F4D';}
     else{skipReason+=', \u7121\u91CD\u751F\u6642\u9593\uFF0C\u8DF3\u4E0B\u4E00\u4F4D';}
     console.log('[WB-AutoScript] '+target.name+' '+skipReason);
     __wbAddBossHistory(target.name,'skip',skipReason,0,respawnStr);
