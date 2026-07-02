@@ -1201,6 +1201,11 @@ console.log('[WB-Loot] Waiting for loot popup (.ip-box) after ' + target.name + 
 // @param {Object} target - BOSS 物件
 // @param {number} idx   - 清單索引
 // @param {Array}  list  - 完整討伐清單
+// 處理 BOSS 擊敗後續：記錄擊敗 → selectChar[0] 回村 → currentIdx++ 跳下一位
+// 排定模式：打完第一隻自動輪第二隻，以此類推，最後一隻打完回到掛機
+// @param {Object} target - BOSS 物件
+// @param {number} idx   - 清單索引
+// @param {Array}  list  - 完整討伐清單
 function __wbBossAutoScriptHandleDefeat(target, idx, list){
   console.log('[WB-AutoScript] ' + target.name + ' defeated!');
 
@@ -1209,39 +1214,24 @@ function __wbBossAutoScriptHandleDefeat(target, idx, list){
   var boss = ls.boss || {};
   __wbAddBossHistory(target.name, 'defeat', '\u64CA\u6557 BOSS', 0, null);
 
+  // 記錄離開（前進到下一個 BOSS）
+  __wbAddBossHistory(target.name, 'leave', '\u64CA\u6557\u5F8C\u56DE\u6751\uFF0C\u524D\u9032\u4E0B\u4E00\u4F4D', 0, null);
 
-  // Turn off auto-attack
-  // 關閉自動攻擊相關選項（BOSS 已死不需繼續攻擊）
-  var enableChk = document.getElementById('__gmp_boss_auto_enable');
-  if(enableChk) enableChk.checked = false;
-  var atkChk = document.getElementById('__gmp_boss_auto_atk');
-  if(atkChk) atkChk.checked = false;
+  // 發送 selectChar [0] 回村（不關閉自動攻擊，讓下一場繼續用相同設定）
+  console.log('[WB-AutoScript] Sending selectChar [0] to return to town');
+  try {
+    if(window.__wbSocket && window.__wbSocket.emit){
+      window.__wbSocket.emit('selectChar', 0);
+    } else if(window.__ws && window.__ws.readyState===WebSocket.OPEN){
+      window.__ws.send('42["selectChar",0]');
+    }
+  } catch(e){ console.warn('[WB-AutoScript] selectChar failed:', e.message); }
 
-  // Check re-enter setting
-  // 根據重進設定決定下一步：重進同一隻 或 跳到下一隻
-  if(__wbCanReEnterBoss()){
-    window.__wbBossAutoScript.phase = 'reenter';
-    __wbBossAutoScriptReEnter(target, idx, list);
-  } else {
-    // Log leave before moving on（記錄離開並前進到下一隻）
-    __wbAddBossHistory(target.name, 'leave', '\u96E2\u958B(\u7121\u91CD\u9032\u8A2D\u5B9A)', 0, null);
-
-    // 先 selectChar 回村，再檢查下一隻 BOSS
-    var slot = (window.__gmFarming && window.__gmFarming.charSlot) || 0;
-    console.log('[WB-AutoScript] Sending selectChar slot='+slot+' to return to town');
-    try {
-      if(window.__wbSocket && window.__wbSocket.emit){
-        window.__wbSocket.emit('selectChar', slot);
-      } else if(window.__ws && window.__ws.readyState===WebSocket.OPEN){
-        window.__ws.send('42["selectChar",'+slot+']');
-      }
-    } catch(e){ console.warn('[WB-AutoScript] selectChar failed:', e.message); }
-
-    window.__wbBossAutoScript.currentIdx++;
-    if(window.__wbBossAutoScript.timer) clearTimeout(window.__wbBossAutoScript.timer);
-    // 等 3 秒角色回村後再循環檢查下一隻
-    window.__wbBossAutoScript.timer = setTimeout(__wbBossAutoScriptLoop, 3000);
-  }
+  // 前進到下一個 BOSS
+  window.__wbBossAutoScript.currentIdx++;
+  if(window.__wbBossAutoScript.timer) clearTimeout(window.__wbBossAutoScript.timer);
+  // 等 3 秒角色回村後再循環檢查下一隻
+  window.__wbBossAutoScript.timer = setTimeout(__wbBossAutoScriptLoop, 3000);
 }
 
 
