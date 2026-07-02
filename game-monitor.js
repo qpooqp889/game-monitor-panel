@@ -677,6 +677,11 @@ function startFarming(){
   var atkCheck=document.getElementById('__gmp_farm_atk');
   var reconnectCheck=document.getElementById('__gmp_farm_reconnect');
   var charNameInput=document.getElementById('__gmp_farm_char_name');
+  // 若角色名稱為空，自動從遊戲 DOM 讀取 id="t-name" 填入
+  if(!charNameInput.value.trim()){
+    var tname=document.getElementById('t-name');
+    if(tname){charNameInput.value=tname.textContent.trim();}
+  }
   var reconnectIntervalInput=document.getElementById('__gmp_farm_reconnect_interval');
   var charSlotSelect=document.getElementById('__gmp_farm_char_slot');
   var btn=document.getElementById('__gmp_farm_btn');
