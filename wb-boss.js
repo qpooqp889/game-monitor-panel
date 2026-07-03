@@ -272,8 +272,12 @@ function __wbBossAutoScriptLoop(){
           scoredList.push({idx:si, target:t, priority:pty, secondsLeft:sl, subText:subText, respStr:m[0]});
           console.log('[WB-Scan] DEAD+respawn: '+t.name+' (idx='+si+') resp:'+m[0]+' '+sl+'s left, priority='+pty);
         } else {
-          console.log('[WB-Scan] '+t.name+' dead, no respawn time, skip');
+          scoredList.push({idx:si, target:t, priority:0, secondsLeft:-1, subText:subText});
+          console.log('[WB-Scan] DEAD no-respawn: '+t.name+' (idx='+si+'), push as priority=0 for CheckBoss');
         }
+      }else{
+        scoredList.push({idx:si, target:t, priority:0, secondsLeft:-1, subText:subText});
+        console.log('[WB-Scan] UNKNOWN: '+t.name+' (idx='+si+') sub="'+subText+'", push as priority=0');
       }
     }
     if(!scoredList.length){
