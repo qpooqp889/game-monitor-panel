@@ -35,41 +35,51 @@ function __wbDebugLog(category,message){
   console.log('[WB-DEBUG] '+category+': '+message);
 }
 
-// 將收集的 log 寫入 chrome.storage.local（append 式，保留最近 50 組 session）
+// 將收集的 log 寫入 chrome.storage.local（append 式，保留最近 500 組 session）
 function __wbDebugFlush(){
   if(!window.__wb_debug_entries.length)return;
   var session={
     boss:window.__wb_debug_boss||'',
     startTime:window.__wb_debug_entries[0]?window.__wb_debug_entries[0].time:'',
-    entries:window.__wb_debug_entries
+    entries:window.__wb_debug_entries.slice()
   };
+  window.__wb_debug_entries=[];
   try{
-    chrome.storage.local.get(['__gmp_debug_sessions'],function(res){
-      var sessions=res.__gmp_debug_sessions||[];
+    var getter=window.__gmStorageGet||(function(k){return chrome.storage.local.get(k);});
+    var setter=window.__gmStorageSet||(function(k,v){return chrome.storage.local.set({[k]:v});});
+    getter(['__gmp_debug_sessions']).then(function(res){
+      var sessions=(res&&res.__gmp_debug_sessions)||[];
       sessions.push(session);
       if(sessions.length>500)sessions=sessions.slice(-500);
-      chrome.storage.local.set({__gmp_debug_sessions:sessions},function(){
-        console.log('[WB-DEBUG] Session saved ('+session.entries.length+' entries), total sessions: '+sessions.length);
-      });
-    });
+      return setter('__gmp_debug_sessions',sessions);
+    }).then(function(){
+      console.log('[WB-DEBUG] Session saved ('+session.entries.length+' entries), total in store');
+    }).catch(function(e){console.log('[WB-DEBUG] Flush error: '+e.message);});
   }catch(e){
     console.log('[WB-DEBUG] Flush error: '+e.message);
   }
-  window.__wb_debug_entries=[];
 }
 
 // 匯出全部 debug sessions 為 JSON 字串（供使用者複製/匯出）
 window.__wbDebugExport=function(){
-  try{
-    chrome.storage.local.get(['__gmp_debug_sessions'],function(res){
-      var sessions=res.__gmp_debug_sessions||[];
-      var json=JSON.stringify(sessions,null,2);
-      console.log('[WB-DEBUG-EXPORT]\n'+json);
-      alert('Debug log exported to console!\nSessions: '+sessions.length+'\nTotal entries: '+sessions.reduce(function(s,ss){return s+ss.entries.length;},0));
+  var getter=window.__gmStorageGet||(function(k){return chrome.storage.local.get(k);});
+  getter(['__gmp_debug_sessions']).then(function(res){
+    var sessions=(res&&res.__gmp_debug_sessions)||[];
+    if(!sessions.length){console.log('[WB-DEBUG-EXPORT] No sessions found');alert('No debug sessions found');return;}
+    var totalEntries=sessions.reduce(function(s,ss){return s+(ss.entries?ss.entries.length:0);},0);
+    console.log('[WB-DEBUG-EXPORT] ========== START ('+sessions.length+' sessions, '+totalEntries+' entries) ==========');
+    sessions.forEach(function(session,i){
+      console.log('--- Session '+(i+1)+': '+session.boss+' @ '+session.startTime+' ('+session.entries.length+' entries) ---');
+      (session.entries||[]).forEach(function(e){
+        console.log('  ['+e.cat+'] '+e.msg+'  ('+e.time+')');
+      });
     });
-  }catch(e){
+    console.log('[WB-DEBUG-EXPORT] ========== END ==========');
+    console.log('[WB-DEBUG-EXPORT] RAW JSON:\n'+JSON.stringify(sessions,null,2));
+    alert('Debug log exported!\nSessions: '+sessions.length+'\nTotal entries: '+totalEntries);
+  }).catch(function(e){
     console.log('[WB-DEBUG-EXPORT] Error: '+e.message);
-  }
+  });
 };
 // ====== wb-boss.js - World Boss Module ======
 // Extracted from game-monitor.js v2.30
