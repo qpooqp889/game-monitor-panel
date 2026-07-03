@@ -803,9 +803,10 @@ function __wbBossAutoScriptMonitorBossHP_doCheck(target,idx,list){
   var statusEl=document.getElementById('__gmp_boss_script_status');
   if(statusEl)statusEl.textContent='[ATTACK] '+target.name+' HP:'+Math.round(bossHp/bossMax*100)+'%';
 
-  // If boss HP is 0 and not in battle mode, it's dead
-  // HP=0 且離開戰鬥模式 → BOSS 已擊敗，進入等待掉落階段
-  if(bossHp<=0&&mode!=='bosscombat'){
+  // BOSS HP=0 → 已擊敗，進入等待掉落/結算階段
+  // 注意：遊戲可能 HP=0 但 mode 仍為 bosscombat（state 尚未更新），
+  // 此時仍需觸發擊敗處理，否則會永遠空轉
+  if(bossHp<=0){
     window.__wbBossAutoScript.phase='waiting_loot';
     __wbBossAutoScriptWaitForLoot(target,idx,list);
     return;
