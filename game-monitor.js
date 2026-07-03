@@ -1,5 +1,5 @@
 (function(){
-var ver='v3.25';
+var ver='v3.56';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -827,7 +827,7 @@ function startFarming(){
       }
 
       // Feature 1: HP low → trigger action (selectChar or toLobby)
-      if(hpLow){
+      if(hpLow&&mode!=='boss'&&mode!=='bosscombat'){
         try{
           if(hpAction==='toLobby'){
             sendCmd('toLobby');
@@ -847,7 +847,7 @@ function startFarming(){
       }
 
       // Feature 1b: MP low → trigger action (selectChar or toLobby)
-      if(mpLow){
+      if(mpLow&&mode!=='boss'&&mode!=='bosscombat'){
         try{
           if(mpAction==='toLobby'){
             sendCmd('toLobby');
