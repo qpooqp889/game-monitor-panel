@@ -1197,8 +1197,19 @@ function __wbSaveBossHistory(){
 
 // 從 storage 載入 BOSS 歷史記錄
 // @param {Function} callback - 回呼函式，接收歷史記錄陣列
+// 從 chrome.storage.local 載入 BOSS 歷史記錄到 window.__wbBossHistory
+// @param {Function} callback - 載入完成後回呼（接收 history 陣列）
 function __wbLoadBossHistory(callback){
   if(typeof window.__gmStorageGet === 'undefined'){ if(callback) callback([]); return; }
+  var _cb=callback||function(){};
+  window.__gmStorageGet(['wb_boss_history']).then(function(res){
+    window.__wbBossHistory=(res&&res.wb_boss_history)||[];
+    _cb(window.__wbBossHistory);
+  }).catch(function(){
+    window.__wbBossHistory=[];
+    _cb([]);
+  });
+}
   window.__gmStorageGet(['wb_boss_history']).then(function(r){
     var list = r && r.wb_boss_history || [];
     window.__wbBossHistory = list;
