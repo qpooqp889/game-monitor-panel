@@ -1210,15 +1210,6 @@ function __wbLoadBossHistory(callback){
     _cb([]);
   });
 }
-  window.__gmStorageGet(['wb_boss_history']).then(function(r){
-    var list = r && r.wb_boss_history || [];
-    window.__wbBossHistory = list;
-    if(callback) callback(list);
-  }).catch(function(){
-    window.__wbBossHistory = [];
-    if(callback) callback([]);
-  });
-}
 
 // 清除 BOSS 歷史記錄
 function __wbClearBossHistory(){
