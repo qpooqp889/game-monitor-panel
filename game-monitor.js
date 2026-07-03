@@ -1608,12 +1608,12 @@ function __gmBuildPanel(){
       }
     });
     if(tab==='zone')renderZones(activeZoneTab);
-    if(tab==='boss'){window.__wbInitHuntToggle();__wbUpdateBossStatus();__wbUpdateWorldBossUI();}
+    if(tab==='boss'){if(window.__wbEnsureWBTab)window.__wbEnsureWBTab();setTimeout(function(){__wbUpdateWorldBossUI();},1500);window.__wbInitHuntToggle();__wbUpdateBossStatus();}
   }
   document.getElementById('__gmp_tab_game').onclick=function(){switchTab('game')};
   document.getElementById('__gmp_tab_zone').onclick=function(){switchTab('zone')};
   document.getElementById('__gmp_tab_farm').onclick=function(){switchTab('farm')};
-  document.getElementById('__gmp_tab_boss').onclick=function(){switchTab('boss');};
+  document.getElementById('__gmp_tab_boss').onclick=function(){if(window.__wbEnsureWBTab)window.__wbEnsureWBTab();switchTab('boss');};
   document.getElementById('__gmp_tab_monitor').onclick=function(){switchTab('monitor')};
   document.addEventListener('click',function(e){
     var t=e.target;while(t&&t.nodeType===3)t=t.parentElement;
