@@ -242,7 +242,7 @@ function __wbBossAutoScriptLoop(){
       if(!card)continue;
       var subEl=document.querySelector('.wb-sub[data-boss="'+t.id+'"]');
       var subText=subEl?subEl.textContent.trim():'';
-      var isAlive=subText.indexOf('\u5B58\u6D3B')!==-1||subText.indexOf('\u6230\u9B25\u4E2D')!==-1||subText.indexOf('HP')!==-1;
+      var isAlive=subText.indexOf('\u5B58\u6D3B')!==-1||subText.indexOf('\u6230\u9B25\u4E2D')!==-1||subText.indexOf('HP')!==-1||subText.indexOf('\u5728\u5834')!==-1;
       var isDead=subText.indexOf('\u5DF2\u88AB\u64CA\u6557')!==-1||subText.indexOf('\u5DF2\u88AB\u5FB4\u670D')!==-1;
       if(isAlive){
         scoredList.push({idx:si, target:t, priority:0, secondsLeft:-999, subText:subText});
@@ -276,18 +276,30 @@ function __wbBossAutoScriptLoop(){
       if(a.priority===0)return a.idx-b.idx; // 存活用原始順序
       return a.secondsLeft-b.secondsLeft; // 死了按重生時間由近到遠
     });
-    // 只取有希望的：priority=1 只取 <60s 的，priority=2 跳過
-    var filtered=scoredList.filter(function(x){return x.priority<=1;});
-    if(!filtered.length){
-      console.log('[WB-Scan] All bosses >60s away, retrying in 30s');
-      __wbBossAutoScriptRestoreFarm();
-      window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,30000);
-      return;
-    }
-    console.log('[WB-Scan] Sorted list: '+filtered.map(function(x){return x.target.name+'(p'+x.priority+' s'+x.secondsLeft+')';}).join(', '));
-    var best=filtered[0];
+    // 全部 BOSS 都保留，取最好的（不過濾，讓遠的重生也能排隊等）
+    console.log('[WB-Scan] Sorted list: '+scoredList.map(function(x){return x.target.name+'(p'+x.priority+' s'+x.secondsLeft+')';}).join(', '));
+    var best=scoredList[0];
     var idx=best.idx;
     var target=best.target;
+    
+    // 如果是尚未重生的 BOSS（需等待），計算等待時間
+    // secondsLeft > 30 → 等到剩 30s 開始狂點
+    // 0 < secondsLeft <= 30 → 立即狂點
+    // secondsLeft <= 0 → 已可進入，正常流程
+    if(best.secondsLeft>0){
+      var waitUntilSpam=Math.max(best.secondsLeft-30,0);
+      console.log('[WB-Scan] '+target.name+' respawn in '+best.secondsLeft+'s, wait '+waitUntilSpam+'s then spam-click at 30s mark');
+      __wbAddBossHistory(target.name,'wait','\u7B49\u5F85\u91CD\u751F '+best.respStr+' (\u5269'+best.secondsLeft+'s, '+waitUntilSpam+'s\u5F8C\u72C2\u9EDE)',0,best.respStr);
+      window.__wbBossAutoScript.currentIdx=idx;
+      window.__wbBossAutoScript.phase='waiting_spam';
+      var statusEl2=document.getElementById('__gmp_boss_script_status');
+      if(statusEl2)statusEl2.textContent='[WAIT] '+target.name+' \u91CD\u751F\u5012\u6578'+best.secondsLeft+'s...';
+      try{__wbEnsureWBTab();}catch(e){}
+      // 等到剩 30s 時重新 Loop（Loop 會重新掃描，那時它就會進入 ≤30s 狂點分支）
+      window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,(waitUntilSpam+2)*1000);
+      return;
+    }
+
     window.__wbBossAutoScript.currentIdx=idx;
     window.__wbBossAutoScript.phase='checking';
     var statusEl=document.getElementById('__gmp_boss_script_status');
@@ -347,7 +359,7 @@ function __wbBossAutoScriptRTReadDOM(target,remaining,fullList){
   }
   var subEl=document.querySelector('.wb-sub[data-boss="'+target.id+'"]');
   var subText=subEl?subEl.textContent.trim():'';
-  var isAlive=subText.indexOf('\u5B58\u6D3B')!==-1||subText.indexOf('\u6230\u9B25\u4E2D')!==-1||subText.indexOf('HP')!==-1;
+  var isAlive=subText.indexOf('\u5B58\u6D3B')!==-1||subText.indexOf('\u6230\u9B25\u4E2D')!==-1||subText.indexOf('HP')!==-1||subText.indexOf('\u5728\u5834')!==-1;
   var isDead=subText.indexOf('\u5DF2\u88AB\u64CA\u6557')!==-1||subText.indexOf('\u5DF2\u88AB\u5FB4\u670D')!==-1;
   if(!isAlive){
     console.log('[WB-Realtime] '+target.name+' state='+subText+', skipping');
@@ -453,7 +465,7 @@ function __wbBossAutoScriptCheckBoss(target,idx,list){
   console.log('[WB-DEBUG] subText for '+target.name+': '+subText);
 
   // 判斷 BOSS 狀態：比對繁體中文關鍵字
-  var isAlive=subText.indexOf('\u5B58\u6D3B')!==-1||subText.indexOf('\u6230\u9B25\u4E2D')!==-1||subText.indexOf('HP')!==-1;
+  var isAlive=subText.indexOf('\u5B58\u6D3B')!==-1||subText.indexOf('\u6230\u9B25\u4E2D')!==-1||subText.indexOf('HP')!==-1||subText.indexOf('\u5728\u5834')!==-1;
   var isDead=subText.indexOf('\u5DF2\u88AB\u64CA\u6557')!==-1||subText.indexOf('\u5DF2\u88AB\u5FB4\u670D')!==-1;
 
   if(isAlive){
@@ -502,8 +514,7 @@ function __wbBossAutoScriptCheckBoss(target,idx,list){
     }
 
     // 重生時間 ≤ 30 秒 → 狂點卡片嘗試進入（無重試上限，卡在門口直到進去）
-    // 僅限優先清單第一位 (idx===0)，其餘順位直接跳過
-    if(idx===0&&respawnStr&&secondsLeft!==null&&secondsLeft<=30&&secondsLeft>0){
+    if(respawnStr&&secondsLeft!==null&&secondsLeft<=30&&secondsLeft>0){
       var _reason='BOSS\u5DF2\u88AB\u64CA\u6557,\u91CD\u751F\u5012\u6578'+secondsLeft+'s(\u7D04'+respawnStr+')\uFF0C\u72C2\u9EDE\u9032\u5165';
       console.log('[WB-AutoScript] '+target.name+': '+_reason);
       __wbAddBossHistory(target.name,'enter',_reason,0,respawnStr);
@@ -517,22 +528,18 @@ function __wbBossAutoScriptCheckBoss(target,idx,list){
       return;
     }
 
-    // idx≥1 且有重生時間（代表尚未復活）→ 也狂點進入
-    // 等重生倒數歸零後開始狂點，跟第一位邏輯相同但無 30s 限制
-    if(idx>0&&respawnStr&&secondsLeft!==null&&secondsLeft>0){
-      var _reasonN='BOSS\u5DF2\u88AB\u64CA\u6557,\u9810\u8A08\u91CD\u751F'+respawnStr+'(\u5269'+secondsLeft+'s)\uFF0C\u7B49\u5F85\u5FA9\u6D3B\u5F8C\u72C2\u9EDE\u9032\u5165';
+    // 重生時間 > 0 但 > 30s → 設定等待 timer 而非立即狂點
+    if(respawnStr&&secondsLeft!==null&&secondsLeft>30){
+      var _reasonN='BOSS\u5DF2\u88AB\u64CA\u6557,\u9810\u8A08\u91CD\u751F'+respawnStr+'(\u5269'+secondsLeft+'s>30s)\uFF0C\u7B49\u5F85\u5FA9\u6D3B\u5F8C\u72C2\u9EDE\u9032\u5165';
       console.log('[WB-AutoScript] '+target.name+': '+_reasonN);
-      __wbAddBossHistory(target.name,'enter',_reasonN,0,respawnStr);
-      window.__wbBossAutoScript.phase='entering_spam';
-      var _waitMsN=Math.max((secondsLeft+2)*1000,1000);
-      window.__wbBossAutoScript.spamCount=0;
-      window.__wbBossAutoScript.timer=setTimeout(function(){
-        __wbBossAutoScriptTryEnterSpam(target,idx,list,foundBoss);
-      },_waitMsN);
+      __wbAddBossHistory(target.name,'wait',_reasonN,0,respawnStr);
+      // 等到剩 30s 再重新 Loop（Loop 會重新掃描後進入 ≤30s 狂點分支）
+      var _waitMsN=Math.max((secondsLeft-30+2)*1000,2000);
+      window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,_waitMsN);
       return;
     }
 
-    // idx=0 且 >30s 或 idx≥1 且無重生資訊 → 跳下一位
+    // >30s 在 PATCH 4 已處理，這裡只處理無重生資訊 → 跳下一位
     var skipReason='BOSS\u5DF2\u88AB\u64CA\u6557';
     if(respawnStr){skipReason+=', \u91CD\u751F'+respawnStr+', \u5269'+secondsLeft+'s\uFF0C\u8DF3\u4E0B\u4E00\u4F4D';}
     else{skipReason+=', \u7121\u91CD\u751F\u6642\u9593\uFF0C\u8DF3\u4E0B\u4E00\u4F4D';}
@@ -855,7 +862,7 @@ function __wbRespawnAttemptCheck(target,list,attempt){
   }
   var subEl=document.querySelector('.wb-sub[data-boss="'+target.id+'"]');
   var subText=subEl?subEl.textContent.trim():'';
-  var isAlive=subText.indexOf('\u5B58\u6D3B')!==-1||subText.indexOf('\u6230\u9B25\u4E2D')!==-1||subText.indexOf('HP')!==-1;
+  var isAlive=subText.indexOf('\u5B58\u6D3B')!==-1||subText.indexOf('\u6230\u9B25\u4E2D')!==-1||subText.indexOf('HP')!==-1||subText.indexOf('\u5728\u5834')!==-1;
   if(!isAlive){
     console.log('[WB-RespawnTimer] Not alive yet, retry 2s');
     window.__wbBossAutoScript.timer=setTimeout(function(){__wbRespawnAttemptCheck(target,list,attempt);},2000);
