@@ -1435,33 +1435,75 @@ console.log('[WB-Loot] Waiting for loot popup (.ip-box) after ' + target.name + 
 
 // ★ 點擊 #br-lobby 返回大廳（含重試機制：每 500ms 重試，最多 5 秒）
 // 確保離開結算畫面後才繼續流程，避免卡在結算畫面導致後續掃不到世界王卡片
+// v3.74: 加入完整偵測記錄到 BOSS 歷史，便於 debug
 // @return {boolean} 找到並點擊成功回傳 true，否則回傳 false
 function __wbBossAutoScriptClickLobby(){
   var maxRetries=10; // 500ms x 10 = 5s
   var retries=0;
+  var now=new Date();
+  var ts=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0')+':'+now.getSeconds().toString().padStart(2,'0');
+
+  // 診斷：掃描所有可能的大廳/離開按鈕
+  var diagParts=[];
+  var lobbyBtn=document.getElementById('br-lobby');
+  diagParts.push('br-lobby='+(lobbyBtn?'FOUND':'NULL'));
+
+  // 也掃描其他可能的離開按鈕
+  var altSelectors=['.btn-gold','.btn-leave','.btn-lobby','[class*="lobby"]','[class*="leave"]','[class*="exit"]','[class*="return"]'];
+  altSelectors.forEach(function(sel){
+    try{
+      var els=document.querySelectorAll(sel);
+      if(els.length>0){
+        var info=[];
+        els.forEach(function(e){
+          var txt=(e.textContent||'').trim().substring(0,20);
+          var cls=e.className||'';
+          info.push('"'+txt+'"(.'+cls+')');
+        });
+        diagParts.push(sel+'=['+info.join(', ')+']');
+      }
+    }catch(e){}
+  });
+  console.log('[WB-LobbyDiag] '+ts+' DOM scan: '+diagParts.join(' | '));
+
+  // 寫入歷史記錄作為診斷
+  __wbAddBossHistory('__DIAG__','diag_lobby',ts+' DOM: '+diagParts.join(' | '),0,null);
+
   function doClick(){
     var lobbyBtn=document.getElementById('br-lobby');
+    var now2=new Date();
+    var ts2=now2.getHours().toString().padStart(2,'0')+':'+now2.getMinutes().toString().padStart(2,'0')+':'+now2.getSeconds().toString().padStart(2,'0');
     if(lobbyBtn){
-      console.log('[WB-AutoScript] Clicking #br-lobby to leave (retries='+retries+')');
+      var btnInfo='tag='+lobbyBtn.tagName+' class="'+lobbyBtn.className+'" visible='+(lobbyBtn.offsetParent!==null)+' disabled='+lobbyBtn.disabled;
+      console.log('[WB-LobbyDiag] '+ts2+' #br-lobby FOUND: '+btnInfo+' | CLICKING');
+      __wbAddBossHistory('__DIAG__','diag_lobby',ts2+' FOUND: '+btnInfo+' | CLICK',0,null);
       __wbDebugLog('defeat','Clicking #br-lobby (retries='+retries+')');
-      lobbyBtn.click();
-      // 確認按鈕消失後回傳成功
+      try{lobbyBtn.click();}catch(e){console.warn('[WB-LobbyDiag] click error:',e.message);__wbAddBossHistory('__DIAG__','diag_lobby',ts2+' CLICK ERROR: '+e.message,0,null);}
+      // 確認按鈕消失
       setTimeout(function(){
+        var now3=new Date();
+        var ts3=now3.getHours().toString().padStart(2,'0')+':'+now3.getMinutes().toString().padStart(2,'0')+':'+now3.getSeconds().toString().padStart(2,'0');
         if(!document.getElementById('br-lobby')){
-          console.log('[WB-Lobby] #br-lobby gone, left successfully');
+          console.log('[WB-LobbyDiag] '+ts3+' #br-lobby GONE - left successfully');
+          __wbAddBossHistory('__DIAG__','diag_lobby',ts3+' GONE: left OK',0,null);
           return;
         }
-        // 還在，繼續重試
+        console.log('[WB-LobbyDiag] '+ts3+' #br-lobby STILL present after click');
+        __wbAddBossHistory('__DIAG__','diag_lobby',ts3+' STILL present (retry '+(retries+1)+'/'+maxRetries+')',0,null);
         retries++;
         if(retries<maxRetries){setTimeout(doClick,500);}
-        else{console.warn('[WB-Lobby] #br-lobby still present after '+maxRetries+' retries, giving up');}
+        else{console.warn('[WB-LobbyDiag] #br-lobby STILL present after '+maxRetries+' retries');__wbAddBossHistory('__DIAG__','diag_lobby',ts3+' FAIL: still present after '+maxRetries+' retries',0,null);}
       },300);
     } else if(retries<maxRetries){
       retries++;
-      if(retries%5===0)console.log('[WB-Lobby] #br-lobby not found, waiting... (retry='+retries+')');
+      if(retries===1||retries%3===0){
+        console.log('[WB-LobbyDiag] '+ts2+' #br-lobby NULL, waiting... (retry='+retries+'/'+maxRetries+')');
+        __wbAddBossHistory('__DIAG__','diag_lobby',ts2+' NULL: waiting (retry '+retries+'/'+maxRetries+')',0,null);
+      }
       setTimeout(doClick,500);
     } else {
-      console.warn('[WB-Lobby] #br-lobby not found after max retries, proceeding anyway');
+      console.warn('[WB-LobbyDiag] '+ts2+' #br-lobby NULL after max retries, giving up');
+      __wbAddBossHistory('__DIAG__','diag_lobby',ts2+' FAIL: NULL after '+maxRetries+' retries',0,null);
     }
   }
   doClick();
