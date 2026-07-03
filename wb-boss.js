@@ -834,11 +834,11 @@ function __wbBossAutoScriptMonitorBossHP_doCheck(target,idx,list){
         console.log('[WB-AutoScript] Boss defeated at HP'+hpPctCheck+'%, leaving early');
         __wbAddBossHistory(target.name,'defeat','HP<20% \u4E16\u754C\u738B\u5DF2\u88AB\u64CA\u6557 \u63D0\u524D\u96E2\u958B',bossHp,null);
         if(statusEl)statusEl.textContent='[LEAVE]'+target.name+'\u5DF2\u64CA\u6557(HP'+hpPctCheck+'%)';
-        // 先 toLobby 回大廳，再 selectChar [0] 回村
+        // ★ 先點擊 #br-lobby 離開結算畫面（不依賴 socket）
+        __wbBossAutoScriptClickLobby();
+        // 備援：socket toLobby + selectChar [0] 回村
         try{
           if(window.__wbSocket&&window.__wbSocket.emit){
-            var _lobbyBtn=document.getElementById('br-lobby');
-            if(_lobbyBtn){_lobbyBtn.click();console.log('[WB-HP20] Clicked #br-lobby');}
             window.__wbSocket.emit('toLobby',[]);
             console.log('[WB-SEND] toLobby []');
             setTimeout(function(){
@@ -849,9 +849,8 @@ function __wbBossAutoScriptMonitorBossHP_doCheck(target,idx,list){
             },600);
           }
         }catch(e){console.warn('[WB-AutoScript] toLobby/selectChar failed:',e.message);}
-        // BOSS 已擊敗 → 跳下一位繼續（3s 後等 DOM 就緒）
-        window.__wbBossAutoScript.currentIdx = (idx||0) + 1;
-        window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,3000);
+        // BOSS 已擊敗 → 跳下一位繼續（等 #br-lobby 消失後才前進）
+        __wbBossAutoScriptScheduleNext(idx, list);
         return;
       }
     }
@@ -1433,6 +1432,73 @@ console.log('[WB-Loot] Waiting for loot popup (.ip-box) after ' + target.name + 
   }, interval);
 }
 
+// ★ 點擊 #br-lobby 返回大廳（含重試機制：每 500ms 重試，最多 5 秒）
+// 確保離開結算畫面後才繼續流程，避免卡在結算畫面導致後續掃不到世界王卡片
+// @return {boolean} 找到並點擊成功回傳 true，否則回傳 false
+function __wbBossAutoScriptClickLobby(){
+  var maxRetries=10; // 500ms x 10 = 5s
+  var retries=0;
+  function doClick(){
+    var lobbyBtn=document.getElementById('br-lobby');
+    if(lobbyBtn){
+      console.log('[WB-AutoScript] Clicking #br-lobby to leave (retries='+retries+')');
+      __wbDebugLog('defeat','Clicking #br-lobby (retries='+retries+')');
+      lobbyBtn.click();
+      // 確認按鈕消失後回傳成功
+      setTimeout(function(){
+        if(!document.getElementById('br-lobby')){
+          console.log('[WB-Lobby] #br-lobby gone, left successfully');
+          return;
+        }
+        // 還在，繼續重試
+        retries++;
+        if(retries<maxRetries){setTimeout(doClick,500);}
+        else{console.warn('[WB-Lobby] #br-lobby still present after '+maxRetries+' retries, giving up');}
+      },300);
+    } else if(retries<maxRetries){
+      retries++;
+      if(retries%5===0)console.log('[WB-Lobby] #br-lobby not found, waiting... (retry='+retries+')');
+      setTimeout(doClick,500);
+    } else {
+      console.warn('[WB-Lobby] #br-lobby not found after max retries, proceeding anyway');
+    }
+  }
+  doClick();
+}
+
+// ★ 安排跳到下一位 BOSS（確認 #br-lobby 消失後才排程）
+// 最長等待 8 秒讓結算畫面完全消失，再切到世界王頁籤開始下一次掃描
+// @param {number} idx   - 當前清單索引
+// @param {Array}  list  - 完整討伐清單
+function __wbBossAutoScriptScheduleNext(idx, list){
+  var maxWait=8000;   // 最多等 8s
+  var pollInterval=300;
+  var elapsed=0;
+  function poll(){
+    elapsed+=pollInterval;
+    // #br-lobby 消失 → 結算畫面已離開，可安全前進
+    if(!document.getElementById('br-lobby')){
+      console.log('[WB-Schedule] Lobby cleared after '+elapsed+'ms, advancing to next boss');
+      window.__wbBossAutoScript.currentIdx = (idx||0) + 1;
+      if(window.__wbBossAutoScript.timer) clearTimeout(window.__wbBossAutoScript.timer);
+      // 確保切到世界王頁籤
+      if(window.__wbEnsureWBTab) __wbEnsureWBTab();
+      window.__wbBossAutoScript.timer = setTimeout(__wbBossAutoScriptLoop, 1500);
+      return;
+    }
+    if(elapsed>=maxWait){
+      console.warn('[WB-Schedule] Timeout waiting for lobby clear, advancing anyway');
+      window.__wbBossAutoScript.currentIdx = (idx||0) + 1;
+      if(window.__wbBossAutoScript.timer) clearTimeout(window.__wbBossAutoScript.timer);
+      if(window.__wbEnsureWBTab) __wbEnsureWBTab();
+      window.__wbBossAutoScript.timer = setTimeout(__wbBossAutoScriptLoop, 1500);
+    } else {
+      setTimeout(poll, pollInterval);
+    }
+  }
+  poll();
+}
+
 // 處理 BOSS 擊敗後續：記錄擊敗、關閉自動攻擊、根據重進設定決定下一步
 // @param {Object} target - BOSS 物件
 // @param {number} idx   - 清單索引
@@ -1455,13 +1521,8 @@ function __wbBossAutoScriptHandleDefeat(target, idx, list){
   // 記錄離開（前進到下一個 BOSS）
   __wbAddBossHistory(target.name, 'leave', '\u64CA\u6557\u5F8C\u56DE\u6751\uFF0C\u524D\u9032\u4E0B\u4E00\u4F4D', 0, null);
 
-  // 立即點擊「返回大廳」按鈕（速度 > selectChar socket）
-  var lobbyBtn=document.getElementById('br-lobby');
-  if(lobbyBtn){
-    console.log('[WB-AutoScript] Clicking #br-lobby to leave immediately');
-    __wbDebugLog('defeat','Clicking #br-lobby');
-    lobbyBtn.click();
-  }
+  // ★ 點擊 #br-lobby 並確認離開 (含重試)
+  __wbBossAutoScriptClickLobby();
 
   // 備援：500ms 後發 selectChar [0] 確保回村
   setTimeout(function(){
@@ -1475,10 +1536,8 @@ function __wbBossAutoScriptHandleDefeat(target, idx, list){
     } catch(e){ console.warn('[WB-AutoScript] selectChar failed:', e.message); }
   },500);
 
-  // BOSS 已擊敗 → 跳下一位繼續（3s 後，等 DOM 切換到世界王頁籤）
-  window.__wbBossAutoScript.currentIdx = (idx||0) + 1;
-  if(window.__wbBossAutoScript.timer) clearTimeout(window.__wbBossAutoScript.timer);
-  window.__wbBossAutoScript.timer = setTimeout(__wbBossAutoScriptLoop, 3000);
+  // BOSS 已擊敗 → 確認 #br-lobby 消失後跳下一位繼續
+  __wbBossAutoScriptScheduleNext(idx, list);
 }
 
 
