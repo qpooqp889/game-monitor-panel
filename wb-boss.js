@@ -788,6 +788,7 @@ function __wbBossAutoScriptTryEnterSpam(target,idx,list,card){
 // @param {Array}  list  - 完整討伐清單
 function __wbBossAutoScriptMonitorBossHP(target,idx,list){
   if(!window.__wbBossAutoScript.running)return;
+  if(!window.__wb_debug_active)__wbDebugStart(target.name,'monitor');
   __wbBossAutoScriptMonitorBossHP_doCheck(target,idx,list);
 }
 function __wbBossAutoScriptMonitorBossHP_doCheck(target,idx,list){
