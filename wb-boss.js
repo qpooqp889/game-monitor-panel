@@ -245,6 +245,18 @@ function __wbBossAutoScriptLoop(){
       var isAlive=subText.indexOf('\u5B58\u6D3B')!==-1||subText.indexOf('\u6230\u9B25\u4E2D')!==-1||subText.indexOf('HP')!==-1||subText.indexOf('\u5728\u5834')!==-1;
       var isDead=subText.indexOf('\u5DF2\u88AB\u64CA\u6557')!==-1||subText.indexOf('\u5DF2\u88AB\u5FB4\u670D')!==-1;
       if(isAlive){
+        // 檢查最低人數門檻
+        var thr=(t&&t.minPlayers)?t.minPlayers:0;
+        if(thr>0){
+          var pMatch=subText.match(/(\d+)/);
+          var curP=pMatch?parseInt(pMatch[1],10):0;
+          if(curP<thr){
+            // 人數不足門檻，排到最末位
+            scoredList.push({idx:si, target:t, priority:999, secondsLeft:-999, subText:subText});
+            console.log('[WB-Scan] ALIVE-lowPlayers: '+t.name+' ('+curP+'/'+thr+')');
+            continue;
+          }
+        }
         scoredList.push({idx:si, target:t, priority:0, secondsLeft:-999, subText:subText});
         console.log('[WB-Scan] ALIVE: '+t.name+' (idx='+si+')');
         continue;
@@ -283,11 +295,11 @@ function __wbBossAutoScriptLoop(){
     var target=best.target;
     
     // 如果是尚未重生的 BOSS（需等待），計算等待時間
-    // secondsLeft > 30 → 等到剩 30s 開始狂點
-    // 0 < secondsLeft <= 30 → 立即狂點
-    // secondsLeft <= 0 → 已可進入，正常流程
+    // secondsLeft >= 30 → 等到剩 <30s 開始狂點
+    // 0 < secondsLeft < 30 → 立即狂點
+    // secondsLeft < 0 → 已可進入，正常流程
     if(best.secondsLeft>0){
-      var waitUntilSpam=Math.max(best.secondsLeft-30,0);
+      var waitUntilSpam=Math.max(best.secondsLeft-29,0);
       console.log('[WB-Scan] '+target.name+' respawn in '+best.secondsLeft+'s, wait '+waitUntilSpam+'s then spam-click at 30s mark');
       __wbAddBossHistory(target.name,'wait','\u7B49\u5F85\u91CD\u751F '+best.respStr+' (\u5269'+best.secondsLeft+'s, '+waitUntilSpam+'s\u5F8C\u72C2\u9EDE)',0,best.respStr);
       window.__wbBossAutoScript.currentIdx=idx;
@@ -513,8 +525,8 @@ function __wbBossAutoScriptCheckBoss(target,idx,list){
       secondsLeft=Math.round((targetTime-_now2)/1000);
     }
 
-    // 重生時間 ≤ 30 秒 → 狂點卡片嘗試進入（無重試上限，卡在門口直到進去）
-    if(respawnStr&&secondsLeft!==null&&secondsLeft<=30&&secondsLeft>0){
+    // 重生時間 < 30 秒 → 狂點卡片嘗試進入（無重試上限，卡在門口直到進去）
+    if(respawnStr&&secondsLeft!==null&&secondsLeft<30&&secondsLeft>0){
       var _reason='BOSS\u5DF2\u88AB\u64CA\u6557,\u91CD\u751F\u5012\u6578'+secondsLeft+'s(\u7D04'+respawnStr+')\uFF0C\u72C2\u9EDE\u9032\u5165';
       console.log('[WB-AutoScript] '+target.name+': '+_reason);
       __wbAddBossHistory(target.name,'enter',_reason,0,respawnStr);
@@ -534,7 +546,7 @@ function __wbBossAutoScriptCheckBoss(target,idx,list){
       console.log('[WB-AutoScript] '+target.name+': '+_reasonN);
       __wbAddBossHistory(target.name,'wait',_reasonN,0,respawnStr);
       // 等到剩 30s 再重新 Loop（Loop 會重新掃描後進入 ≤30s 狂點分支）
-      var _waitMsN=Math.max((secondsLeft-30+2)*1000,2000);
+      var _waitMsN=Math.max((secondsLeft-29+2)*1000,2000);
       window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,_waitMsN);
       return;
     }
