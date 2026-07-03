@@ -1213,8 +1213,9 @@ function __wbLoadBossHistory(callback){
 function __wbClearBossHistory(){
   window.__wbBossHistory = [];
   if(typeof window.__gmStorageSet !== 'undefined'){
-    window.__gmStorageSet('wb_boss_history', []);
+    return window.__gmStorageSet('wb_boss_history', []);
   }
+  return Promise.resolve();
 }
 
 // ====== 死亡偵測 + 自動重進 ======
