@@ -1522,6 +1522,14 @@ function __wbBossAutoScriptHandleDefeat(target, idx, list){
   // 記錄離開（前進到下一個 BOSS）
   __wbAddBossHistory(target.name, 'leave', '\u64CA\u6557\u5F8C\u56DE\u6751\uFF0C\u524D\u9032\u4E0B\u4E00\u4F4D', 0, null);
 
+  // ★ 立即更新狀態顯示：已擊敗，前往下一位
+  var nextName='';
+  if(list && idx+1 < list.length) nextName = list[idx+1].name;
+  var statusEl=document.getElementById('__gmp_boss_script_status');
+  if(statusEl){
+    statusEl.textContent = '\u2705 '+target.name+' \u64CA\u6557! \u2192 ' + (nextName || '...') + ' ('+(idx+2)+'/'+list.length+')';
+  }
+
   // ★ 點擊 #br-lobby 並確認離開 (含重試)
   __wbBossAutoScriptClickLobby();
 
