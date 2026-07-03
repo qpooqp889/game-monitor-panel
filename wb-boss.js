@@ -777,6 +777,10 @@ function __wbBossAutoScriptTryEnterSpam(target,idx,list,card){
 // @param {Array}  list  - 完整討伐清單
 function __wbBossAutoScriptMonitorBossHP(target,idx,list){
   if(!window.__wbBossAutoScript.running)return;
+  __wbBossAutoScriptMonitorBossHP_doCheck(target,idx,list);
+}
+function __wbBossAutoScriptMonitorBossHP_doCheck(target,idx,list){
+  if(!window.__wbBossAutoScript.running)return;
 
   var ls=window.lastState||{};
   var boss=ls.boss||{};
@@ -821,6 +825,8 @@ function __wbBossAutoScriptMonitorBossHP(target,idx,list){
         // 先 toLobby 回大廳，再 selectChar [0] 回村
         try{
           if(window.__wbSocket&&window.__wbSocket.emit){
+            var _lobbyBtn=document.getElementById('br-lobby');
+            if(_lobbyBtn){_lobbyBtn.click();console.log('[WB-HP20] Clicked #br-lobby');}
             window.__wbSocket.emit('toLobby',[]);
             console.log('[WB-SEND] toLobby []');
             setTimeout(function(){
@@ -833,7 +839,7 @@ function __wbBossAutoScriptMonitorBossHP(target,idx,list){
         }catch(e){console.warn('[WB-AutoScript] toLobby/selectChar failed:',e.message);}
         // BOSS 已擊敗 → 回 Loop 從第一位重新掃描
         window.__wbBossAutoScript.currentIdx=0;
-        window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,3000);
+        window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,1500);
         return;
       }
     }
@@ -841,7 +847,7 @@ function __wbBossAutoScriptMonitorBossHP(target,idx,list){
 
   // 每 500ms 遞迴輪詢（快速檢查自動攻擊 + HP<20% 提早離開）
   window.__wbBossAutoScript.timer=setTimeout(function(){
-    __wbBossAutoScriptMonitorBossHP(target,idx,list);
+    __wbBossAutoScriptMonitorBossHP_doCheck(target,idx,list);
   },500);
 }
 
@@ -1382,7 +1388,7 @@ function __wbBossAutoScriptWaitForLoot(target, idx, list){
 
 console.log('[WB-Loot] Waiting for loot popup (.ip-box) after ' + target.name + ' defeated...');
   var maxWait = 20000; // 20 seconds max（最長等待 20 秒）
-  var interval = 500;   // 每 500ms 檢查一次
+  var interval = 200;   // 每 200ms 檢查一次（加速）
   var elapsed = 0;
   var captured = false;
 
@@ -1434,21 +1440,30 @@ function __wbBossAutoScriptHandleDefeat(target, idx, list){
   // 記錄離開（前進到下一個 BOSS）
   __wbAddBossHistory(target.name, 'leave', '\u64CA\u6557\u5F8C\u56DE\u6751\uFF0C\u524D\u9032\u4E0B\u4E00\u4F4D', 0, null);
 
-  // 發送 selectChar [0] 回村（不關閉自動攻擊，讓下一場繼續用相同設定）
-  console.log('[WB-AutoScript] Sending selectChar [0] to return to town');
-  try {
-    if(window.__wbSocket && window.__wbSocket.emit){
-      window.__wbSocket.emit('selectChar', 0);
-    } else if(window.__ws && window.__ws.readyState===WebSocket.OPEN){
-      window.__ws.send('42["selectChar",0]');
-    }
-  } catch(e){ console.warn('[WB-AutoScript] selectChar failed:', e.message); }
+  // 立即點擊「返回大廳」按鈕（速度 > selectChar socket）
+  var lobbyBtn=document.getElementById('br-lobby');
+  if(lobbyBtn){
+    console.log('[WB-AutoScript] Clicking #br-lobby to leave immediately');
+    __wbDebugLog('defeat','Clicking #br-lobby');
+    lobbyBtn.click();
+  }
 
-  // BOSS 已擊敗 → 回 Loop 從第一位重新掃描
+  // 備援：500ms 後發 selectChar [0] 確保回村
+  setTimeout(function(){
+    console.log('[WB-AutoScript] Backup: Sending selectChar [0]');
+    try {
+      if(window.__wbSocket && window.__wbSocket.emit){
+        window.__wbSocket.emit('selectChar', 0);
+      } else if(window.__ws && window.__ws.readyState===WebSocket.OPEN){
+        window.__ws.send('42["selectChar",0]');
+      }
+    } catch(e){ console.warn('[WB-AutoScript] selectChar failed:', e.message); }
+  },500);
+
+  // BOSS 已擊敗 → 回 Loop 從第一位重新掃描（1.5s 後，加快下一隻速度）
   window.__wbBossAutoScript.currentIdx=0;
   if(window.__wbBossAutoScript.timer) clearTimeout(window.__wbBossAutoScript.timer);
-  // 等 3 秒角色回村後再循環檢查下一隻
-  window.__wbBossAutoScript.timer = setTimeout(__wbBossAutoScriptLoop, 3000);
+  window.__wbBossAutoScript.timer = setTimeout(__wbBossAutoScriptLoop, 1500);
 }
 
 
