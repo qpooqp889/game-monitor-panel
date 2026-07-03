@@ -1,4 +1,76 @@
 /* wb-boss.js v3.25 - BOSS Auto Script */
+
+// ====== Debug Logger (觸發條件: 偵測到重生 < 30s) ======
+// 儲存至 chrome.storage.local key: __gmp_debug_log
+// 每次 <30s 觸發開始記錄，匯出時可取用
+window.__wb_debug_active=false;
+window.__wb_debug_entries=[];
+
+// 啟動 debug log（當偵測到 <30s 重生時呼叫）
+function __wbDebugStart(bossName,reason){
+  window.__wb_debug_active=true;
+  window.__wb_debug_entries=[];
+  window.__wb_debug_boss=bossName;
+  __wbDebugLog('start','Debug log started: '+bossName+' - '+reason);
+}
+
+// 停止 debug log（BOSS 進入成功/擊敗/跳過）並存檔
+function __wbDebugStop(result){
+  if(!window.__wb_debug_active)return;
+  __wbDebugLog('stop','Debug log stopped: '+result);
+  window.__wb_debug_active=false;
+  __wbDebugFlush();
+}
+
+// 記錄一筆 log
+function __wbDebugLog(category,message){
+  if(!window.__wb_debug_active)return;
+  var entry={
+    time:new Date().toISOString(),
+    boss:window.__wb_debug_boss||'',
+    cat:category,
+    msg:message
+  };
+  window.__wb_debug_entries.push(entry);
+  console.log('[WB-DEBUG] '+category+': '+message);
+}
+
+// 將收集的 log 寫入 chrome.storage.local（append 式，保留最近 50 組 session）
+function __wbDebugFlush(){
+  if(!window.__wb_debug_entries.length)return;
+  var session={
+    boss:window.__wb_debug_boss||'',
+    startTime:window.__wb_debug_entries[0]?window.__wb_debug_entries[0].time:'',
+    entries:window.__wb_debug_entries
+  };
+  try{
+    chrome.storage.local.get(['__gmp_debug_sessions'],function(res){
+      var sessions=res.__gmp_debug_sessions||[];
+      sessions.push(session);
+      if(sessions.length>50)sessions=sessions.slice(-50);
+      chrome.storage.local.set({__gmp_debug_sessions:sessions},function(){
+        console.log('[WB-DEBUG] Session saved ('+session.entries.length+' entries), total sessions: '+sessions.length);
+      });
+    });
+  }catch(e){
+    console.log('[WB-DEBUG] Flush error: '+e.message);
+  }
+  window.__wb_debug_entries=[];
+}
+
+// 匯出全部 debug sessions 為 JSON 字串（供使用者複製/匯出）
+window.__wbDebugExport=function(){
+  try{
+    chrome.storage.local.get(['__gmp_debug_sessions'],function(res){
+      var sessions=res.__gmp_debug_sessions||[];
+      var json=JSON.stringify(sessions,null,2);
+      console.log('[WB-DEBUG-EXPORT]\n'+json);
+      alert('Debug log exported to console!\nSessions: '+sessions.length+'\nTotal entries: '+sessions.reduce(function(s,ss){return s+ss.entries.length;},0));
+    });
+  }catch(e){
+    console.log('[WB-DEBUG-EXPORT] Error: '+e.message);
+  }
+};
 // ====== wb-boss.js - World Boss Module ======
 // Extracted from game-monitor.js v2.30
 // Encapsulated in IIFE, all functions on window.__wb* namespace
@@ -665,7 +737,9 @@ function __wbBossAutoScriptTryEnterSpam(target,idx,list,card){
       var enableChk=document.getElementById('__gmp_boss_auto_enable');
       if(enableChk)enableChk.checked=true;
       window.__wbBossAutoScript.phase='attacking';
-      __wbBossAutoScriptMonitorBossHP(target,idx,list);
+      __wbDebugLog('spam','Already in bosscombat! HP='+hpPct+'%');
+    __wbDebugStop('already in boss');
+    __wbBossAutoScriptMonitorBossHP(target,idx,list);
       return;
     }
   }
@@ -680,6 +754,7 @@ function __wbBossAutoScriptTryEnterSpam(target,idx,list,card){
     try{card.click();}catch(e){}
     var spamCount=(window.__wbBossAutoScript.spamCount||0)+1;
     window.__wbBossAutoScript.spamCount=spamCount;
+    __wbDebugLog('spam','click #'+spamCount+' on '+target.name);
     var statusEl=document.getElementById('__gmp_boss_script_status');
     if(statusEl)statusEl.textContent='[SPAM]'+target.name+' #'+spamCount;
     if(spamCount%10===0){console.log('[WB-AutoScript] Spam click '+target.name+' #'+spamCount);}
@@ -1347,6 +1422,8 @@ console.log('[WB-Loot] Waiting for loot popup (.ip-box) after ' + target.name + 
 // @param {number} idx   - 清單索引
 // @param {Array}  list  - 完整討伐清單
 function __wbBossAutoScriptHandleDefeat(target, idx, list){
+  __wbDebugLog('defeat','BOSS defeated: '+target.name);
+  __wbDebugStop('defeated');
   console.log('[WB-AutoScript] ' + target.name + ' defeated!');
 
   // Log defeat（記錄擊敗事件到歷史）
