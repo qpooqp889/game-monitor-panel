@@ -1,5 +1,5 @@
 (function(){
-var ver='v3.66';
+var ver='v3.67';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -2500,7 +2500,7 @@ function __gmBuildPanel(){
 
     var eventLabels={
       'enter':'\u2705 \u8fdb\u5165',
-      'reenter':'\🔄 \u91cd\u9032',
+      'reenter':'\uD83D\uDD04 \u91cd\u9032',
       'leave':'\u274C \u79bb\u5f00',
       'defeat':'\u2708 BOSS\u6483\u6557',
       'death':'\u2620 \u89d2\u8272\u6b7b\u4ea1',
@@ -2717,12 +2717,12 @@ function __gmBuildPanel(){
   historyModal.innerHTML=
     '<div style="background:#1a1a2e;border:2px solid #0f3460;border-radius:10px;padding:16px;width:450px;max-height:80vh;display:flex;flex-direction:column;">'+
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">'+
-        '<span style="font-size:14px;color:#86c5ff;font-weight:bold;">\📋 BOSS \u5386\u53f2\u8bb0\u5f55</span>'+
+        '<span style="font-size:14px;color:#86c5ff;font-weight:bold;">\uD83D\uDCCB BOSS \u5386\u53f2\u8bb0\u5f55</span>'+
         '<button id="__gmp_boss_history_close" style="background:transparent;border:none;color:#888;font-size:18px;cursor:pointer;">\u2716</button>'+
       '</div>'+
       '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">'+
         '<input id="__gmp_boss_history_search" type="text" placeholder="\u641c\u7d22 BOSS \u540d\u79f0 / \u4e8b\u4ef6..." style="flex:1;padding:5px 8px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;">'+
-        '<button id="__gmp_boss_history_search_btn" style="padding:5px 10px;background:#1a3a6e;border:1px solid #0f3460;color:#86c5ff;border-radius:4px;cursor:pointer;font-size:10px;">\🔍</button>'+
+        '<button id="__gmp_boss_history_search_btn" style="padding:5px 10px;background:#1a3a6e;border:1px solid #0f3460;color:#86c5ff;border-radius:4px;cursor:pointer;font-size:10px;">\uD83D\uDD0D</button>'+
         '<button id="__gmp_boss_history_clear" style="padding:5px 10px;background:#4a1a1a;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:10px;">🗑 \u5168\u90e8\u6e05\u7a7a</button>'+
       '</div>'+
       '<div id="__gmp_boss_history_count" style="font-size:9px;color:#888;margin-bottom:6px;"></div>'+
@@ -2741,7 +2741,7 @@ function __gmBuildPanel(){
   };
   document.getElementById('__gmp_boss_history_clear').onclick=function(){
     if(confirm('\u786e\u5b9a\u6e05\u7a7a\u5168\u90e8 BOSS \u5386\u53f2\u8bb0\u5f55\uff1f')){
-      if(typeof __wbClearBossHistory==='function')var p=typeof __wbClearBossHistory==='function'?__wbClearBossHistory():Promise.resolve();
+      var p=typeof __wbClearBossHistory==='function'?__wbClearBossHistory():Promise.resolve();
       p.then(function(){if(typeof __wbRenderBossHistoryList==='function')__wbRenderBossHistoryList();});
     }
   };
