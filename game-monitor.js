@@ -1,5 +1,5 @@
 (function(){
-var ver='v3.71';
+var ver='v3.72';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -1091,6 +1091,13 @@ function __gmBuildPanel(){
     '</div>'+
     // === BOSS TAB ===
     '<div id="__gmp_tab_content_boss" style="display:none;">'+
+    // ★ 記錄按鈕列（置頂）
+    '<div style="margin-bottom:8px;display:flex;align-items:center;gap:6px;">'+
+    '<input type="checkbox" id="__gmp_boss_auto_loot" style="width:13px;height:13px;cursor:pointer;">'+
+    '<label for="__gmp_boss_auto_loot" style="font-size:10px;color:#fbbf24;cursor:pointer;margin-right:4px;">\uD83D\uDCB0</label>'+
+    '<button id="__gmp_boss_history_btn" style="flex:1;padding:5px;background:#1a1a3e;border:1px solid #0f3460;color:#86c5ff;border-radius:4px;cursor:pointer;font-size:10px;font-weight:bold;">\uD83D\uDCCB BOSS \u5386\u53f2\u8bb0\u5f55</button>'+
+    '<button id="__gmp_boss_loot_btn" style="flex:1;padding:5px;background:#1a1a1a;border:1px solid #6b4226;color:#fbbf24;border-radius:4px;cursor:pointer;font-size:10px;font-weight:bold;">\uD83D\uDCB0 \u6389\u843d\u8A18\u9304</button>'+
+    '</div>'+
     // === 當前 BOSS 戰鬥 ===
     // === BOSS 自動開關 ===
 '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:8px;background:rgba(233,69,96,0.12);border-radius:6px;">'+
@@ -1183,12 +1190,6 @@ function __gmBuildPanel(){
         '<label for="__gmp_boss_bypass" style="font-size:11px;color:#ffd700;cursor:pointer;">&#x1F513; 解除冷卻限制</label>'+
       '</div>'+
       '<div style="font-size:10px;color:#555;padding-left:22px;">&#x26A0;&#xFE0F; 伺服器仍會驗證冷卻</div>'+
-    '</div>'+
-    '<div style="margin-top:6px;margin-bottom:6px;display:flex;align-items:center;gap:6px;">'+
-    '<input type="checkbox" id="__gmp_boss_auto_loot" style="width:13px;height:13px;cursor:pointer;">'+
-    '<label for="__gmp_boss_auto_loot" style="font-size:10px;color:#fbbf24;cursor:pointer;margin-right:4px;">\uD83D\uDCB0</label>'+
-    '<button id="__gmp_boss_history_btn" style="flex:1;padding:5px;background:#1a1a3e;border:1px solid #0f3460;color:#86c5ff;border-radius:4px;cursor:pointer;font-size:10px;font-weight:bold;">\uD83D\uDCCB BOSS \u5386\u53f2\u8bb0\u5f55</button>'+
-    '<button id="__gmp_boss_loot_btn" style="flex:1;padding:5px;background:#1a1a1a;border:1px solid #6b4226;color:#fbbf24;border-radius:4px;cursor:pointer;font-size:10px;font-weight:bold;">\uD83D\uDCB0 \u6389\u843d\u8A18\u9304</button>'+
     '</div>'+
     // === 自動掛機 BOSS ===
 // === BOSS 自動設定 Modal ===
@@ -2452,7 +2453,7 @@ function __gmBuildPanel(){
     if(typeof __wbOpenBossHistoryModal==='function')__wbOpenBossHistoryModal();
   };
   var _lbtn=document.getElementById('__gmp_boss_loot_btn');if(_lbtn)_lbtn.onclick=function(){
-    if(typeof __wbOpenBossLootModal==='function')__wbOpenBossLootModal();
+    if(typeof __wbOpenLootModal==='function')__wbOpenLootModal();
   };
 
   window.__wbOpenBossHistoryModal=function(){
