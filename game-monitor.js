@@ -1,5 +1,5 @@
 (function(){
-var ver='v3.63';
+var ver='v3.64';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -2723,7 +2723,7 @@ function __gmBuildPanel(){
       '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">'+
         '<input id="__gmp_boss_history_search" type="text" placeholder="\u641c\u7d22 BOSS \u540d\u79f0 / \u4e8b\u4ef6..." style="flex:1;padding:5px 8px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;">'+
         '<button id="__gmp_boss_history_search_btn" style="padding:5px 10px;background:#1a3a6e;border:1px solid #0f3460;color:#86c5ff;border-radius:4px;cursor:pointer;font-size:10px;">\U0001F50D</button>'+
-        '<button id="__gmp_boss_history_clear" style="padding:5px 10px;background:#4a1a1a;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:10px;">\U0001F5D1 \u5168\u90e8\u6e05\u7a7a</button>'+
+        '<button id="__gmp_boss_history_clear" style="padding:5px 10px;background:#4a1a1a;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:10px;">🗑 \u5168\u90e8\u6e05\u7a7a</button>'+
       '</div>'+
       '<div id="__gmp_boss_history_count" style="font-size:9px;color:#888;margin-bottom:6px;"></div>'+
       '<div id="__gmp_boss_history_list" style="flex:1;overflow-y:auto;font-size:10px;"></div>'+
