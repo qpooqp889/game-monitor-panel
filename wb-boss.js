@@ -47,7 +47,7 @@ function __wbDebugFlush(){
     chrome.storage.local.get(['__gmp_debug_sessions'],function(res){
       var sessions=res.__gmp_debug_sessions||[];
       sessions.push(session);
-      if(sessions.length>50)sessions=sessions.slice(-50);
+      if(sessions.length>500)sessions=sessions.slice(-500);
       chrome.storage.local.set({__gmp_debug_sessions:sessions},function(){
         console.log('[WB-DEBUG] Session saved ('+session.entries.length+' entries), total sessions: '+sessions.length);
       });
