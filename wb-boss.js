@@ -312,6 +312,15 @@ function __wbBossAutoScriptLoop(){
       return;
     }
 
+    // priority=999: alive but minPlayers not met → periodic re-scan until players arrive
+    if(best.priority===999){
+      console.log('[WB-Scan] All in-field BOSSes low players, periodic rescan in 5s');
+      __wbAddBossHistory(target.name,'wait','\u5B58\u6D3B\u4F46\u4EBA\u6578\u4E0D\u8DB3(\u6700\u4F4E'+((target&&target.minPlayers)?target.minPlayers:0)+')\uFF0C5s\u5F8C\u91CD\u65B0\u626B\u63CF',0,null);
+      window.__wbBossAutoScript.currentIdx=0;
+      window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,5000);
+      return;
+    }
+
     window.__wbBossAutoScript.currentIdx=idx;
     window.__wbBossAutoScript.phase='checking';
     var statusEl=document.getElementById('__gmp_boss_script_status');
@@ -488,16 +497,11 @@ function __wbBossAutoScriptCheckBoss(target,idx,list){
       var pcMatch=playersText.match(/(\d+)/);
       var curPlayers=pcMatch?parseInt(pcMatch[1],10):0;
       if(curPlayers<threshold){
-        // 人數不足門檻，跳過此 BOSS，記錄到歷史
-        console.log('[WB-AutoScript] '+target.name+' only '+curPlayers+' players (<'+threshold+'), skipping');
-        __wbAddBossHistory(target.name,'skip','\u4EBA\u6578\u4E0D\u8DB3: '+curPlayers+'/'+threshold+' ','0',null);
-        if(list&&idx<list.length-1){
-          // 還有下一隻，直接檢查下一隻
-          __wbBossAutoScript.phase='next_boss';
-          __wbBossAutoScript.timer=setTimeout(function(){__wbBossAutoScriptCheckBoss(list[idx+1],idx+1,list);},2000);
-        }else{
-          __wbBossAutoScriptDone(list);
-        }
+        // 人數不足門檻，等待 5 秒後回到 Loop 重新智慧掃描
+        console.log('[WB-AutoScript] '+target.name+' only '+curPlayers+' players (<'+threshold+'), rescan in 5s');
+        __wbAddBossHistory(target.name,'skip','\u4EBA\u6578\u4E0D\u8DB3: '+curPlayers+'/'+threshold+'\uFF0C5s\u5F8C\u91CD\u65B0\u626B\u63CF','0',null);
+        window.__wbBossAutoScript.currentIdx=0;
+        window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,5000);
         return;
       }
     }

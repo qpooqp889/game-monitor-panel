@@ -3011,6 +3011,19 @@ function __gmBuildPanel(){
           window.__wbUpdateHuntListUI();
     },500);
   }
+  // 每60秒刷新 DOM 世界王神像資訊（人數變化、重生狀態）
+  function __wbBossStartRefresher(){
+    var _refInt=setInterval(function(){
+      if(activeTab=='boss'){
+        __wbUpdateBossStatus();
+        var cs=document.querySelectorAll('.wb-status-card');
+        if(cs.length)cs.forEach(function(c){try{c.click();}catch(e){}});
+        setTimeout(function(){if(activeTab=='boss')__wbUpdateBossStatus();},1500);
+      }
+    },60000);
+    window.___wbBossRefInterval=_refInt;
+  }
+  __wbBossStartRefresher();
   __wbBossStartUpdater();
 
   // === IDB 全域匯出/匯入 ===
