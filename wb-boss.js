@@ -306,7 +306,7 @@ function __wbBossAutoScriptLoop(){
   __wbGetHuntList(function(list){
     if(!list||!list.length){
       window.__wbBossAutoScript.phase='idle';
-      __wbBossAutoScriptRestoreFarm();
+      console.log('[WB-Scan] Hunt list empty, retrying in 10s');
       window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,10000);
       return;
     }
@@ -363,9 +363,10 @@ function __wbBossAutoScriptLoop(){
       }
     }
     if(!scoredList.length){
-      console.log('[WB-Scan] No boss available, retrying in 10s');
-      __wbBossAutoScriptRestoreFarm();
-      window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,10000);
+      console.log('[WB-Scan] No boss cards found (DOM not ready?), retrying in 5s');
+      // DOM 可能還沒切換到世界王頁籤，5s 後重試（不恢復掛機）
+      try{__wbEnsureWBTab();}catch(e){}
+      window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,5000);
       return;
     }
     // 排序: priority=0 最優先 → priority=1 次之(依secondsLeft升序) → priority=2 最後(依secondsLeft升序)
@@ -847,9 +848,9 @@ function __wbBossAutoScriptMonitorBossHP_doCheck(target,idx,list){
             },600);
           }
         }catch(e){console.warn('[WB-AutoScript] toLobby/selectChar failed:',e.message);}
-        // BOSS 已擊敗 → 回 Loop 從第一位重新掃描
-        window.__wbBossAutoScript.currentIdx=0;
-        window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,1500);
+        // BOSS 已擊敗 → 跳下一位繼續（3s 後等 DOM 就緒）
+        window.__wbBossAutoScript.currentIdx = (idx||0) + 1;
+        window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,3000);
         return;
       }
     }
@@ -1470,10 +1471,10 @@ function __wbBossAutoScriptHandleDefeat(target, idx, list){
     } catch(e){ console.warn('[WB-AutoScript] selectChar failed:', e.message); }
   },500);
 
-  // BOSS 已擊敗 → 回 Loop 從第一位重新掃描（1.5s 後，加快下一隻速度）
-  window.__wbBossAutoScript.currentIdx=0;
+  // BOSS 已擊敗 → 跳下一位繼續（3s 後，等 DOM 切換到世界王頁籤）
+  window.__wbBossAutoScript.currentIdx = (idx||0) + 1;
   if(window.__wbBossAutoScript.timer) clearTimeout(window.__wbBossAutoScript.timer);
-  window.__wbBossAutoScript.timer = setTimeout(__wbBossAutoScriptLoop, 1500);
+  window.__wbBossAutoScript.timer = setTimeout(__wbBossAutoScriptLoop, 3000);
 }
 
 
