@@ -824,19 +824,16 @@ function __wbBossAutoScriptMonitorBossHP_doCheck(target,idx,list){
   }
 
   // If in bosscombat, ensure auto attack is on
-  // 仍在戰鬥中 → 確保自動攻擊輔助選項全部開啟
-  if(mode==='bosscombat'&&bossHp>0){
+  if(mode==='bosscombat'){
     var atkChk=document.getElementById('__gmp_boss_auto_atk');
     if(atkChk&&!atkChk.checked)atkChk.checked=true;
     var enableChk=document.getElementById('__gmp_boss_auto_enable');
     if(enableChk&&!enableChk.checked)enableChk.checked=true;
-    // 若自動攻擊未啟動則嘗試啟動
     if(window.__wbBossAuto&&!window.__wbBossAuto.running&&window.__wbBossAutoStart){
       __wbBossAutoStart();
     }
   }
 
-  // 每 500ms 遞迴輪詢
   window.__wbBossAutoScript.timer=setTimeout(function(){
     __wbBossAutoScriptMonitorBossHP_doCheck(target,idx,list);
   },500);
@@ -1521,53 +1518,155 @@ function __wbBossAutoScriptScheduleNext(idx, list){
   poll();
 }
 
-// 處理 BOSS 擊敗後續：記錄擊敗、關閉自動攻擊、根據重進設定決定下一步
-// @param {Object} target - BOSS 物件
-// @param {number} idx   - 清單索引
-// @param {Array}  list  - 完整討伐清單
-// 處理 BOSS 擊敗後續：記錄擊敗 → selectChar[0] 回村 → currentIdx++ 跳下一位
-// 智能模式：打完第一隻自動輪第二隻，以此類推，最後一隻打完回到掛機
+// 處理 BOSS 擊敗後續：
+// v3.77 串列順序流程：
+//   1. 點 #br-lobby (重試到消失) → 2. selectChar[0] 回村
+//   3. currentIdx++ 跳下一位 → 4. __wbEnsureWBTab
+//   5. 直接點下一隻卡片 → 6. 確認進場 → 7. 開始攻擊
 // @param {Object} target - BOSS 物件
 // @param {number} idx   - 清單索引
 // @param {Array}  list  - 完整討伐清單
 function __wbBossAutoScriptHandleDefeat(target, idx, list){
   __wbDebugLog('defeat','BOSS defeated: '+target.name);
   __wbDebugStop('defeated');
-  console.log('[WB-AutoScript] ' + target.name + ' defeated!');
+  console.log('[WB-AutoScript] ' + target.name + ' defeated! HP=0 -> serial next-boss flow');
 
-  // Log defeat（記錄擊敗事件到歷史）
-  var ls = window.lastState || {};
-  var boss = ls.boss || {};
   __wbAddBossHistory(target.name, 'defeat', '\u64CA\u6557 BOSS', 0, null);
 
-  // 記錄離開（前進到下一個 BOSS）
-  __wbAddBossHistory(target.name, 'leave', '\u64CA\u6557\u5F8C\u56DE\u6751\uFF0C\u524D\u9032\u4E0B\u4E00\u4F4D', 0, null);
+  // 移除可能殘留的 timer
+  if(window.__wbBossAutoScript.timer){ clearTimeout(window.__wbBossAutoScript.timer); window.__wbBossAutoScript.timer=null; }
 
-  // ★ 立即更新狀態顯示：已擊敗，前往下一位
-  var nextName='';
-  if(list && idx+1 < list.length) nextName = list[idx+1].name;
-  var statusEl=document.getElementById('__gmp_boss_script_status');
-  if(statusEl){
-    statusEl.textContent = '\u2705 '+target.name+' \u64CA\u6557! \u2192 ' + (nextName || '...') + ' ('+(idx+2)+'/'+list.length+')';
+  var nextIdx = idx + 1;
+  if(list && nextIdx >= list.length){
+    // 清單已走完 → 恢復掛機
+    console.log('[WB-AutoScript] Hunt list completed, restoring farm');
+    __wbAddBossHistory(target.name, 'leave', '\u6E05\u55AE\u5DF2\u8D70\u5B8C\uFF0C\u56DE\u5FA9\u639B\u6A5F', 0, null);
+    __wbBossAutoScriptRestoreFarm();
+    return;
   }
 
-  // ★ 點擊 #br-lobby 並確認離開 (含重試)
-  __wbBossAutoScriptClickLobby();
+  var nextTarget = list[nextIdx];
+  var statusEl=document.getElementById('__gmp_boss_script_status');
+  if(statusEl) statusEl.textContent = '\u2705 '+target.name+' \u64CA\u6557! \u2192 '+nextTarget.name+' ('+(nextIdx+1)+'/'+list.length+')';
 
-  // 備援：500ms 後發 selectChar [0] 確保回村
-  setTimeout(function(){
-    console.log('[WB-AutoScript] Backup: Sending selectChar [0]');
+  // === Step 1: 點 #br-lobby 返回大廳（重試直到消失） ===
+  function step1_clickLobby(){
+    var lobbyBtn = document.getElementById('br-lobby');
+    if(lobbyBtn){
+      console.log('[WB-Defeat] Step1: Clicking #br-lobby');
+      __wbAddBossHistory(target.name, 'leave', 'Step1: \u9EDE\u64CA #br-lobby', 0, null);
+      lobbyBtn.click();
+      // 等 300ms 確認消失
+      setTimeout(function(){
+        if(!document.getElementById('br-lobby')){
+          console.log('[WB-Defeat] Step1: #br-lobby gone');
+          __wbAddBossHistory(target.name, 'leave', 'Step1 OK: #br-lobby\u5DF2\u6D88\u5931', 0, null);
+          step2_selectChar();
+        } else {
+          console.log('[WB-Defeat] Step1: #br-lobby still present, retry');
+          step1_clickLobby();
+        }
+      }, 300);
+    } else {
+      console.log('[WB-Defeat] Step1: #br-lobby not found, skip to step2');
+      __wbAddBossHistory(target.name, 'leave', 'Step1 skip: \u7121#br-lobby', 0, null);
+      step2_selectChar();
+    }
+  }
+
+  // === Step 2: selectChar[0] 回村 ===
+  function step2_selectChar(){
+    console.log('[WB-Defeat] Step2: Sending selectChar [0]');
+    __wbAddBossHistory(target.name, 'leave', 'Step2: selectChar[0]', 0, null);
     try {
       if(window.__wbSocket && window.__wbSocket.emit){
         window.__wbSocket.emit('selectChar', 0);
       } else if(window.__ws && window.__ws.readyState===WebSocket.OPEN){
         window.__ws.send('42["selectChar",0]');
       }
-    } catch(e){ console.warn('[WB-AutoScript] selectChar failed:', e.message); }
-  },500);
+    } catch(e){ console.warn('[WB-Defeat] selectChar failed:', e.message); }
+    // 等 1s 讓遊戲切回村莊
+    setTimeout(function(){
+      __wbAddBossHistory(target.name, 'leave', 'Step2 OK: \u5DF2\u56DE\u6751', 0, null);
+      step3_advanceIndex();
+    }, 1000);
+  }
 
-  // BOSS 已擊敗 → 確認 #br-lobby 消失後跳下一位繼續
-  __wbBossAutoScriptScheduleNext(idx, list);
+  // === Step 3: currentIdx++ ===
+  function step3_advanceIndex(){
+    window.__wbBossAutoScript.currentIdx = nextIdx;
+    console.log('[WB-Defeat] Step3: currentIdx='+nextIdx+' next='+nextTarget.name);
+    __wbAddBossHistory(target.name, 'leave', 'Step3: \u8DF3\u4E0B\u4E00\u4F4D '+nextTarget.name+' ('+(nextIdx+1)+'/'+list.length+')', 0, null);
+    if(statusEl) statusEl.textContent = '\u2192 '+nextTarget.name+' ('+(nextIdx+1)+'/'+list.length+')...';
+    step4_ensureWBTab();
+  }
+
+  // === Step 4: 切到世界王頁籤 ===
+  function step4_ensureWBTab(){
+    console.log('[WB-Defeat] Step4: Ensuring WB tab');
+    __wbAddBossHistory(target.name, 'leave', 'Step4: \u5207\u63DB\u4E16\u754C\u738B\u9801\u7C64', 0, null);
+    try{ __wbEnsureWBTab(); }catch(e){}
+    // __wbEnsureWBTab 內部 600ms 後才切子頁籤，等 2s 確保 DOM 就緒
+    setTimeout(function(){
+      __wbAddBossHistory(target.name, 'leave', 'Step4 OK: \u9801\u7C64\u5DF2\u5207\u63DB', 0, null);
+      step5_clickCard();
+    }, 2000);
+  }
+
+  // === Step 5: 點下一隻 BOSS 卡片進場 ===
+  function step5_clickCard(){
+    console.log('[WB-Defeat] Step5: Looking for card of '+nextTarget.name+' (id='+nextTarget.id+')');
+    var card = document.querySelector('.wb-card[data-boss="'+nextTarget.id+'"]');
+    if(card){
+      __wbAddBossHistory(target.name, 'leave', 'Step5: \u9EDE\u64CA\u5361\u7247 '+nextTarget.name, 0, null);
+      card.click();
+      console.log('[WB-Defeat] Step5: Clicked card for '+nextTarget.name);
+      // 等 2s 讓遊戲處理進場封包
+      setTimeout(function(){ step6_verifyEnter(); }, 2000);
+    } else {
+      console.warn('[WB-Defeat] Step5: Card NOT found for '+nextTarget.name+', retry in 1s');
+      __wbAddBossHistory(target.name, 'leave', 'Step5 FAIL: \u5361\u7247\u4E0D\u5B58\u5728 '+nextTarget.name+', 1s retry', 0, null);
+      setTimeout(step5_clickCard, 1000);
+    }
+  }
+
+  // === Step 6: 確認進場 (mode==='bosscombat' 且有 BOSS HP) ===
+  var _enterCheckCount = 0;
+  function step6_verifyEnter(){
+    _enterCheckCount++;
+    var ls = window.lastState || {};
+    var mode = ls.mode || '';
+    var boss = ls.boss || {};
+    var bossHp = boss.hp || 0;
+    if(mode==='bosscombat' && bossHp > 0){
+      console.log('[WB-Defeat] Step6: ENTERED! mode='+mode+' boss='+nextTarget.name+' HP='+bossHp);
+      __wbAddBossHistory(nextTarget.name, 'enter', 'Step6 OK: \u9032\u5834 \u5F00\u59CB\u653B\u64CA HP='+bossHp, bossHp, null);
+      if(statusEl) statusEl.textContent = '[BOSS] '+nextTarget.name+' ('+(nextIdx+1)+'/'+list.length+')';
+      // 啟動攻擊
+      var atkChk = document.getElementById('__gmp_boss_auto_atk');
+      if(atkChk) atkChk.checked = true;
+      var enableChk = document.getElementById('__gmp_boss_auto_enable');
+      if(enableChk) enableChk.checked = true;
+      if(window.__wbBossAuto && !window.__wbBossAuto.running && window.__wbBossAutoStart){
+        __wbBossAutoStart();
+      }
+      // 開始監控 HP
+      __wbBossAutoScriptMonitorBossHP(nextTarget, nextIdx, list);
+    } else if(_enterCheckCount < 5){
+      console.log('[WB-Defeat] Step6: Not yet entered (attempt '+_enterCheckCount+', mode='+mode+', hp='+bossHp+'), retry click + wait 2s');
+      // 重新點卡片
+      var cardRetry = document.querySelector('.wb-card[data-boss="'+nextTarget.id+'"]');
+      if(cardRetry) cardRetry.click();
+      setTimeout(step6_verifyEnter, 2000);
+    } else {
+      console.warn('[WB-Defeat] Step6: Entry failed after 5 attempts, fallback to Loop');
+      __wbAddBossHistory(nextTarget.name, 'fail_entry', 'Step6 FAIL: \u7121\u6CD5\u9032\u5834, \u56DELoop', 0, null);
+      window.__wbBossAutoScript.timer = setTimeout(__wbBossAutoScriptLoop, 2000);
+    }
+  }
+
+  // 開始串列
+  step1_clickLobby();
 }
 
 
