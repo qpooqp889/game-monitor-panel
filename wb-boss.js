@@ -803,12 +803,10 @@ function __wbBossAutoScriptMonitorBossHP_doCheck(target,idx,list){
   var statusEl=document.getElementById('__gmp_boss_script_status');
   if(statusEl)statusEl.textContent='[ATTACK] '+target.name+' HP:'+Math.round(bossHp/bossMax*100)+'%';
 
-  // BOSS HP=0 → 已擊敗，進入等待掉落/結算階段
-  // 注意：遊戲可能 HP=0 但 mode 仍為 bosscombat（state 尚未更新），
-  // 此時仍需觸發擊敗處理，否則會永遠空轉
+  // BOSS HP=0 → 已擊敗，直接離開（不等待掉落彈窗，避免卡住）
   if(bossHp<=0){
-    window.__wbBossAutoScript.phase='waiting_loot';
-    __wbBossAutoScriptWaitForLoot(target,idx,list);
+    console.log('[WB-AutoScript] Boss HP=0, entering HandleDefeat immediately');
+    __wbBossAutoScriptHandleDefeat(target, idx, list);
     return;
   }
 
@@ -819,45 +817,13 @@ function __wbBossAutoScriptMonitorBossHP_doCheck(target,idx,list){
     if(atkChk&&!atkChk.checked)atkChk.checked=true;
     var enableChk=document.getElementById('__gmp_boss_auto_enable');
     if(enableChk&&!enableChk.checked)enableChk.checked=true;
-    if(window.__wbSyncAutoConfig)__wbSyncAutoConfig();
     // 若自動攻擊未啟動則嘗試啟動
     if(window.__wbBossAuto&&!window.__wbBossAuto.running&&window.__wbBossAutoStart){
       __wbBossAutoStart();
     }
-
-    // === BOSS HP<20%：偵測已被擊敗提示，提前離開 ===
-    // 當 BOSS 血量低於 20% 時，檢查 DOM 中是否出現「世界王已被擊敗」
-    // 若出現表示戰鬥已結束但 lastState 未更新，發 selectChar[0] 離開
-    var hpPctCheck=bossMax>0?Math.round(bossHp/bossMax*100):100;
-    if(hpPctCheck<20){
-      var defeatedEl=document.querySelector('div[style*="color:#f87171"]');
-      if(defeatedEl&&defeatedEl.textContent.indexOf('\u4E16\u754C\u738B\u5DF2\u88AB\u64CA\u6557')!==-1){
-        console.log('[WB-AutoScript] Boss defeated at HP'+hpPctCheck+'%, leaving early');
-        __wbAddBossHistory(target.name,'defeat','HP<20% \u4E16\u754C\u738B\u5DF2\u88AB\u64CA\u6557 \u63D0\u524D\u96E2\u958B',bossHp,null);
-        if(statusEl)statusEl.textContent='[LEAVE]'+target.name+'\u5DF2\u64CA\u6557(HP'+hpPctCheck+'%)';
-        // ★ 先點擊 #br-lobby 離開結算畫面（不依賴 socket）
-        __wbBossAutoScriptClickLobby();
-        // 備援：socket toLobby + selectChar [0] 回村
-        try{
-          if(window.__wbSocket&&window.__wbSocket.emit){
-            window.__wbSocket.emit('toLobby',[]);
-            console.log('[WB-SEND] toLobby []');
-            setTimeout(function(){
-              if(window.__wbSocket&&window.__wbSocket.emit){
-                window.__wbSocket.emit('selectChar',0);
-                console.log('[WB-SEND] selectChar [0]');
-              }
-            },600);
-          }
-        }catch(e){console.warn('[WB-AutoScript] toLobby/selectChar failed:',e.message);}
-        // BOSS 已擊敗 → 跳下一位繼續（等 #br-lobby 消失後才前進）
-        __wbBossAutoScriptScheduleNext(idx, list);
-        return;
-      }
-    }
   }
 
-  // 每 500ms 遞迴輪詢（快速檢查自動攻擊 + HP<20% 提早離開）
+  // 每 500ms 遞迴輪詢
   window.__wbBossAutoScript.timer=setTimeout(function(){
     __wbBossAutoScriptMonitorBossHP_doCheck(target,idx,list);
   },500);
@@ -1903,7 +1869,7 @@ function __wbDetectWorldBossEvt(){
 
 // BOSS 自動攻擊主循環（每 500ms 執行一次）
 // 根據血量百分比和 CD 狀態觸發：停止攻擊、使用藥水、施放技能、治療、屏障
-function __wbBossLoop(){if(!window.__wbBossAuto.running)return;var ls=window.lastState||{};var ch=ls.char||{};var boss=ls.boss||{};var cd=boss.cd||{};var cfg=window.__wbBossAuto;var hpPct=ch.maxHp>0?ch.hp/ch.maxHp:1;var mpPct=ch.maxMp>0?ch.mp/ch.maxMp:1;try{if(cfg.stop&&((cfg.stopHpEnable!==false&&hpPct<(cfg.stopHp/100))||(cfg.stopMpEnable&&mpPct<(cfg.stopMp/100)))&&cd.stop<0.05)__wbSend('stop');if(cfg.pot&&hpPct<(cfg.potHp/100)&&cd.pot<0.05)__wbSend('pot');if(cfg.atkSkill&&cd.atk<0.05)__wbSend('atk');if(cfg.heal&&hpPct<(cfg.healHp/100)&&cd.heal<0.05)__wbSend('heal');if(cfg.barrier&&cd.barrier<0.05&&boss.barrierHas)__wbSend('barrier');if(cfg.atk&&ls.mode==='boss'){__wbSend('atk');}else if(cfg.atk&&ls.mode==='bosscombat'){var bHpPct=Math.round((boss.hp||0)/(boss.maxHp||1)*100);var bPlayers=boss.players||0;var hpOk=bHpPct<(cfg.atkHpPct||100);var plOk=cfg.atkOnline?bPlayers>cfg.atkOnline:true;var shouldAtk=false;if(cfg.atkLogic==='OR')shouldAtk=hpOk||plOk;else if(cfg.atkLogic==='NOT')shouldAtk=hpOk&&!plOk;else shouldAtk=hpOk&&plOk;if(shouldAtk)__wbSend('atk');}}catch(e){}window.__wbBossAuto.timer=setTimeout(__wbBossLoop,500);}
+function __wbBossLoop(){if(!window.__wbBossAuto.running)return;var ls=window.lastState||{};var ch=ls.char||{};var boss=ls.boss||{};var cd=boss.cd||{};var cfg=window.__wbBossAuto;var hpPct=ch.maxHp>0?ch.hp/ch.maxHp:1;var mpPct=ch.maxMp>0?ch.mp/ch.maxMp:1;try{if(cfg.stop&&((cfg.stopHpEnable!==false&&hpPct<(cfg.stopHp/100))||(cfg.stopMpEnable&&mpPct<(cfg.stopMp/100)))&&cd.stop<0.05)__wbSend('stop');if(cfg.pot&&hpPct<(cfg.potHp/100)&&cd.pot<0.05)__wbSend('pot');if(cfg.atkSkill&&cd.atk<0.05)__wbSend('atk');if(cfg.heal&&hpPct<(cfg.healHp/100)&&cd.heal<0.05)__wbSend('heal');if(cfg.barrier&&cd.barrier<0.05&&boss.barrierHas)__wbSend('barrier');if(cfg.atk&&(ls.mode==='boss'||ls.mode==='bosscombat')){__wbSend('atk');}}catch(e){}window.__wbBossAuto.timer=setTimeout(__wbBossLoop,500);}
 
 // 啟動 BOSS 自動攻擊（更新 UI 狀態文字為綠色）
 function __wbBossAutoStart(){
