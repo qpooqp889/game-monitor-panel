@@ -358,8 +358,21 @@ function __wbBossAutoScriptLoop(){
           console.log('[WB-Scan] DEAD no-respawn: '+t.name+' (idx='+si+'), push as priority=0 for CheckBoss');
         }
       }else{
-        scoredList.push({idx:si, target:t, priority:0, secondsLeft:-1, subText:subText});
-        console.log('[WB-Scan] UNKNOWN: '+t.name+' (idx='+si+') sub="'+subText+'", push as priority=0');
+        // UNKNOWN: 可能是未重生BOSS，嘗試從 subText 解析重生時間
+        var um=subText.match(/(\d{1,2})\/(\d{1,2})\s*(\d{1,2}):(\d{2})/);
+        if(um){
+          var umo=parseInt(um[1]), ud=parseInt(um[2]), uh=parseInt(um[3]), umi=parseInt(um[4]);
+          var utargetTime=new Date(now.getFullYear(),umo-1,ud,uh,umi,0);
+          if(utargetTime<=now)utargetTime.setDate(utargetTime.getDate()+1);
+          var usl=Math.round((utargetTime-now)/1000);
+          var upty=usl<=0?0:(usl<=60?1:2);
+          scoredList.push({idx:si, target:t, priority:upty, secondsLeft:usl, subText:subText, respStr:um[0]});
+          console.log('[WB-Scan] UNKNOWN with time: '+t.name+' (idx='+si+') sub="'+subText+'" parsed resp:'+um[0]+' '+usl+'s left, priority='+upty);
+        } else {
+          // 真的無法判斷 → 排末位，10s 後重掃
+          scoredList.push({idx:si, target:t, priority:999, secondsLeft:999, subText:subText});
+          console.log('[WB-Scan] UNKNOWN no-time: '+t.name+' (idx='+si+') sub="'+subText+'", push priority=999 to skip');
+        }
       }
     }
     if(!scoredList.length){
