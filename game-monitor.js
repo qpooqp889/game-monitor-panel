@@ -1,5 +1,5 @@
 (function(){
-var ver='v3.80';
+var ver='v3.31';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -1125,6 +1125,21 @@ function __gmBuildPanel(){
 '<input type="checkbox" id="__gmp_boss_auto_reenter" style="width:13px;height:13px;cursor:pointer;">'+
 '<label for="__gmp_boss_auto_reenter" style="font-size:11px;color:#86c5ff;cursor:pointer;">\u2620 \u6b7b\u4ea1\u81ea\u52a8\u56de\u5927\u5385\u91cd\u8fdb\u672c\u6b21\u4e16\u754c\u738b</label>'+
 '</div>'+
+    // === 定時排程 ===
+    '<div style="background:rgba(0,217,255,0.06);padding:8px;border-radius:6px;margin-bottom:8px;border:1px solid rgba(0,217,255,0.2);">'+
+      '<div style="font-size:11px;color:#00d9ff;font-weight:bold;margin-bottom:6px;">⏰ 定時排程</div>'+
+      '<div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">'+
+        '<span style="font-size:10px;color:#888;">整點</span>'+
+        '<input id="__gmp_schedule_boss_min" type="number" value="58" min="0" max="59" style="width:40px;padding:2px 4px;background:#2a2a4a;border:1px solid #e94560;border-radius:4px;color:#e94560;font-size:10px;text-align:center;">'+
+        '<span style="font-size:10px;color:#e94560;">分 → 切換打王</span>'+
+      '</div>'+
+      '<div style="display:flex;align-items:center;gap:4px;">'+
+        '<span style="font-size:10px;color:#888;">整點</span>'+
+        '<input id="__gmp_schedule_farm_min" type="number" value="3" min="0" max="59" style="width:40px;padding:2px 4px;background:#2a2a4a;border:1px solid #4ade80;border-radius:4px;color:#4ade80;font-size:10px;text-align:center;">'+
+        '<span style="font-size:10px;color:#4ade80;">分 → 切換掛機</span>'+
+      '</div>'+
+      '<div id="__gmp_schedule_status" style="font-size:9px;color:#555;margin-top:4px;">⏳ 排程待機中...</div>'+
+    '</div>'+
 
         '<div style="background:#3a1a1a;border-radius:4px;height:14px;">'+
           '<div id="__gmp_boss_hp_bar" style="width:0%;background:#e94560;height:100%;border-radius:4px;transition:width 0.3s;"></div>'+
@@ -3431,5 +3446,134 @@ console.log('[GM] Monitor injected '+ver);
     };
   }
 
+  // ========== 定時排程：自動切換打王/掛機模式 ==========
+  var __gmScheduleTimer = null;
+  var __gmScheduleLastMinute = -1;
+  var __gmScheduleSwitchedThisMinute = false;  // 防重複切換
+
+  // 載入排程設定
+  function __gmLoadScheduleSettings(){
+    if(typeof window.__gmStorageGet==='undefined'){
+      setTimeout(__gmLoadScheduleSettings,500);
+      return;
+    }
+    window.__gmStorageGet(['__gmp_schedule_settings']).then(function(r){
+      var s=(r&&r.__gmp_schedule_settings)||{};
+      var bossMinEl=document.getElementById('__gmp_schedule_boss_min');
+      var farmMinEl=document.getElementById('__gmp_schedule_farm_min');
+      if(bossMinEl)bossMinEl.value=s.bossMin!=null?s.bossMin:58;
+      if(farmMinEl)farmMinEl.value=s.farmMin!=null?s.farmMin:3;
+      __gmStartSchedule();
+    }).catch(function(){
+      __gmStartSchedule();
+    });
+  }
+
+  // 儲存排程設定
+  function __gmSaveScheduleSettings(){
+    if(typeof window.__gmStorageSet==='undefined')return;
+    var bossMinEl=document.getElementById('__gmp_schedule_boss_min');
+    var farmMinEl=document.getElementById('__gmp_schedule_farm_min');
+    var bossMin=parseInt(bossMinEl?bossMinEl.value:58)||58;
+    var farmMin=parseInt(farmMinEl?farmMinEl.value:3)||3;
+    // boundary clamp
+    bossMin=Math.max(0,Math.min(59,bossMin));
+    farmMin=Math.max(0,Math.min(59,farmMin));
+    window.__gmStorageSet('__gmp_schedule_settings',{bossMin:bossMin,farmMin:farmMin}).catch(function(){});
+  }
+
+  // 啟動排程定時器
+  function __gmStartSchedule(){
+    if(__gmScheduleTimer)clearInterval(__gmScheduleTimer);
+    __gmScheduleLastMinute=-1;
+    __gmScheduleSwitchedThisMinute=false;
+    __gmScheduleTick();
+    __gmScheduleTimer=setInterval(__gmScheduleTick,10000);  // 每10秒檢查一次
+    console.log('[GM-Schedule] Timer started, checking every 10s');
+  }
+
+  // 排程檢查：每10秒比對現在分鐘 vs 設定的bossMin/farmMin
+  function __gmScheduleTick(){
+    var now=new Date();
+    var curMin=now.getMinutes();
+    // 同一分鐘內只執行一次切換
+    if(curMin===__gmScheduleLastMinute)return;
+    __gmScheduleLastMinute=curMin;
+    __gmScheduleSwitchedThisMinute=false;
+
+    var bossMinEl=document.getElementById('__gmp_schedule_boss_min');
+    var farmMinEl=document.getElementById('__gmp_schedule_farm_min');
+    var bossMin=parseInt(bossMinEl?bossMinEl.value:58)||58;
+    var farmMin=parseInt(farmMinEl?farmMinEl.value:3)||3;
+
+    var statusEl=document.getElementById('__gmp_schedule_status');
+
+    // === 判斷切換時機 ===
+    // bossMin==farmMin 不切換（避免震盪）
+    if(bossMin===farmMin){
+      if(statusEl)statusEl.textContent='⚠ 打王與掛機分鐘相同 ('+bossMin+')，排程停用';
+      return;
+    }
+
+    // bossMin 分鐘 → 切換打王模式
+    if(curMin===bossMin && !__gmScheduleSwitchedThisMinute){
+      __gmScheduleSwitchedThisMinute=true;
+      console.log('[GM-Schedule] === Minute '+bossMin+' → Switching to BOSS mode ===');
+      if(statusEl)statusEl.textContent='⚔ '+bossMin+'分 → 啟動打王模式';
+      // 停止掛機
+      if(window.__gmFarming&&window.__gmFarming.running&&window.stopFarming){
+        stopFarming();
+        console.log('[GM-Schedule] Stopped farming');
+      }
+      // 切到 BOSS Tab
+      try{ switchTab('boss'); }catch(e){}
+      // 啟動 BOSS 腳本
+      setTimeout(function(){
+        var chk=document.getElementById('__gmp_boss_auto_script_enable');
+        if(chk&&!chk.checked){
+          chk.checked=true;
+          __wbSaveBossAutoScriptState();
+        }
+        if(window.__wbBossAutoScriptStart)window.__wbBossAutoScriptStart();
+      },1000);
+    }
+
+    // farmMin 分鐘 → 切換掛機模式
+    if(curMin===farmMin && !__gmScheduleSwitchedThisMinute){
+      __gmScheduleSwitchedThisMinute=true;
+      console.log('[GM-Schedule] === Minute '+farmMin+' → Switching to FARM mode ===');
+      if(statusEl)statusEl.textContent='🌾 '+farmMin+'分 → 切換掛機模式';
+      // 停止 BOSS 腳本
+      if(window.__wbBossAutoScriptStop)window.__wbBossAutoScriptStop();
+      // uncheck checkbox
+      var chk=document.getElementById('__gmp_boss_auto_script_enable');
+      if(chk){chk.checked=false;__wbSaveBossAutoScriptState();}
+      // 等 500ms 後啟動掛機
+      setTimeout(function(){
+        if(window.__gmFarming&&!window.__gmFarming.running&&window.startFarming){
+          startFarming();
+          console.log('[GM-Schedule] Started farming');
+        }
+      },500);
+    }
+
+    // 更新狀態顯示
+    if(statusEl && curMin!==bossMin && curMin!==farmMin){
+      var nextBossMin=(curMin<bossMin)?bossMin:(bossMin+60);
+      var minsLeft=nextBossMin-curMin;
+      statusEl.textContent='⏳ 下次打王: '+String(bossMin).padStart(2,'0')+':'+'00 '+' ('+minsLeft+'分後) | 掛機: '+String(farmMin).padStart(2,'0')+':00';
+    }
+  }
+
+  // 綁定排程參數變更事件 → 自動儲存
+  var _schedBossMin=document.getElementById('__gmp_schedule_boss_min');
+  var _schedFarmMin=document.getElementById('__gmp_schedule_farm_min');
+  if(_schedBossMin)_schedBossMin.addEventListener('change',function(){__gmSaveScheduleSettings();__gmScheduleLastMinute=-1;});
+  if(_schedFarmMin)_schedFarmMin.addEventListener('change',function(){__gmSaveScheduleSettings();__gmScheduleLastMinute=-1;});
+  if(_schedBossMin)_schedBossMin.addEventListener('input',function(){__gmSaveScheduleSettings();});
+  if(_schedFarmMin)_schedFarmMin.addEventListener('input',function(){__gmSaveScheduleSettings();});
+
+  // 啟動排程
+  setTimeout(__gmLoadScheduleSettings,800);
 
 })();
