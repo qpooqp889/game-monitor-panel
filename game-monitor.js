@@ -1135,7 +1135,7 @@ function __gmBuildPanel(){
       '</div>'+
       '<div style="display:flex;align-items:center;gap:4px;">'+
         '<span style="font-size:10px;color:#888;">整點</span>'+
-        '<input id="__gmp_schedule_farm_min" type="number" value="5" min="0" max="59" style="width:40px;padding:2px 4px;background:#2a2a4a;border:1px solid #4ade80;border-radius:4px;color:#4ade80;font-size:10px;text-align:center;">'+
+        '<input id="__gmp_schedule_farm_min" type="number" value="3" min="0" max="59" style="width:40px;padding:2px 4px;background:#2a2a4a;border:1px solid #4ade80;border-radius:4px;color:#4ade80;font-size:10px;text-align:center;">'+
         '<span style="font-size:10px;color:#4ade80;">分 → 切換掛機</span>'+
       '</div>'+
       '<div id="__gmp_schedule_status" style="font-size:9px;color:#555;margin-top:4px;">⏳ 排程待機中...</div>'+
@@ -3462,7 +3462,7 @@ console.log('[GM] Monitor injected '+ver);
       var bossMinEl=document.getElementById('__gmp_schedule_boss_min');
       var farmMinEl=document.getElementById('__gmp_schedule_farm_min');
       if(bossMinEl)bossMinEl.value=s.bossMin!=null?s.bossMin:58;
-      if(farmMinEl)farmMinEl.value=s.farmMin!=null?s.farmMin:5;
+      if(farmMinEl)farmMinEl.value=s.farmMin!=null?s.farmMin:3;
       __gmStartSchedule();
     }).catch(function(){
       __gmStartSchedule();
@@ -3475,7 +3475,7 @@ console.log('[GM] Monitor injected '+ver);
     var bossMinEl=document.getElementById('__gmp_schedule_boss_min');
     var farmMinEl=document.getElementById('__gmp_schedule_farm_min');
     var bossMin=parseInt(bossMinEl?bossMinEl.value:58)||58;
-    var farmMin=parseInt(farmMinEl?farmMinEl.value:5)||5;
+    var farmMin=parseInt(farmMinEl?farmMinEl.value:3)||3;
     bossMin=Math.max(0,Math.min(59,bossMin));
     farmMin=Math.max(0,Math.min(59,farmMin));
     window.__gmStorageSet('__gmp_schedule_settings',{bossMin:bossMin,farmMin:farmMin}).catch(function(){});
@@ -3500,7 +3500,7 @@ console.log('[GM] Monitor injected '+ver);
     var bossMinEl=document.getElementById('__gmp_schedule_boss_min');
     var farmMinEl=document.getElementById('__gmp_schedule_farm_min');
     var bossMin=parseInt(bossMinEl?bossMinEl.value:58)||58;
-    var farmMin=parseInt(farmMinEl?farmMinEl.value:5)||5;
+    var farmMin=parseInt(farmMinEl?farmMinEl.value:3)||3;
 
     var statusEl=document.getElementById('__gmp_schedule_status');
 
