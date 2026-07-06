@@ -706,7 +706,7 @@ function startFarming(){
   var reconnectInterval=parseInt(reconnectIntervalInput.value)||60;
   var charSlot=parseInt(charSlotSelect.value)||0;
 
-  if(!farmZone){alert('請先選擇掛機地圖！');return;}
+  if(!farmZone){console.warn('[GM] startFarming: no zone selected');return;}
 
   window.__gmFarming={running:true,timer:null,returning:false,inTown:false,reconnectTimer:null,logoutCount:0,lastLogoutTime:null,__firstAttackSent:false,__lastAttackTime:null};
   window.__gmFarming.reconnectEnabled=reconnectEnabled;
@@ -3545,17 +3545,34 @@ console.log('[GM] Monitor injected '+ver);
       console.log('[GM-Schedule] === '+curMin+'分 → Switching to FARM mode'+(force?' (force)':'')+' ===');
       __gmScheduleInBossMode=false;
       if(statusEl)statusEl.textContent='🌾 掛機模式 【'+String(farmMin).padStart(2,'0')+':00 ~ '+String(bossMin).padStart(2,'0')+':00】';
-      // 強制停止 BOSS 腳本（無視任何錯誤，確保恢復掛機）
+      // 強制停止 BOSS 腳本
       if(window.__wbBossAutoScriptStop)window.__wbBossAutoScriptStop();
       var chk=document.getElementById('__gmp_boss_auto_script_enable');
       if(chk){chk.checked=false;__wbSaveBossAutoScriptState();}
-      setTimeout(function(){
-        if(window.__gmFarming&&!window.__gmFarming.running&&window.startFarming){
-          startFarming();
-        }
-      },500);
+      __gmScheduleStartFarm(0);
     }
     __gmScheduleLastMinute=curMin;
+  }
+
+  // 排程掛機啟動（retry 直到 zone 有值，最多 60 次 = 60 秒）
+  function __gmScheduleStartFarm(retryCount){
+    if(typeof startFarming!=='function'){
+      if(retryCount<60)setTimeout(function(){__gmScheduleStartFarm(retryCount+1)},1000);
+      return;
+    }
+    if(window.__gmFarming&&window.__gmFarming.running)return; // 已在掛機
+    var zoneEl=document.getElementById('__gmp_farm_zone');
+    if(!zoneEl||!zoneEl.value){
+      if(retryCount<60){
+        console.log('[GM-Schedule] farm zone not ready, retry '+(retryCount+1)+'/60');
+        setTimeout(function(){__gmScheduleStartFarm(retryCount+1)},1000);
+      } else {
+        console.warn('[GM-Schedule] farm zone still empty after 60 retries, giving up');
+      }
+      return;
+    }
+    console.log('[GM-Schedule] zone ready, starting farming');
+    startFarming();
   }
 
   // 綁定排程參數變更事件 → 自動儲存
