@@ -1798,15 +1798,29 @@ function __wbQueryWorldBoss(){
 }
 
 
-// 自動查詢：每 60 秒執行一次
-// 啟動定時器，每分鐘從遊戲 DOM 重新讀取世界王列表並更新 UI
+// 自動查詢：智能時間窗輪詢
+// 整點 58 分 ~ 59 分 59 秒：每 3 秒更新（BOSS 重生高頻期）
+// 其他時間：每 60 秒更新（低頻期節省資源）
 function __wbStartWorldBossTimer(){
   if(window.__wbWorldBossTimer)clearInterval(window.__wbWorldBossTimer);
+  var lastSlowUpdate=0;
   __wbUpdateWorldBossUI();
   window.__wbWorldBossTimer=setInterval(function(){
-    __wbUpdateWorldBossUI();
-  },60000);
-  console.log('[WB-WorldBoss] DOM timer started, interval=60s');
+    var now=new Date();
+    var m=now.getMinutes();
+    var s=now.getSeconds();
+    // 整點 58:00 ~ 59:59 → 高頻模式 (每 3s)
+    if(m===58||m===59){
+      __wbUpdateWorldBossUI();
+      return;
+    }
+    // 其他時間 → 低頻模式 (每 60s)
+    if(now.getTime()-lastSlowUpdate>=60000){
+      lastSlowUpdate=now.getTime();
+      __wbUpdateWorldBossUI();
+    }
+  },3000);
+  console.log('[WB-WorldBoss] Smart timer started: 3s in XX:58-59, 60s otherwise');
 }
 
 // 停止世界王定時查詢
@@ -2311,13 +2325,13 @@ setTimeout(function(){
     console.log('[WB-WorldBoss] confirmed event:',detected);
   }
   __wbStartWorldBossTimer();
-  // 每 5 秒偵測新事件（若尚未確認事件名稱）
+  // 每 3 秒批量更新（統一使用同一定時器，避免重複輪詢）
   window.__wbWorldBossDetectTimer=setInterval(function(){
     if(!window.__wbWorldBossEvtName){
       var d=__wbDetectWorldBossEvt();
       if(d){window.__wbWorldBossEvtName=d;console.log('[WB-WorldBoss] auto-detected:',d);}
     }
-    __wbUpdateWorldBossUI();
+    // __wbUpdateWorldBossUI 由 __wbStartWorldBossTimer 的智能定時器控制
   },5000);
 },5000);
 
