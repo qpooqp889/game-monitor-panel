@@ -1,4 +1,4 @@
-/* wb-boss.js v3.25 - BOSS Auto Script */
+﻿/* wb-boss.js v3.25 - BOSS Auto Script */
 
 // ====== Debug Logger (觸發條件: 偵測到重生 < 30s) ======
 // 儲存至 chrome.storage.local key: __gmp_debug_log
@@ -1566,38 +1566,42 @@ function __wbBossAutoScriptHandleDefeat(target, idx, list){
   var nextTarget = list[nextIdx];
   var statusEl=document.getElementById('__gmp_boss_script_status');
   if(statusEl) statusEl.textContent = '\u2705 '+target.name+' \u64CA\u6557! \u2192 '+nextTarget.name+' ('+(nextIdx+1)+'/'+list.length+')';
-
-  // === Step 1: 點 #br-lobby 返回大廳（最多重試 10 次 ~3s，避免無限迴圈） ===
+  // === Step 1: 點 #br-lobby 並等待 mode==="lobby" 確認返回大廳 ===
+  // 不依賴 DOM 按鈕消失（按鈕可能殘留），改用 lastState.mode 確認
   var _step1Retries = 0;
-  var _step1MaxRetries = 10;
+  var _step1MaxRetries = 15;
   function step1_clickLobby(){
     _step1Retries++;
-    var lobbyBtn = document.getElementById('br-lobby');
-    if(lobbyBtn && _step1Retries <= _step1MaxRetries){
-      console.log('[WB-Defeat] Step1: Clicking #br-lobby (attempt '+_step1Retries+'/'+_step1MaxRetries+')');
-      __wbAddBossHistory(target.name, 'leave', 'Step1: \u9EDE\u64CA #br-lobby ('+_step1Retries+'/'+_step1MaxRetries+')', 0, null);
-      lobbyBtn.click();
-      // 等 300ms 確認消失
-      setTimeout(function(){
-        if(!document.getElementById('br-lobby')){
-          console.log('[WB-Defeat] Step1: #br-lobby gone');
-          __wbAddBossHistory(target.name, 'leave', 'Step1 OK: #br-lobby\u5DF2\u6D88\u5931', 0, null);
-          step2_selectChar();
-        } else {
-          console.log('[WB-Defeat] Step1: #br-lobby still present, retry '+_step1Retries+'/'+_step1MaxRetries);
-          step1_clickLobby();
-        }
-      }, 300);
-    } else {
-      if(_step1Retries > _step1MaxRetries){
-        console.log('[WB-Defeat] Step1: Max retries reached, proceeding to step2 anyway');
-        __wbAddBossHistory(target.name, 'leave', 'Step1 timeout: \u8D85\u904E'+_step1MaxRetries+'\u6B21\uFF0C\u5F37\u5236\u7E7C\u7E8C', 0, null);
-      } else {
-        console.log('[WB-Defeat] Step1: #br-lobby not found, skip to step2');
-        __wbAddBossHistory(target.name, 'leave', 'Step1 skip: \u7121#br-lobby', 0, null);
-      }
+    if(_step1Retries > _step1MaxRetries){
+      console.log("[WB-Defeat] Step1: Max retries ("+_step1MaxRetries+"), force continue to step2");
+      __wbAddBossHistory(target.name, "leave", "Step1 timeout: 超過"+_step1MaxRetries+"次，強制繼續", 0, null);
       step2_selectChar();
+      return;
     }
+    // 確認遊戲狀態是否已回大廳（關鍵！不靠 DOM 按鈕消失判斷）
+    var ls = window.lastState || {};
+    var curMode = ls.mode || "";
+    if(curMode === "lobby"){
+      console.log("[WB-Defeat] Step1: Already in lobby, done (attempt "+_step1Retries+")");
+      __wbAddBossHistory(target.name, "leave", "Step1 OK: mode=lobby 已回大廳", 0, null);
+      step2_selectChar();
+      return;
+    }
+    // 點擊 #br-lobby（如果 DOM 存在）
+    var lobbyBtn = document.getElementById("br-lobby");
+    if(lobbyBtn){
+      console.log("[WB-Defeat] Step1: Clicking #br-lobby (attempt "+_step1Retries+"/"+_step1MaxRetries+"), mode="+curMode);
+      lobbyBtn.click();
+    } else {
+      console.log("[WB-Defeat] Step1: #br-lobby not in DOM, sending toLobby socket (attempt "+_step1Retries+"/"+_step1MaxRetries+"), mode="+curMode);
+      try {
+        if(window.__wbSocket && window.__wbSocket.emit) window.__wbSocket.emit("toLobby", []);
+        else if(window.__ws && window.__ws.readyState===WebSocket.OPEN) window.__ws.send("42[\u0022toLobby\u0022,[]]");
+      } catch(e){}
+    }
+    // 等 500ms 再檢查 mode（給遊戲時間切換狀態）
+    setTimeout(step1_clickLobby, 500);
+
   }
 
   // === Step 2: toLobby + selectChar[0] 回村 ===
