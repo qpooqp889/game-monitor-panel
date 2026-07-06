@@ -1664,8 +1664,31 @@ function __wbBossAutoScriptHandleDefeat(target, idx, list){
 
   // === Step 6: 確認進場 (mode==='bosscombat' 且有 BOSS HP) ===
   var _enterCheckCount = 0;
+  var _enterDismissCount = 0;
   function step6_verifyEnter(){
     _enterCheckCount++;
+    // 先處理「未重生」對話框 → 點確定、再點卡片重試
+    var msgOk = document.getElementById('msg-ok');
+    if(msgOk){
+      _enterDismissCount++;
+      console.log('[WB-Defeat] Step6: msg-ok dismissed #'+_enterDismissCount+' ('+nextTarget.name+')');
+      msgOk.click();
+      if(_enterDismissCount >= 3){
+        console.warn('[WB-Defeat] Step6: Boss not spawned after 3 dismiss, skip to next');
+        __wbAddBossHistory(nextTarget.name, 'skip', '\u672A\u91CD\u751F(3\u6B21)', 0, null);
+        currentIdx = nextIdx + 1;
+        window.__wbBossAutoScript.timer = setTimeout(function(){
+          if(window.__wbBossAutoScript) window.__wbBossAutoScript.running = false;
+          __wbBossAutoScriptLoop();
+        }, 2000);
+        return;
+      }
+      // 關掉對話框後重新點卡片
+      var cardRetry = document.querySelector('.wb-card[data-boss="'+nextTarget.id+'"]');
+      if(cardRetry) cardRetry.click();
+      setTimeout(step6_verifyEnter, 2000);
+      return;
+    }
     var ls = window.lastState || {};
     var mode = ls.mode || '';
     var boss = ls.boss || {};
