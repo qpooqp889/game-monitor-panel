@@ -801,6 +801,8 @@ function __wbBossAutoScriptTryEnterSpam(target,idx,list,card){
 // @param {Array}  list  - 完整討伐清單
 function __wbBossAutoScriptMonitorBossHP(target,idx,list){
   if(!window.__wbBossAutoScript.running)return;
+  // 每次進入新 BOSS 重置暖機計時器（避免 stale state 誤觸擊敗）
+  window.__wbBossAutoScript._monitorStartAt = Date.now();
   if(!window.__wb_debug_active)__wbDebugStart(target.name,'monitor');
   __wbBossAutoScriptMonitorBossHP_doCheck(target,idx,list);
 }
@@ -813,11 +815,27 @@ function __wbBossAutoScriptMonitorBossHP_doCheck(target,idx,list){
   var bossHp=boss.hp||0;
   var bossMax=boss.maxHp||1;
 
+  // 暖機保護：剛進入新 BOSS 時 lastState 可能還殘留上一隻的 HP=0
+  // 第一次呼叫時記錄時間，2s 內若 HP=0 且 mode!==bosscombat 則等待
+  if(!window.__wbBossAutoScript._monitorStartAt){
+    window.__wbBossAutoScript._monitorStartAt = Date.now();
+    console.log('[WB-Monitor] Warmup: started for '+target.name+' at '+window.__wbBossAutoScript._monitorStartAt);
+  }
+  var _monitorAge = Date.now() - (window.__wbBossAutoScript._monitorStartAt||0);
+
   var statusEl=document.getElementById('__gmp_boss_script_status');
   if(statusEl)statusEl.textContent='[ATTACK] '+target.name+' HP:'+Math.round(bossHp/bossMax*100)+'%';
 
   // BOSS HP=0 → 已擊敗，直接離開（不等待掉落彈窗，避免卡住）
+  // 暖機期間 HP=0 且不處於 bosscombat → 可能是 stale state，跳過
   if(bossHp<=0){
+    if(_monitorAge < 3000 && mode !== 'bosscombat'){
+      console.log('[WB-Monitor] HP=0 during warmup (age='+_monitorAge+'ms, mode='+mode+'), likely stale, waiting 1s');
+      window.__wbBossAutoScript.timer=setTimeout(function(){
+        __wbBossAutoScriptMonitorBossHP_doCheck(target,idx,list);
+      }, 1000);
+      return;
+    }
     console.log('[WB-AutoScript] Boss HP=0, entering HandleDefeat immediately');
     __wbBossAutoScriptHandleDefeat(target, idx, list);
     return;
@@ -1549,12 +1567,15 @@ function __wbBossAutoScriptHandleDefeat(target, idx, list){
   var statusEl=document.getElementById('__gmp_boss_script_status');
   if(statusEl) statusEl.textContent = '\u2705 '+target.name+' \u64CA\u6557! \u2192 '+nextTarget.name+' ('+(nextIdx+1)+'/'+list.length+')';
 
-  // === Step 1: 點 #br-lobby 返回大廳（重試直到消失） ===
+  // === Step 1: 點 #br-lobby 返回大廳（最多重試 10 次 ~3s，避免無限迴圈） ===
+  var _step1Retries = 0;
+  var _step1MaxRetries = 10;
   function step1_clickLobby(){
+    _step1Retries++;
     var lobbyBtn = document.getElementById('br-lobby');
-    if(lobbyBtn){
-      console.log('[WB-Defeat] Step1: Clicking #br-lobby');
-      __wbAddBossHistory(target.name, 'leave', 'Step1: \u9EDE\u64CA #br-lobby', 0, null);
+    if(lobbyBtn && _step1Retries <= _step1MaxRetries){
+      console.log('[WB-Defeat] Step1: Clicking #br-lobby (attempt '+_step1Retries+'/'+_step1MaxRetries+')');
+      __wbAddBossHistory(target.name, 'leave', 'Step1: \u9EDE\u64CA #br-lobby ('+_step1Retries+'/'+_step1MaxRetries+')', 0, null);
       lobbyBtn.click();
       // 等 300ms 確認消失
       setTimeout(function(){
@@ -1563,33 +1584,44 @@ function __wbBossAutoScriptHandleDefeat(target, idx, list){
           __wbAddBossHistory(target.name, 'leave', 'Step1 OK: #br-lobby\u5DF2\u6D88\u5931', 0, null);
           step2_selectChar();
         } else {
-          console.log('[WB-Defeat] Step1: #br-lobby still present, retry');
+          console.log('[WB-Defeat] Step1: #br-lobby still present, retry '+_step1Retries+'/'+_step1MaxRetries);
           step1_clickLobby();
         }
       }, 300);
     } else {
-      console.log('[WB-Defeat] Step1: #br-lobby not found, skip to step2');
-      __wbAddBossHistory(target.name, 'leave', 'Step1 skip: \u7121#br-lobby', 0, null);
+      if(_step1Retries > _step1MaxRetries){
+        console.log('[WB-Defeat] Step1: Max retries reached, proceeding to step2 anyway');
+        __wbAddBossHistory(target.name, 'leave', 'Step1 timeout: \u8D85\u904E'+_step1MaxRetries+'\u6B21\uFF0C\u5F37\u5236\u7E7C\u7E8C', 0, null);
+      } else {
+        console.log('[WB-Defeat] Step1: #br-lobby not found, skip to step2');
+        __wbAddBossHistory(target.name, 'leave', 'Step1 skip: \u7121#br-lobby', 0, null);
+      }
       step2_selectChar();
     }
   }
 
-  // === Step 2: selectChar[0] 回村 ===
+  // === Step 2: toLobby + selectChar[0] 回村 ===
   function step2_selectChar(){
-    console.log('[WB-Defeat] Step2: Sending selectChar [0]');
-    __wbAddBossHistory(target.name, 'leave', 'Step2: selectChar[0]', 0, null);
+    console.log('[WB-Defeat] Step2: Sending toLobby + selectChar [0]');
+    __wbAddBossHistory(target.name, 'leave', 'Step2: toLobby+selectChar[0]', 0, null);
     try {
       if(window.__wbSocket && window.__wbSocket.emit){
-        window.__wbSocket.emit('selectChar', 0);
+        window.__wbSocket.emit('toLobby', []);
+        setTimeout(function(){
+          if(window.__wbSocket && window.__wbSocket.emit) window.__wbSocket.emit('selectChar', 0);
+        }, 500);
       } else if(window.__ws && window.__ws.readyState===WebSocket.OPEN){
-        window.__ws.send('42["selectChar",0]');
+        window.__ws.send('42["toLobby",[]]');
+        setTimeout(function(){
+          if(window.__ws && window.__ws.readyState===WebSocket.OPEN) window.__ws.send('42["selectChar",0]');
+        }, 500);
       }
-    } catch(e){ console.warn('[WB-Defeat] selectChar failed:', e.message); }
-    // 等 1s 讓遊戲切回村莊
+    } catch(e){ console.warn('[WB-Defeat] toLobby/selectChar failed:', e.message); }
+    // 等 1.5s 讓遊戲切回村莊
     setTimeout(function(){
       __wbAddBossHistory(target.name, 'leave', 'Step2 OK: \u5DF2\u56DE\u6751', 0, null);
       step3_advanceIndex();
-    }, 1000);
+    }, 1500);
   }
 
   // === Step 3: currentIdx++ ===
