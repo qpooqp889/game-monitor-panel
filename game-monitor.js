@@ -1135,7 +1135,7 @@ function __gmBuildPanel(){
       '</div>'+
       '<div style="display:flex;align-items:center;gap:4px;">'+
         '<span style="font-size:10px;color:#888;">整點</span>'+
-        '<input id="__gmp_schedule_farm_min" type="number" value="3" min="0" max="59" style="width:40px;padding:2px 4px;background:#2a2a4a;border:1px solid #4ade80;border-radius:4px;color:#4ade80;font-size:10px;text-align:center;">'+
+        '<input id="__gmp_schedule_farm_min" type="number" value="5" min="0" max="59" style="width:40px;padding:2px 4px;background:#2a2a4a;border:1px solid #4ade80;border-radius:4px;color:#4ade80;font-size:10px;text-align:center;">'+
         '<span style="font-size:10px;color:#4ade80;">分 → 切換掛機</span>'+
       '</div>'+
       '<div id="__gmp_schedule_status" style="font-size:9px;color:#555;margin-top:4px;">⏳ 排程待機中...</div>'+
@@ -3449,7 +3449,7 @@ console.log('[GM] Monitor injected '+ver);
   // ========== 定時排程：自動切換打王/掛機模式 ==========
   var __gmScheduleTimer = null;
   var __gmScheduleLastMinute = -1;
-  var __gmScheduleSwitchedThisMinute = false;  // 防重複切換
+  var __gmScheduleInBossMode = null;  // null=未初始化, true=王, false=農
 
   // 載入排程設定
   function __gmLoadScheduleSettings(){
@@ -3462,7 +3462,7 @@ console.log('[GM] Monitor injected '+ver);
       var bossMinEl=document.getElementById('__gmp_schedule_boss_min');
       var farmMinEl=document.getElementById('__gmp_schedule_farm_min');
       if(bossMinEl)bossMinEl.value=s.bossMin!=null?s.bossMin:58;
-      if(farmMinEl)farmMinEl.value=s.farmMin!=null?s.farmMin:3;
+      if(farmMinEl)farmMinEl.value=s.farmMin!=null?s.farmMin:5;
       __gmStartSchedule();
     }).catch(function(){
       __gmStartSchedule();
@@ -3475,8 +3475,7 @@ console.log('[GM] Monitor injected '+ver);
     var bossMinEl=document.getElementById('__gmp_schedule_boss_min');
     var farmMinEl=document.getElementById('__gmp_schedule_farm_min');
     var bossMin=parseInt(bossMinEl?bossMinEl.value:58)||58;
-    var farmMin=parseInt(farmMinEl?farmMinEl.value:3)||3;
-    // boundary clamp
+    var farmMin=parseInt(farmMinEl?farmMinEl.value:5)||5;
     bossMin=Math.max(0,Math.min(59,bossMin));
     farmMin=Math.max(0,Math.min(59,farmMin));
     window.__gmStorageSet('__gmp_schedule_settings',{bossMin:bossMin,farmMin:farmMin}).catch(function(){});
@@ -3486,48 +3485,56 @@ console.log('[GM] Monitor injected '+ver);
   function __gmStartSchedule(){
     if(__gmScheduleTimer)clearInterval(__gmScheduleTimer);
     __gmScheduleLastMinute=-1;
-    __gmScheduleSwitchedThisMinute=false;
+    __gmScheduleInBossMode=null;
     __gmScheduleTick();
-    __gmScheduleTimer=setInterval(__gmScheduleTick,10000);  // 每10秒檢查一次
+    __gmScheduleTimer=setInterval(__gmScheduleTick,10000);
     console.log('[GM-Schedule] Timer started, checking every 10s');
   }
 
-  // 排程檢查：每10秒比對現在分鐘 vs 設定的bossMin/farmMin
+  // 排程檢查：區間判斷，掛機窗口 [farmMin, bossMin)，打王窗口 [bossMin, 60) ∪ [0, farmMin)
+  // 預設: 掛機 05:00~57:59，打王 58:00~04:59
   function __gmScheduleTick(){
     var now=new Date();
     var curMin=now.getMinutes();
-    // 同一分鐘內只執行一次切換
-    if(curMin===__gmScheduleLastMinute)return;
-    __gmScheduleLastMinute=curMin;
-    __gmScheduleSwitchedThisMinute=false;
 
     var bossMinEl=document.getElementById('__gmp_schedule_boss_min');
     var farmMinEl=document.getElementById('__gmp_schedule_farm_min');
     var bossMin=parseInt(bossMinEl?bossMinEl.value:58)||58;
-    var farmMin=parseInt(farmMinEl?farmMinEl.value:3)||3;
+    var farmMin=parseInt(farmMinEl?farmMinEl.value:5)||5;
 
     var statusEl=document.getElementById('__gmp_schedule_status');
 
-    // === 判斷切換時機 ===
-    // bossMin==farmMin 不切換（避免震盪）
     if(bossMin===farmMin){
       if(statusEl)statusEl.textContent='⚠ 打王與掛機分鐘相同 ('+bossMin+')，排程停用';
       return;
     }
 
-    // bossMin 分鐘 → 切換打王模式
-    if(curMin===bossMin && !__gmScheduleSwitchedThisMinute){
-      __gmScheduleSwitchedThisMinute=true;
-      console.log('[GM-Schedule] === Minute '+bossMin+' → Switching to BOSS mode ===');
-      if(statusEl)statusEl.textContent='⚔ '+bossMin+'分 → 啟動打王模式';
-      // 停止掛機
+    // 區間判斷：curMin 在 [bossMin, 60) 或 [0, farmMin) → 打王；否則掛機
+    var shouldBeBoss = (curMin >= bossMin || curMin < farmMin);
+
+    // 同一分鐘且模式未變 → 只更新文字
+    if(shouldBeBoss===__gmScheduleInBossMode){
+      __gmScheduleLastMinute=curMin;
+      // 更新狀態顯示
+      if(statusEl){
+        if(shouldBeBoss){
+          statusEl.textContent='⚔ 打王模式 【'+String(bossMin).padStart(2,'0')+':00 ~ '+String(farmMin).padStart(2,'0')+':00】';
+        } else {
+          statusEl.textContent='🌾 掛機模式 【'+String(farmMin).padStart(2,'0')+':00 ~ '+String(bossMin).padStart(2,'0')+':00】';
+        }
+      }
+      return;
+    }
+
+    // === 模式變更，執行切換 ===
+    if(shouldBeBoss){
+      console.log('[GM-Schedule] === '+curMin+'分 → Switching to BOSS mode ===');
+      __gmScheduleInBossMode=true;
+      if(statusEl)statusEl.textContent='⚔ 打王模式 【'+String(bossMin).padStart(2,'0')+':00 ~ '+String(farmMin).padStart(2,'0')+':00】';
       if(window.__gmFarming&&window.__gmFarming.running&&window.stopFarming){
         stopFarming();
-        console.log('[GM-Schedule] Stopped farming');
       }
-      // 切到 BOSS Tab
       try{ switchTab('boss'); }catch(e){}
-      // 啟動 BOSS 腳本
       setTimeout(function(){
         var chk=document.getElementById('__gmp_boss_auto_script_enable');
         if(chk&&!chk.checked){
@@ -3536,33 +3543,20 @@ console.log('[GM] Monitor injected '+ver);
         }
         if(window.__wbBossAutoScriptStart)window.__wbBossAutoScriptStart();
       },1000);
-    }
-
-    // farmMin 分鐘 → 切換掛機模式
-    if(curMin===farmMin && !__gmScheduleSwitchedThisMinute){
-      __gmScheduleSwitchedThisMinute=true;
-      console.log('[GM-Schedule] === Minute '+farmMin+' → Switching to FARM mode ===');
-      if(statusEl)statusEl.textContent='🌾 '+farmMin+'分 → 切換掛機模式';
-      // 停止 BOSS 腳本
+    } else {
+      console.log('[GM-Schedule] === '+curMin+'分 → Switching to FARM mode ===');
+      __gmScheduleInBossMode=false;
+      if(statusEl)statusEl.textContent='🌾 掛機模式 【'+String(farmMin).padStart(2,'0')+':00 ~ '+String(bossMin).padStart(2,'0')+':00】';
       if(window.__wbBossAutoScriptStop)window.__wbBossAutoScriptStop();
-      // uncheck checkbox
       var chk=document.getElementById('__gmp_boss_auto_script_enable');
       if(chk){chk.checked=false;__wbSaveBossAutoScriptState();}
-      // 等 500ms 後啟動掛機
       setTimeout(function(){
         if(window.__gmFarming&&!window.__gmFarming.running&&window.startFarming){
           startFarming();
-          console.log('[GM-Schedule] Started farming');
         }
       },500);
     }
-
-    // 更新狀態顯示
-    if(statusEl && curMin!==bossMin && curMin!==farmMin){
-      var nextBossMin=(curMin<bossMin)?bossMin:(bossMin+60);
-      var minsLeft=nextBossMin-curMin;
-      statusEl.textContent='⏳ 下次打王: '+String(bossMin).padStart(2,'0')+':'+'00 '+' ('+minsLeft+'分後) | 掛機: '+String(farmMin).padStart(2,'0')+':00';
-    }
+    __gmScheduleLastMinute=curMin;
   }
 
   // 綁定排程參數變更事件 → 自動儲存
