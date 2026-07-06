@@ -3486,14 +3486,15 @@ console.log('[GM] Monitor injected '+ver);
     if(__gmScheduleTimer)clearInterval(__gmScheduleTimer);
     __gmScheduleLastMinute=-1;
     __gmScheduleInBossMode=null;
-    __gmScheduleTick();
+    // 首次立即檢查 + 強制套用（不等待模式變化）
+    __gmScheduleTick(true);
     __gmScheduleTimer=setInterval(__gmScheduleTick,10000);
     console.log('[GM-Schedule] Timer started, checking every 10s');
   }
 
   // 排程檢查：區間判斷，掛機窗口 [farmMin, bossMin)，打王窗口 [bossMin, 60) ∪ [0, farmMin)
-  // 預設: 掛機 05:00~57:59，打王 58:00~04:59
-  function __gmScheduleTick(){
+  // @param {boolean} force - 強制套用（忽略 __gmScheduleInBossMode 快取）
+  function __gmScheduleTick(force){
     var now=new Date();
     var curMin=now.getMinutes();
 
@@ -3512,23 +3513,20 @@ console.log('[GM] Monitor injected '+ver);
     // 區間判斷：curMin 在 [bossMin, 60) 或 [0, farmMin) → 打王；否則掛機
     var shouldBeBoss = (curMin >= bossMin || curMin < farmMin);
 
-    // 同一分鐘且模式未變 → 只更新文字
-    if(shouldBeBoss===__gmScheduleInBossMode){
+    // 非強制模式：同一分鐘且模式未變 → 只更新文字
+    if(!force && shouldBeBoss===__gmScheduleInBossMode){
       __gmScheduleLastMinute=curMin;
-      // 更新狀態顯示
       if(statusEl){
-        if(shouldBeBoss){
-          statusEl.textContent='⚔ 打王模式 【'+String(bossMin).padStart(2,'0')+':00 ~ '+String(farmMin).padStart(2,'0')+':00】';
-        } else {
-          statusEl.textContent='🌾 掛機模式 【'+String(farmMin).padStart(2,'0')+':00 ~ '+String(bossMin).padStart(2,'0')+':00】';
-        }
+        statusEl.textContent=shouldBeBoss?
+          '⚔ 打王模式 【'+String(bossMin).padStart(2,'0')+':00 ~ '+String(farmMin).padStart(2,'0')+':00】':
+          '🌾 掛機模式 【'+String(farmMin).padStart(2,'0')+':00 ~ '+String(bossMin).padStart(2,'0')+':00】';
       }
       return;
     }
 
-    // === 模式變更，執行切換 ===
+    // === 模式變更 或 強制套用，執行切換 ===
     if(shouldBeBoss){
-      console.log('[GM-Schedule] === '+curMin+'分 → Switching to BOSS mode ===');
+      console.log('[GM-Schedule] === '+curMin+'分 → Switching to BOSS mode'+(force?' (force)':'')+' ===');
       __gmScheduleInBossMode=true;
       if(statusEl)statusEl.textContent='⚔ 打王模式 【'+String(bossMin).padStart(2,'0')+':00 ~ '+String(farmMin).padStart(2,'0')+':00】';
       if(window.__gmFarming&&window.__gmFarming.running&&window.stopFarming){
@@ -3544,9 +3542,10 @@ console.log('[GM] Monitor injected '+ver);
         if(window.__wbBossAutoScriptStart)window.__wbBossAutoScriptStart();
       },1000);
     } else {
-      console.log('[GM-Schedule] === '+curMin+'分 → Switching to FARM mode ===');
+      console.log('[GM-Schedule] === '+curMin+'分 → Switching to FARM mode'+(force?' (force)':'')+' ===');
       __gmScheduleInBossMode=false;
       if(statusEl)statusEl.textContent='🌾 掛機模式 【'+String(farmMin).padStart(2,'0')+':00 ~ '+String(bossMin).padStart(2,'0')+':00】';
+      // 強制停止 BOSS 腳本（無視任何錯誤，確保恢復掛機）
       if(window.__wbBossAutoScriptStop)window.__wbBossAutoScriptStop();
       var chk=document.getElementById('__gmp_boss_auto_script_enable');
       if(chk){chk.checked=false;__wbSaveBossAutoScriptState();}
@@ -3568,6 +3567,14 @@ console.log('[GM] Monitor injected '+ver);
   if(_schedFarmMin)_schedFarmMin.addEventListener('input',function(){__gmSaveScheduleSettings();});
 
   // 啟動排程
+  // 啟動排程（800ms）+ 二次確認（2000ms / 4000ms 防 late-start race）
   setTimeout(__gmLoadScheduleSettings,800);
+  // 二次確認：覆蓋 __wbLoadBossAutoScriptState (500ms→1300ms) 的延遲啟動
+  setTimeout(function(){
+    if(!__gmScheduleInBossMode)__gmScheduleTick(true);
+  },2000);
+  setTimeout(function(){
+    if(!__gmScheduleInBossMode)__gmScheduleTick(true);
+  },4000);
 
 })();
