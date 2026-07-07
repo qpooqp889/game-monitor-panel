@@ -1567,35 +1567,35 @@ function __wbBossAutoScriptHandleDefeat(target, idx, list){
   var statusEl=document.getElementById('__gmp_boss_script_status');
   if(statusEl) statusEl.textContent = '\u2705 '+target.name+' \u64CA\u6557! \u2192 '+nextTarget.name+' ('+(nextIdx+1)+'/'+list.length+')';
 
-  // === Step 1: 點 #br-lobby 返回大廳（最多重試 10 次 ~3s，避免無限迴圈） ===
+  // === Step 1: 點 #br-lobby 返回大廳（輪詢等待彈窗出現，最多 20 次 ~10s） ===
   var _step1Retries = 0;
-  var _step1MaxRetries = 10;
+  var _step1MaxRetries = 20;
   function step1_clickLobby(){
     _step1Retries++;
     var lobbyBtn = document.getElementById('br-lobby');
-    if(lobbyBtn && _step1Retries <= _step1MaxRetries){
+    if(lobbyBtn){
+      // 找到了 → 點擊
       console.log('[WB-Defeat] Step1: Clicking #br-lobby (attempt '+_step1Retries+'/'+_step1MaxRetries+')');
       __wbAddBossHistory(target.name, 'leave', 'Step1: \u9EDE\u64CA #br-lobby ('+_step1Retries+'/'+_step1MaxRetries+')', 0, null);
       lobbyBtn.click();
-      // 等 300ms 確認消失
       setTimeout(function(){
         if(!document.getElementById('br-lobby')){
           console.log('[WB-Defeat] Step1: #br-lobby gone');
           __wbAddBossHistory(target.name, 'leave', 'Step1 OK: #br-lobby\u5DF2\u6D88\u5931', 0, null);
           step2_selectChar();
         } else {
-          console.log('[WB-Defeat] Step1: #br-lobby still present, retry '+_step1Retries+'/'+_step1MaxRetries);
+          console.log('[WB-Defeat] Step1: #br-lobby still present, retry');
           step1_clickLobby();
         }
-      }, 300);
+      }, 500);
+    } else if(_step1Retries < _step1MaxRetries){
+      // 彈窗還沒出現 → 等 500ms 重試
+      console.log('[WB-Defeat] Step1: #br-lobby not found yet, waiting... ('+_step1Retries+'/'+_step1MaxRetries+')');
+      setTimeout(step1_clickLobby, 500);
     } else {
-      if(_step1Retries > _step1MaxRetries){
-        console.log('[WB-Defeat] Step1: Max retries reached, proceeding to step2 anyway');
-        __wbAddBossHistory(target.name, 'leave', 'Step1 timeout: \u8D85\u904E'+_step1MaxRetries+'\u6B21\uFF0C\u5F37\u5236\u7E7C\u7E8C', 0, null);
-      } else {
-        console.log('[WB-Defeat] Step1: #br-lobby not found, skip to step2');
-        __wbAddBossHistory(target.name, 'leave', 'Step1 skip: \u7121#br-lobby', 0, null);
-      }
+      // 超過 20 次仍無彈窗 → 強制 toLobby
+      console.log('[WB-Defeat] Step1: #br-lobby never appeared after '+_step1MaxRetries+' retries, force toLobby');
+      __wbAddBossHistory(target.name, 'leave', 'Step1 timeout: \u8D85\u904E'+_step1MaxRetries+'\u6B21\uFF0C\u5F37\u5236toLobby', 0, null);
       step2_selectChar();
     }
   }
