@@ -1,4 +1,4 @@
-/* wb-boss.js v3.25 - BOSS Auto Script */
+﻿/* wb-boss.js v3.25 - BOSS Auto Script */
 
 // ====== Debug Logger (觸發條件: 偵測到重生 < 30s) ======
 // 儲存至 chrome.storage.local key: __gmp_debug_log
@@ -2310,6 +2310,8 @@ function __wbUpdateHuntListUI(){
       '<button data-wb-action="huntDown" style="padding:2px 8px;background:#0f3460;border:1px solid #fbbf24;color:#fbbf24;border-radius:3px;cursor:pointer;font-size:10px;">\u25BC \u4E0B\u79FB</button>'+
       '<button data-wb-action="huntDelete" style="padding:2px 8px;background:#3a1a1a;border:1px solid #e94560;color:#e94560;border-radius:3px;cursor:pointer;font-size:10px;">\u2715 \u522A\u9664</button>'+
       '<span style="font-size:9px;color:#555;margin:0 2px;">|</span>'+
+      '<button data-wb-action="huntSelectAll" style="padding:2px 6px;background:#1a3a2a;border:1px solid #4caf50;color:#4caf50;border-radius:3px;cursor:pointer;font-size:10px;">\u2611 \u5168\u9078</button>'+
+      '<button data-wb-action="huntDeselectAll" style="padding:2px 6px;background:#1a2a2a;border:1px solid #666;color:#aaa;border-radius:3px;cursor:pointer;font-size:10px;">\u2610 \u53D6\u6D88</button>'+
       '<span style="font-size:9px;color:#aaa;">\u6279\u91CF\u4EBA\u6578:</span>'+
       '<input id="__gmp_hunt_batch_minp" type="number" value="'+savedBatchMinp+'" min="0" max="20" style="width:32px;padding:1px 3px;background:#2a2a4a;border:1px solid #0f3460;border-radius:3px;color:#fbbf24;font-size:9px;outline:none;text-align:center;" title=\批\u91CF\u8A2D\u5B9A\u52FE\u9078\u9805\u76EE\u7684\u6700\u4F4E\u5728\u5834\u4EBA\u6578\">'+
       '<button data-wb-action="huntBatchMinp" style="padding:2px 6px;background:#1a3a1a;border:1px solid #fbbf24;color:#fbbf24;border-radius:3px;cursor:pointer;font-size:10px;margin-left:auto;">\u2713 \u5957\u7528</button>'+

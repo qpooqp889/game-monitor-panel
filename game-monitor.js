@@ -1,5 +1,5 @@
 (function(){
-var ver='v3.82';
+var ver='v3.83';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -1626,6 +1626,8 @@ function __gmBuildPanel(){
     if(act==='huntUp'){if(window.__wbHuntMoveSelected)window.__wbHuntMoveSelected(-1);return;}
     if(act==='huntDown'){if(window.__wbHuntMoveSelected)window.__wbHuntMoveSelected(1);return;}
     if(act==='huntDelete'){if(window.__wbHuntDeleteSelected)window.__wbHuntDeleteSelected();return;}
+    if(act==='huntSelectAll'){var chks=document.querySelectorAll('.__gmp_hunt_chk');chks.forEach(function(c){c.checked=true;});return;}
+    if(act==='huntDeselectAll'){var chks=document.querySelectorAll('.__gmp_hunt_chk');chks.forEach(function(c){c.checked=false;});return;}
     if(act==='exportDebug'){if(window.__wbDebugExport)window.__wbDebugExport();return;}
   if(act==='huntBatchMinp'){
       var val=parseInt(document.getElementById('__gmp_hunt_batch_minp').value)||0;
