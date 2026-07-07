@@ -3432,4 +3432,136 @@ console.log('[GM] Monitor injected '+ver);
   }
 
 
+  // === 全域登入頁偵測（60秒一次，處理被踢回登入頁） ===
+  var __gmLoginCheckTimer = null;
+  var __gmLoginCheckPaused = false;  // 暫存被打斷的狀態
+  function __gmStartLoginCheck(){
+    if(__gmLoginCheckTimer) clearInterval(__gmLoginCheckTimer);
+    __gmLoginCheckTimer = setInterval(__gmLoginCheckTick, 60000);
+    console.log('[GM] Login page monitor started (every 60s)');
+  }
+  function __gmLoginCheckTick(){
+    var loginBtn = document.getElementById('btn-login');
+    if(!loginBtn) return;
+    // === 發現登入頁 ===
+    console.log('[GM] ========================================');
+    console.log('[GM] Login page detected! Pausing all scripts...');
+    console.log('[GM] ========================================');
+    var statusEl = document.getElementById('__gmp_farm_status');
+
+    // 1. 記錄當前狀態
+    __gmLoginCheckPaused = {
+      farmingWasRunning: !!(window.__gmFarming && window.__gmFarming.running),
+      bossAutoWasRunning: !!(window.__wbBossAutoScript && window.__wbBossAutoScript.running),
+      bossAutoRunning: !!(window.__wbBossAuto && window.__wbBossAuto.running),
+      time: Date.now()
+    };
+
+    // 2. 暫停掛機
+    if(__gmLoginCheckPaused.farmingWasRunning && window.stopFarming){
+      stopFarming();
+      console.log('[GM] Stopped farming');
+    }
+
+    // 3. 暫停 BOSS 腳本
+    if(__gmLoginCheckPaused.bossAutoWasRunning && window.__wbBossAutoScriptStop){
+      window.__wbBossAutoScriptStop();
+      console.log('[GM] Stopped BOSS auto script');
+    }
+
+    // 4. 暫停 BOSS 自動戰鬥
+    if(__gmLoginCheckPaused.bossAutoRunning && window.__wbBossAutoStop){
+      window.__wbBossAutoStop();
+      console.log('[GM] Stopped BOSS auto combat');
+    }
+
+    // 5. 點擊登入按鈕
+    if(statusEl){ statusEl.textContent = '🔑 重新登入中...'; statusEl.style.color = '#fbbf24'; }
+    console.log('[GM] Clicking #btn-login');
+    loginBtn.click();
+
+    // 6. 等 5 秒 → 選角色
+    setTimeout(function(){
+      console.log('[GM] Login: 5s elapsed, looking for character slot...');
+      if(statusEl){ statusEl.textContent = '👤 選擇角色中...'; }
+      // 尋找角色槽
+      var charName = (window.__gmFarming && window.__gmFarming.charName) || '';
+      var charSlots = document.querySelectorAll('.char-slot');
+      var clicked = false;
+      charSlots.forEach(function(slot){
+        if(charName && slot.innerHTML.indexOf(charName) > -1){
+          var emptyDiv = slot.querySelector('.empty');
+          if(!emptyDiv){
+            console.log('[GM] Login: Found char slot, clicking...');
+            slot.click();
+            clicked = true;
+          }
+        }
+      });
+      if(!clicked){
+        console.log('[GM] Login: Char by name not found, trying first slot...');
+        var firstChar = document.querySelector('.char-slot:not(.empty)');
+        if(firstChar){
+          console.log('[GM] Login: Clicking first char slot');
+          firstChar.click();
+          clicked = true;
+        }
+      }
+      if(!clicked){
+        console.warn('[GM] Login: No char slot found! Will retry next cycle');
+        if(statusEl){ statusEl.textContent = '❌ 找不到角色槽，等待下次檢測'; statusEl.style.color = '#e94560'; }
+        return;
+      }
+
+      // 7. 等 10 秒 → 恢復
+      if(statusEl){ statusEl.textContent = '⏳ 等待進入遊戲 (10秒)...'; }
+      setTimeout(function(){
+        var loginBtn2 = document.getElementById('btn-login');
+        if(loginBtn2){
+          console.warn('[GM] Login: Still on login page after 15s! Clicking login again');
+          loginBtn2.click();
+          setTimeout(function(){
+            if(statusEl){ statusEl.textContent = '❌ 登入失敗，等待下次檢測'; statusEl.style.color = '#e94560'; }
+          }, 5000);
+          return;
+        }
+        console.log('[GM] Login: Game loaded! Restoring scripts...');
+        if(statusEl){ statusEl.textContent = '✅ 已登入，恢復腳本中...'; statusEl.style.color = '#4ade80'; }
+
+        // 恢復 BOSS 自動戰鬥
+        if(__gmLoginCheckPaused.bossAutoRunning && window.__wbBossAutoStart){
+          setTimeout(function(){ window.__wbBossAutoStart(); }, 500);
+          console.log('[GM] Login: Restored BOSS auto combat');
+        }
+
+        // 恢復 BOSS 腳本
+        if(__gmLoginCheckPaused.bossAutoWasRunning && window.__wbBossAutoScriptStart){
+          setTimeout(function(){ window.__wbBossAutoScriptStart(); }, 1000);
+          console.log('[GM] Login: Restored BOSS auto script');
+        }
+
+        // 恢復掛機
+        if(__gmLoginCheckPaused.farmingWasRunning && window.startFarming){
+          setTimeout(function(){
+            // 確認 zone 已載入
+            var zoneEl = document.getElementById('__gmp_farm_zone');
+            if(zoneEl && zoneEl.value && window.startFarming){
+              startFarming();
+              console.log('[GM] Login: Restored farming');
+            } else {
+              console.warn('[GM] Login: Farm zone not ready, retrying...');
+              setTimeout(function(){
+                if(window.startFarming) startFarming();
+              }, 3000);
+            }
+          }, 2000);
+        }
+
+        __gmLoginCheckPaused = false;
+      }, 10000);
+    }, 5000);
+  }
+  // 啟動登入頁監控
+  setTimeout(__gmStartLoginCheck, 10000);  // 10s 後開始（避免初始化干擾）
+
 })();
