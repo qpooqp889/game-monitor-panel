@@ -1,5 +1,5 @@
-(function(){
-var ver='v3.88';
+﻿(function(){
+var ver='v3.89';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -1033,6 +1033,7 @@ function __gmBuildPanel(){
     '<button id="__gmp_tab_boss" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">👑BOSS</button>'+
     '<button id="__gmp_tab_monitor" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">📡監控</button>'+
     '<button id="__gmp_tab_skill" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">⚡技能</button><button id="__gmp_tab_status" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">📊狀態</button>'+
+    '<button id="__gmp_tab_friend" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">🔍 好友</button>'+
     '<span id="__gmp_ver" style="font-size:10px;color:#4ade80;font-weight:bold;">'+ver+'</span>'+
   '</div>'+
   '<div style="display:flex;gap:3px;">'+
@@ -1369,10 +1370,10 @@ function __gmBuildPanel(){
         '</div>'+
         '<div id="__gmp_status_summary" style="font-size:10px;color:#aaa;margin-top:4px;padding:6px;background:rgba(0,0,0,0.2);border-radius:4px;max-height:200px;overflow-y:auto;"></div>'+
       '</div>'+
-    '</div>'+
 
-      // -- Friend List --
-      '<div style="background:rgba(34,211,238,0.06);padding:8px;border-radius:6px;margin-top:8px;">'+
+        // === FRIEND TAB ===
+    '<div id="__gmp_tab_content_friend" style="display:none;">'+
+      '<div style="background:rgba(34,211,238,0.06);padding:8px;border-radius:6px;margin-bottom:8px;">'+
         '<div style="font-size:11px;color:#22d3ee;font-weight:bold;margin-bottom:6px;">🔍 好友查詢</div>'+
         '<div style="display:flex;gap:4px;margin-bottom:4px;">'+
           '<input id="__gmp_player_name" placeholder="輸入角色名稱..." style="flex:1;padding:5px 8px;background:#2a2a4a;border:1px solid #0f3460;border-radius:6px;color:#fff;font-size:11px;outline:none;">'+
@@ -1382,16 +1383,16 @@ function __gmBuildPanel(){
           '<input type="checkbox" id="__gmp_player_auto_refresh" style="width:12px;height:12px;cursor:pointer;">'+
           '<span style="font-size:9px;color:#888;">每60秒自動更新</span>'+
           '<span style="flex:1;"></span>'+
+          '<input id="__gmp_player_filter" placeholder="🔍 檢索..." style="padding:5px 8px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;">'+
           '<button id="__gmp_player_export_sel" style="padding:3px 6px;background:#1a3a1a;border:1px solid #7bd14a;color:#7bd14a;border-radius:4px;cursor:pointer;font-size:9px;">📤 匯出勾選</button>'+
           '<button id="__gmp_player_import" style="padding:3px 6px;background:#1a3a1a;border:1px solid #fbbf24;color:#fbbf24;border-radius:4px;cursor:pointer;font-size:9px;">📥 匯入</button>'+
           '<input type="file" id="__gmp_player_import_file" accept=".json" style="display:none;">'+
         '</div>'+
-        '<div id="__gmp_player_history" style="font-size:10px;color:#aaa;max-height:240px;overflow-y:auto;"></div>'+
+        '<div id="__gmp_player_history" style="font-size:10px;color:#aaa;max-height:500px;overflow-y:auto;"></div>'+
       '</div>'+
     '</div>'+
 
-
-    // === FARM TAB ===
+// === FARM TAB ===
     '<div id="__gmp_tab_content_farm" style="display:none;">'+
     // Start/Stop button — moved to TOP
     '<button id="__gmp_farm_btn" style="width:100%;padding:9px;background:#0f3460;border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:12px;font-weight:bold;margin-bottom:8px;">▶ 開啟腳本</button>'+
@@ -1632,7 +1633,7 @@ function __gmBuildPanel(){
   // @param {string} tab - Tab 名稱 ('zone','game','skill','status','farm','boss','monitor')
   function switchTab(tab){
     activeTab=tab;
-    ['game','zone','farm','boss','monitor','skill','status','other'].forEach(function(t){
+    ['game','zone','farm','boss','monitor','skill','status','friend','other'].forEach(function(t){
       var el=document.getElementById('__gmp_tab_content_'+t);
       if(el)el.style.display=t===tab?'block':'none';
       var btn=document.getElementById('__gmp_tab_'+t);
@@ -2206,6 +2207,7 @@ function __gmBuildPanel(){
   // 按鈕事件
   document.getElementById('__gmp_tab_skill').onclick = function() { switchTab('skill'); };
   document.getElementById('__gmp_tab_status').onclick=function(){ switchTab('status'); };
+  document.getElementById('__gmp_tab_friend').onclick=function(){ switchTab('friend'); };
   document.getElementById('__gmp_tab_other').onclick=function(){ switchTab('other'); };
 
   // === Status tab handlers ===
@@ -2320,13 +2322,19 @@ function __gmBuildPanel(){
     __gmPlayerLookupRenderHistory();
   };
 
-  function __gmPlayerLookupRenderHistory(){
+  function __gmPlayerLookupRenderHistory(filter){
     var el=document.getElementById('__gmp_player_history');if(!el)return;
     if(!window.__gmPlayerHistory.length){el.innerHTML='<span style=\"color:#555;\">\u5C1A\u7121\u67E5\u8A62\u8A18\u9304</span>';return;}
     var sorted=window.__gmPlayerHistory.slice().map(function(h,i){h._idx=i;return h;});
+    if(filter){
+      var kw=filter.toLowerCase();
+      sorted=sorted.filter(function(h){return h.name.toLowerCase().indexOf(kw)>=0;});
+    }
     sorted.sort(function(a,b){if(a.fav&&!b.fav)return -1;if(!a.fav&&b.fav)return 1;return b._idx-a._idx;});
+    if(!sorted.length){el.innerHTML='<span style=\"color:#555;\">\u7121\u7B26\u5408\u689D\u4EF6\u7684\u8A18\u9304</span>';return;}
     el.innerHTML=sorted.map(function(h){
       var star=h.fav?'\u2605':'\u2606';
+      var starColor=h.fav?'#fbbf24':'#888';
       var sc=h.name.replace(/'/g,"\\'");
       var six=h._idx;
       var clsLv=(h.cls?' '+h.cls+' Lv'+h.lv:'');
@@ -2337,14 +2345,15 @@ function __gmBuildPanel(){
       return '<div style=\"padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04);\">'+
         '<div style=\"display:flex;align-items:center;gap:3px;\">'+
           '<input type=\"checkbox\" class=\"__gmp_player_cb\" data-idx=\"'+six+'\" style=\"width:10px;height:10px;cursor:pointer;margin:0;\">'+
-          '<span style=\"cursor:pointer;font-size:12px;\" onclick=\"event.stopPropagation();'+
+          '<span style=\"cursor:pointer;font-size:16px;color:'+starColor+';\" onclick=\"event.stopPropagation();'+
             'window.__gmPlayerToggleFav('+six+');\">'+star+'</span>'+
+          '<span style=\"font-size:20px;\">'+dot+'</span>'+
           '<span style=\"font-size:9px;color:#777;\">'+clsLv+'</span>'+
-          dot+'<span style=\"font-size:8px;color:#aaa;\">'+stText+'</span>'+
+          '<span style=\"font-size:20pt;color:'+(h.status==='fighting'?'#ff8a6b':(h.status==='online'?'#86efac':'#555'))+';\">'+stText+'</span>'+
           '<span style=\"flex:1;cursor:pointer;color:#22d3ee;font-size:20pt;font-weight:bold;\" onclick=\"window.__gmPlayerShowModal(\x27'+sc+'\x27)\">'+h.name+'</span>'+
           '<span style=\"cursor:pointer;font-size:9px;color:#e94560;padding:0 2px;\" onclick=\"event.stopPropagation();window.__gmPlayerDelete('+six+');\" title=\"\u522A\u9664\">\u2715</span>'+
         '</div>'+
-        '<div style=\"font-size:14px;color:'+locColor+';padding-left:24px;\">'+loc+'</div>'+
+        '<div style=\"font-size:14px;color:'+locColor+';padding-left:49px;\">'+loc+'</div>'+
       '</div>';
     }).join('');
   }
