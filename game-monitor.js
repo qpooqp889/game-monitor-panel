@@ -1,5 +1,5 @@
-(function(){
-var ver='v3.89';
+﻿(function(){
+var ver='v3.91';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -1385,6 +1385,8 @@ function __gmBuildPanel(){
           '<span style="font-size:9px;color:#888;">每60秒自動更新</span>'+
           '<span style="flex:1;"></span>'+
           '<input id="__gmp_player_filter" placeholder="🔍 檢索..." style="padding:5px 8px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;">'+
+          '<button id="__gmp_player_sel_all" style="padding:3px 6px;background:#1a3a1a;border:1px solid #22d3ee;color:#22d3ee;border-radius:4px;cursor:pointer;font-size:9px;">☑ 全選</button>'+
+          '<button id="__gmp_player_sel_none" style="padding:3px 6px;background:#1a3a1a;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:9px;">☐ 取消</button>'+
           '<button id="__gmp_player_export_sel" style="padding:3px 6px;background:#1a3a1a;border:1px solid #7bd14a;color:#7bd14a;border-radius:4px;cursor:pointer;font-size:9px;">📤 匯出勾選</button>'+
           '<button id="__gmp_player_import" style="padding:3px 6px;background:#1a3a1a;border:1px solid #fbbf24;color:#fbbf24;border-radius:4px;cursor:pointer;font-size:9px;">📥 匯入</button>'+
           '<input type="file" id="__gmp_player_import_file" accept=".json" style="display:none;">'+
@@ -2370,7 +2372,7 @@ function __gmBuildPanel(){
     el.innerHTML='<div style="max-height:500px;overflow-y:auto;">'+sorted.map(function(h){
       var star=h.fav?'\u2605':'\u2606';
       var starColor=h.fav?'#fbbf24':'#888';
-      var sc=h.name.replace(/'/g,"\\'");
+      var sc=h.name.replace(/'/g,"\\'").replace(/"/g,'&quot;');
       var six=h._idx;
       var clsLv=(h.cls?' '+h.cls+' Lv'+h.lv:'');
       var dot=__gmPlayerStatusDot(h.status||'offline');
@@ -2598,6 +2600,14 @@ function __gmBuildPanel(){
     inp.value='';
   };
   document.getElementById('__gmp_player_name').onkeydown=function(e){if(e.key==='Enter')document.getElementById('__gmp_player_lookup').click();};
+  document.getElementById('__gmp_player_sel_all').onclick=function(){
+    var cbs=document.querySelectorAll('.__gmp_player_cb');
+    for(var i=0;i<cbs.length;i++)cbs[i].checked=true;
+  };
+  document.getElementById('__gmp_player_sel_none').onclick=function(){
+    var cbs=document.querySelectorAll('.__gmp_player_cb');
+    for(var i=0;i<cbs.length;i++)cbs[i].checked=false;
+  };
   document.getElementById('__gmp_player_export_sel').onclick=__gmPlayerExportSelected;
   document.getElementById('__gmp_player_import').onclick=function(){document.getElementById('__gmp_player_import_file').click();};
   document.getElementById('__gmp_player_import_file').onchange=function(e){if(e.target.files[0])__gmPlayerImportFile(e.target.files[0]);};
