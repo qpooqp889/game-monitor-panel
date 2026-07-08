@@ -2404,10 +2404,10 @@ function __gmBuildPanel(){
     var now=new Date();var ts=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
     if(found){
       found.ts=ts;
-      if(info){found.cls=info.cls;found.lv=info.lv;found.status=info.status;found.location=info.location;}
+      if(info){found.cls=info.cls;found.lv=info.lv;found.status=info.status;found.location=info.location;if(info.equip)found.equip=info.equip;if(info.stats)found.stats=info.stats;}
     } else {
       var entry={name:name,ts:ts,fav:false};
-      if(info){entry.cls=info.cls;entry.lv=info.lv;entry.status=info.status;entry.location=info.location;}
+      if(info){entry.cls=info.cls;entry.lv=info.lv;entry.status=info.status;entry.location=info.location;if(info.equip)entry.equip=info.equip;if(info.stats)entry.stats=info.stats;}
       window.__gmPlayerHistory.push(entry);
     }
     if(window.__gmPlayerHistory.length>100)window.__gmPlayerHistory.splice(0,window.__gmPlayerHistory.length-100);
@@ -2470,6 +2470,7 @@ function __gmBuildPanel(){
       __gmPlayerLookupRenderHistory();
       if(pp){pp.style.display='none';}
       clearInterval(polling);
+      closeFn();
     },300);
   };
 
@@ -2501,6 +2502,8 @@ function __gmBuildPanel(){
           window.__gmPlayerHistory[j].lv=info.lv;
           window.__gmPlayerHistory[j].status=info.status;
           window.__gmPlayerHistory[j].location=info.location;
+          if(info.equip)window.__gmPlayerHistory[j].equip=info.equip;
+          if(info.stats)window.__gmPlayerHistory[j].stats=info.stats;
           break;
         }
       }
