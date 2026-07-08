@@ -1,4 +1,4 @@
-﻿(function(){
+(function(){
 var ver='v3.88';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
@@ -1367,7 +1367,10 @@ function __gmBuildPanel(){
           '<button id="__gmp_status_import" style="flex:1;padding:5px 4px;background:#0f3460;border:1px solid #fbbf24;color:#fbbf24;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">📥 匯入全部設定</button>'+
           '<input type="file" id="__gmp_status_import_file" accept=".json" style="display:none;">'+
         '</div>'+
-        
+        '<div id="__gmp_status_summary" style="font-size:10px;color:#aaa;margin-top:4px;padding:6px;background:rgba(0,0,0,0.2);border-radius:4px;max-height:200px;overflow-y:auto;"></div>'+
+      '</div>'+
+    '</div>'+
+
       // -- Friend List --
       '<div style="background:rgba(34,211,238,0.06);padding:8px;border-radius:6px;margin-top:8px;">'+
         '<div style="font-size:11px;color:#22d3ee;font-weight:bold;margin-bottom:6px;">🔍 好友查詢</div>'+
@@ -1386,6 +1389,7 @@ function __gmBuildPanel(){
         '<div id="__gmp_player_history" style="font-size:10px;color:#aaa;max-height:240px;overflow-y:auto;"></div>'+
       '</div>'+
     '</div>'+
+
 
     // === FARM TAB ===
     '<div id="__gmp_tab_content_farm" style="display:none;">'+
@@ -2257,8 +2261,7 @@ function __gmBuildPanel(){
   document.getElementById('__gmp_status_import_file').onchange=function(e){var f=e.target.files[0];if(!f)return;var rd=new FileReader();rd.onload=function(ev){__gmImportAllSettings(ev.target.result);};rd.readAsText(f);};
   var __gmOrigSwitchTab2=window.switchTab;
   if(typeof __gmOrigSwitchTab2==='function'){window.switchTab=function(t){__gmOrigSwitchTab2(t);if(t==='status')setTimeout(__gmRefreshStatusView,50);};}
-  
-  // === Player Viewer v2 (friend list + modal + export/import) ===
+  ﻿  // === Player Viewer v2 (friend list + modal) ===
   window.__gmPlayerHistory=[];
   window.__gmPlayerRefreshTimer=null;
   window.__gmPlayerRefreshing=false;
@@ -2274,37 +2277,41 @@ function __gmBuildPanel(){
   }
 
   function __gmPlayerParseInfo(){
+    var ppName=document.querySelector('.pp-name');
+    var ppPop=document.getElementById('pp-popup');
+    try{if(ppPop)ppPop.classList.add('hidden');}catch(e){}
+    var info={cls:'',lv:'',status:'offline',location:'\u96E2\u7DDA'};
+    if(ppName){var n=ppName.textContent||'';if(n&&n.indexOf('\u67E5\u7121')<0)info.name=n;}
     var subs=document.querySelectorAll('.pp-box .pp-sub');
-    var info={cls:'',lv:'',status:'offline',location:'离线'};
     for(var i=0;i<subs.length;i++){
       var t=subs[i].textContent||'';
-      var m=t.match(/(\S+?)·Lv\s*(\d+)/);
+      var m=t.match(/(\S+?)\u30FBLv\s*(\d+)/);
       if(m){info.cls=m[1];info.lv=m[2];}
-      if(subs[i].innerHTML.indexOf('#86efac')>-1)info.status='online';
-      else if(subs[i].innerHTML.indexOf('#ff8a6b')>-1)info.status='fighting';
-      else if(subs[i].innerHTML.indexOf('#888')>-1&&t.indexOf('离线')>-1)info.status='offline';
+      if(subs[i].innerHTML.indexOf('color:#86efac')>-1)info.status='online';
+      else if(subs[i].innerHTML.indexOf('color:#ff8a6b')>-1)info.status='fighting';
+      else if(subs[i].innerHTML.indexOf('color:#888')>-1&&t.indexOf('\u96E2\u7DDA')>-1)info.status='offline';
     }
     for(var j=0;j<subs.length;j++){
       var txt=subs[j].textContent||'';
-      if(txt.indexOf('当前所在')>-1||txt.indexOf('目前位置')>-1){
-        var lm=txt.match(/(?:当前所在|目前位置)[：:]\s*(.+)/);
+      if(txt.indexOf('\u76EE\u524D\u4F4D\u7F6E')>-1||txt.indexOf('\u7576\u524D\u6240\u5728')>-1){
+        var lm=txt.match(/(?:\u7576\u524D\u6240\u5728|\u76EE\u524D\u4F4D\u7F6E)[\uFF1A:]\s*(.+)/);
         if(lm)info.location=lm[1].trim();
       }
     }
-    if(info.status==='fighting'&&info.location==='离线')info.location='战斗中';
+    if(info.status==='fighting'&&info.location==='\u96E2\u7DDA')info.location='\u6230\u9B25\u4E2D';
     return info;
   }
 
   function __gmPlayerStatusDot(status){
-    if(status==='online')return '<span style="color:#86efac">●</span>';
-    if(status==='fighting')return '<span style="color:#ff8a6b">●</span>';
-    return '<span style="color:#e94560">●</span>';
+    if(status==='online')return '<span style=\"color:#86efac\">\u25CF</span>';
+    if(status==='fighting')return '<span style=\"color:#ff8a6b\">\u25CF</span>';
+    return '<span style=\"color:#e94560\">\u25CF</span>';
   }
 
   function __gmPlayerStatusText(status){
-    if(status==='online')return '在线';
-    if(status==='fighting')return '战斗中';
-    return '离线';
+    if(status==='online')return '\u5728\u7DDA';
+    if(status==='fighting')return '\u6230\u9B25\u4E2D';
+    return '\u96E2\u7DDA';
   }
 
   window.__gmPlayerDelete=function(idx){
@@ -2315,27 +2322,29 @@ function __gmBuildPanel(){
 
   function __gmPlayerLookupRenderHistory(){
     var el=document.getElementById('__gmp_player_history');if(!el)return;
-    if(!window.__gmPlayerHistory.length){el.innerHTML='<span style="color:#555;">尚无查询记录</span>';return;}
+    if(!window.__gmPlayerHistory.length){el.innerHTML='<span style=\"color:#555;\">\u5C1A\u7121\u67E5\u8A62\u8A18\u9304</span>';return;}
     var sorted=window.__gmPlayerHistory.slice().map(function(h,i){h._idx=i;return h;});
     sorted.sort(function(a,b){if(a.fav&&!b.fav)return -1;if(!a.fav&&b.fav)return 1;return b._idx-a._idx;});
     el.innerHTML=sorted.map(function(h){
-      var star=h.fav?'★':'☆';
-      var sc=h.name.replace(/'/g,"\\'"); var six=h._idx;
+      var star=h.fav?'\u2605':'\u2606';
+      var sc=h.name.replace(/'/g,"\\'");
+      var six=h._idx;
       var clsLv=(h.cls?' '+h.cls+' Lv'+h.lv:'');
       var dot=__gmPlayerStatusDot(h.status||'offline');
       var stText=__gmPlayerStatusText(h.status||'offline');
-      var loc=h.location||'离线';
-      return '<div style="padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04);">'+
-        '<div style="display:flex;align-items:center;gap:3px;">'+
-          '<input type="checkbox" class="__gmp_player_cb" data-idx="'+six+'" style="width:10px;height:10px;cursor:pointer;margin:0;">'+
-          '<span style="cursor:pointer;font-size:12px;" onclick="event.stopPropagation();'+
-            'window.__gmPlayerToggleFav('+six+');">'+star+'</span>'+
-          '<span style="font-size:9px;color:#777;">'+clsLv+'</span>'+
-          dot+'<span style="font-size:8px;color:#aaa;">'+stText+'</span>'+
-          '<span style="flex:1;cursor:pointer;color:#22d3ee;font-size:10px;font-weight:bold;" onclick="window.__gmPlayerShowModal(\''+sc+'\')">'+h.name+'</span>'+
-          '<span style="cursor:pointer;font-size:9px;color:#e94560;padding:0 2px;" onclick="event.stopPropagation();window.__gmPlayerDelete('+six+');" title="删除">✕</span>'+
+      var loc=h.location||'\u96E2\u7DDA';
+      var locColor=(h.status==='fighting')?'#ff8a6b':'#fbbf24';
+      return '<div style=\"padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04);\">'+
+        '<div style=\"display:flex;align-items:center;gap:3px;\">'+
+          '<input type=\"checkbox\" class=\"__gmp_player_cb\" data-idx=\"'+six+'\" style=\"width:10px;height:10px;cursor:pointer;margin:0;\">'+
+          '<span style=\"cursor:pointer;font-size:12px;\" onclick=\"event.stopPropagation();'+
+            'window.__gmPlayerToggleFav('+six+');\">'+star+'</span>'+
+          '<span style=\"font-size:9px;color:#777;\">'+clsLv+'</span>'+
+          dot+'<span style=\"font-size:8px;color:#aaa;\">'+stText+'</span>'+
+          '<span style=\"flex:1;cursor:pointer;color:#22d3ee;font-size:20pt;font-weight:bold;\" onclick=\"window.__gmPlayerShowModal(\x27'+sc+'\x27)\">'+h.name+'</span>'+
+          '<span style=\"cursor:pointer;font-size:9px;color:#e94560;padding:0 2px;\" onclick=\"event.stopPropagation();window.__gmPlayerDelete('+six+');\" title=\"\u522A\u9664\">\u2715</span>'+
         '</div>'+
-        '<div style="font-size:8px;color:#666;padding-left:42px;">'+loc+'</div>'+
+        '<div style=\"font-size:14px;color:'+locColor+';padding-left:24px;\">'+loc+'</div>'+
       '</div>';
     }).join('');
   }
@@ -2369,18 +2378,24 @@ function __gmBuildPanel(){
     var old=document.getElementById('__gmp_player_modal');if(old)old.remove();
     var m=document.createElement('div');m.id='__gmp_player_modal';
     m.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:transparent;z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding-top:40px;pointer-events:none;';
-    m.innerHTML='<div style="pointer-events:auto;background:#0f0f23;border:2px solid #22d3ee;border-radius:10px;width:360px;max-height:85vh;display:flex;flex-direction:column;color:#fff;font-family:Consolas,monospace;">'+
-      '<div style="display:flex;align-items:center;padding:8px 12px;border-bottom:1px solid #22d3ee;background:rgba(34,211,238,0.1);border-radius:8px 8px 0 0;">'+
-        '<span style="flex:1;font-size:12px;font-weight:bold;color:#22d3ee;">玩家资讯</span>'+
-        '<span id="__gmp_player_modal_close" style="cursor:pointer;font-size:18px;color:#e94560;font-weight:bold;line-height:1;" title="关闭">✕</span>'+
+    m.innerHTML='<div style=\"pointer-events:auto;background:#0f0f23;border:2px solid #22d3ee;border-radius:10px;width:380px;max-height:85vh;display:flex;flex-direction:column;color:#fff;font-family:sans-serif;\">'+
+      '<div style=\"display:flex;align-items:center;padding:8px 12px;border-bottom:1px solid #22d3ee;background:rgba(34,211,238,0.1);border-radius:8px 8px 0 0;\">'+
+        '<span style=\"flex:1;font-size:14px;font-weight:bold;color:#22d3ee;\">\u73A9\u5BB6\u8CC7\u8A0A</span>'+
+        '<span id=\"__gmp_player_modal_close\" style=\"cursor:pointer;font-size:20px;color:#e94560;font-weight:bold;line-height:1;\" title=\"\u95DC\u9589\">\u2715</span>'+
       '</div>'+
-      '<div id="__gmp_player_body" style="padding:12px;overflow-y:auto;flex:1;text-align:center;color:#888;">查询中...</div>'+
+      '<div id=\"__gmp_player_body\" style=\"padding:12px;overflow-y:auto;flex:1;text-align:center;color:#888;\">\u67E5\u8A62\u4E2D...</div>'+
     '</div>';
     document.body.appendChild(m);
-    // Close handlers
-    var closeFn=function(){m.remove();};
+    var closeFn=function(){
+      m.remove();
+      var ppPop=document.getElementById('pp-popup');
+      try{ppPop.classList.add('hidden');}catch(e){}
+      var ppBox=document.querySelector('.pp-box');
+      if(ppBox)ppBox.style.display='none';
+      var msgOk=document.querySelector('#msg-ok');
+      if(msgOk&&msgOk.offsetParent)msgOk.click();
+    };
     document.getElementById('__gmp_player_modal_close').onclick=closeFn;
-    // Click outside the card to close
     m.onclick=function(e){if(e.target===m)closeFn();};
 
     if(window.__wbSocket){window.__wbSocket.emit('viewPlayer',[name]);}
@@ -2390,10 +2405,10 @@ function __gmBuildPanel(){
       var msgOk=document.querySelector('#msg-ok');
       if(msgOk){
         var msgText=document.querySelector('#msg-text');
-        if(msgText&&msgText.textContent.indexOf('查无此玩家')>-1){
+        if(msgText&&msgText.textContent.indexOf('\u67E5\u7121\u6B64\u73A9\u5BB6')>-1){
           clearInterval(polling);
           var b=document.getElementById('__gmp_player_body');
-          if(b)b.innerHTML='<span style="color:#e94560;">查无此玩家（可能已改名或删除角色）</span>';
+          if(b)b.innerHTML='<span style=\"color:#e94560;\">\u67E5\u7121\u6B64\u73A9\u5BB6\uFF08\u53EF\u80FD\u5DF2\u6539\u540D\u6216\u522A\u9664\u89D2\u8272\uFF09</span>';
           window.__gmPlayerHistory=window.__gmPlayerHistory.filter(function(h){return h.name!==mn;});
           __gmPlayerHistorySave();
           __gmPlayerLookupRenderHistory();
@@ -2402,12 +2417,14 @@ function __gmBuildPanel(){
         }
       }
       var pp=document.querySelector('.pp-box');if(!pp){
-        if(Date.now()>deadline){clearInterval(polling);document.getElementById('__gmp_player_body').innerHTML='<span style="color:#e94560;">查询超时</span>';}
+        if(Date.now()>deadline){clearInterval(polling);document.getElementById('__gmp_player_body').innerHTML='<span style=\"color:#e94560;\">\u67E5\u8A62\u8D85\u6642</span>';}
         return;
       }
       var body=document.getElementById('pp-body');
       var el=document.getElementById('__gmp_player_body');
       if(el&&body)el.innerHTML=body.outerHTML;
+      var ppPop=document.getElementById('pp-popup');
+      try{ppPop.classList.add('hidden');}catch(e){}
       var info=__gmPlayerParseInfo();
       __gmPlayerAddHistory(mn, info);
       __gmPlayerLookupRenderHistory();
@@ -2416,7 +2433,6 @@ function __gmBuildPanel(){
     },300);
   };
 
-  // Silent refresh (no modal)
   function __gmPlayerSilentRefreshByName(name, callback){
     if(window.__wbSocket){window.__wbSocket.emit('viewPlayer',[name]);}
     var deadline=Date.now()+5000;
@@ -2424,7 +2440,7 @@ function __gmBuildPanel(){
       var msgOk=document.querySelector('#msg-ok');
       if(msgOk){
         var msgText=document.querySelector('#msg-text');
-        if(msgText&&msgText.textContent.indexOf('查无此玩家')>-1){
+        if(msgText&&msgText.textContent.indexOf('\u67E5\u7121\u6B64\u73A9\u5BB6')>-1){
           clearInterval(polling);
           msgOk.click();
           window.__gmPlayerHistory=window.__gmPlayerHistory.filter(function(h){return h.name!==name;});
@@ -2435,6 +2451,8 @@ function __gmBuildPanel(){
       }
       var pp=document.querySelector('.pp-box');if(!pp){if(Date.now()>deadline){clearInterval(polling);if(callback)callback();}return;}
       var info=__gmPlayerParseInfo();
+      var ppPop2=document.getElementById('pp-popup');
+      try{ppPop2.classList.add('hidden');}catch(e){}
       if(pp){pp.style.display='none';}
       clearInterval(polling);
       for(var j=0;j<window.__gmPlayerHistory.length;j++){
@@ -2479,10 +2497,9 @@ function __gmBuildPanel(){
     }
   }
 
-  // Export selected (checked) players
   function __gmPlayerExportSelected(){
     var cbs=document.querySelectorAll('.__gmp_player_cb:checked');
-    if(!cbs.length){alert('请先勾选要汇出的好友');return;}
+    if(!cbs.length){alert('\u8ACB\u5148\u52FE\u9078\u8981\u532F\u51FA\u7684\u597D\u53CB');return;}
     var selected=[];
     for(var i=0;i<cbs.length;i++){
       var idx=parseInt(cbs[i].getAttribute('data-idx'));
@@ -2495,13 +2512,12 @@ function __gmBuildPanel(){
     console.log('[GM] Exported '+selected.length+' players');
   }
 
-  // Import friends from JSON
   function __gmPlayerImportFile(file){
     var reader=new FileReader();
     reader.onload=function(e){
       try{
         var data=JSON.parse(e.target.result);
-        if(!Array.isArray(data)){alert('格式错误：需为数组');return;}
+        if(!Array.isArray(data)){alert('\u683C\u5F0F\u932F\u8AA4\uFF1A\u9700\u70BA\u9663\u5217');return;}
         var added=0;
         for(var i=0;i<data.length;i++){
           if(!data[i].name)continue;
@@ -2513,7 +2529,7 @@ function __gmBuildPanel(){
               cls:data[i].cls||'',
               lv:data[i].lv||'',
               status:data[i].status||'offline',
-              location:data[i].location||'离线',
+              location:data[i].location||'\u96E2\u7DDA',
               ts:'--:--',
               fav:!!data[i].fav
             });
@@ -2522,13 +2538,12 @@ function __gmBuildPanel(){
         }
         __gmPlayerHistorySave();
         __gmPlayerLookupRenderHistory();
-        alert('已汇入 '+added+' 位好友');
-      }catch(ex){alert('JSON 解析失败：'+ex.message);}
+        alert('\u5DF2\u532F\u5165 '+added+' \u4F4D\u597D\u53CB');
+      }catch(ex){alert('JSON \u89E3\u6790\u5931\u6557\uFF1A'+ex.message);}
     };
     reader.readAsText(file);
   }
 
-  // Bind events
   document.getElementById('__gmp_player_lookup').onclick=function(){
     var inp=document.getElementById('__gmp_player_name');var n=(inp.value||'').trim();if(!n)return;
     window.__gmPlayerShowModal(n);
@@ -2541,7 +2556,8 @@ function __gmBuildPanel(){
   __gmPlayerHistoryLoad();
   var _arChk=document.getElementById('__gmp_player_auto_refresh');
   if(_arChk)_arChk.onchange=__gmPlayerToggleAutoRefresh;
-document.getElementById('__gmp_skill_read').onclick = __pmReadFromGame;
+
+  document.getElementById('__gmp_skill_read').onclick = __pmReadFromGame;
   document.getElementById('__gmp_skill_clear').onclick = function() {
     window.__pmAuto = {boxes: [], all: {}, gameEls: {}};
     __pmRenderSkillList();
