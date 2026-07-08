@@ -1,5 +1,5 @@
-(function(){
-var ver='v3.84';
+﻿(function(){
+var ver='v3.87';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -1026,6 +1026,7 @@ function __gmBuildPanel(){
   p.innerHTML=
   '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #0f3460;">'+
   '<div style="display:flex;align-items:center;gap:6px;">'+
+    '<button id="__gmp_tab_other" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">🔧其他</button>'+
     '<button id="__gmp_tab_game" style="padding:5px 9px;background:#0f3460;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">狀態</button>'+
     '<button id="__gmp_tab_zone" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">地圖</button>'+
     '<button id="__gmp_tab_farm" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">掛機</button>'+
@@ -1140,7 +1141,6 @@ function __gmBuildPanel(){
           '<span id="__gmp_wb_timer" style="font-size:9px;color:#888;">每 60s</span>'+
           '<button id="__gmp_wb_refresh" style="padding:2px 6px;background:#0f3460;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:9px;font-weight:bold;">&#x2699; 刷新</button>'+
           '<button id="__gmp_wb_show_detected" style="padding:2px 6px;background:#2a2a4a;border:1px solid #555;color:#aaa;border-radius:4px;cursor:pointer;font-size:9px;">? 事件</button>'+
-          '<button id="__gmp_wb_export_all" onclick="__gmExportSioEvents()" style="padding:2px 6px;background:#1a3a1a;border:1px solid #4ade80;color:#4ade80;border-radius:4px;cursor:pointer;font-size:9px;">&#x1F4CB; 匯出</button>'+
         '</div>'+
       '</div>'+
       '<div id="__gmp_wb_body" style="max-height:300px;overflow-y:auto;padding:6px;">'+
@@ -1499,6 +1499,20 @@ function __gmBuildPanel(){
     '<button id="__gmp_farm_test_reconnect" style="width:100%;padding:6px;background:#2a2a4a;border:1px solid #ffd700;color:#ffd700;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;margin-bottom:4px;">🧪 測試斷線重連</button>'+ 
     '</div>'+  // closes inner farm content div
     '</div>'+ // closes farm tab content div
+    '<div id="__gmp_tab_content_other" style="display:none;">'+
+    '  <div style="background:rgba(255,255,255,0.04);padding:10px;border-radius:6px;margin-bottom:8px;">'+
+    '    <div style="font-size:11px;color:#ffd700;font-weight:bold;margin-bottom:6px;">🎰 世界王抽獎</div>'+
+    '    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;">'+
+    '      <span style="font-size:10px;color:#aaa;">次數:</span>'+
+    '      <input id="__gmp_gacha_count" type="number" value="30" min="1" max="999" style="width:55px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;outline:none;text-align:center;">'+
+    '      <label style="display:flex;align-items:center;gap:3px;cursor:pointer;font-size:10px;color:#aaa;">'+
+    '        <input type="checkbox" id="__gmp_gacha_enable" style="width:14px;height:14px;cursor:pointer;">'+
+    '        <span>每 1 秒自動抽</span>'+
+    '      </label>'+
+    '      <span id="__gmp_gacha_status" style="font-size:10px;color:#888;">--</span>'+
+    '    </div>'+
+    '  </div>'+
+    '</div>'+
     '</div>'; // closes __gmp_content wrapper
   document.body.appendChild(p);
 
@@ -1598,7 +1612,7 @@ function __gmBuildPanel(){
   // @param {string} tab - Tab 名稱 ('zone','game','skill','status','farm','boss','monitor')
   function switchTab(tab){
     activeTab=tab;
-    ['game','zone','farm','boss','monitor','skill','status'].forEach(function(t){
+    ['game','zone','farm','boss','monitor','skill','status','other'].forEach(function(t){
       var el=document.getElementById('__gmp_tab_content_'+t);
       if(el)el.style.display=t===tab?'block':'none';
       var btn=document.getElementById('__gmp_tab_'+t);
@@ -2172,6 +2186,7 @@ function __gmBuildPanel(){
   // 按鈕事件
   document.getElementById('__gmp_tab_skill').onclick = function() { switchTab('skill'); };
   document.getElementById('__gmp_tab_status').onclick=function(){ switchTab('status'); };
+  document.getElementById('__gmp_tab_other').onclick=function(){ switchTab('other'); };
 
   // === Status tab handlers ===
   function __gmExportAllSettings(){
@@ -3355,6 +3370,54 @@ setTimeout(function() {
 __gmBuildPanel();
 document.addEventListener('__gm_show_panel',function(){__gmBuildPanel()});
 
+// === Auto-start countdown modal (10s) ===
+(function(){
+  var sec=10;
+  var timer=null;
+  var modal=document.createElement('div');
+  modal.id='__gmp_autostart_modal';
+  modal.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.82);z-index:10000000;display:flex;align-items:center;justify-content:center;';
+  modal.innerHTML='<div style="background:#1a1a2e;border:1px solid #0f3460;border-radius:14px;padding:28px 36px;text-align:center;max-width:400px;box-shadow:0 4px 30px rgba(0,0,0,0.7);">'+
+    '<div style="font-size:18px;color:#4ade80;font-weight:bold;margin-bottom:18px;">⏱ 自動啟動倒數</div>'+
+    '<div id="__gmp_autostart_countdown" style="font-size:52px;color:#ffd700;font-weight:bold;margin-bottom:14px;">'+sec+'</div>'+
+    '<div style="font-size:11px;color:#aaa;margin-bottom:18px;line-height:2;">'+
+      '✅ 掛機腳本<br>'+
+      '✅ BOSS 自動進入<br>'+
+      '✅ BOSS 自動偵測戰鬥'+
+    '</div>'+
+    '<div style="display:flex;gap:10px;justify-content:center;">'+
+      '<button id="__gmp_autostart_cancel" style="padding:10px 28px;background:#e94560;border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:14px;font-weight:bold;">取消</button>'+
+      '<button id="__gmp_autostart_now" style="padding:10px 28px;background:#4ade80;border:none;color:#000;border-radius:8px;cursor:pointer;font-size:14px;font-weight:bold;">立即啟動</button>'+
+    '</div>'+
+  '</div>';
+  document.body.appendChild(modal);
+
+  function doStart(){
+    if(timer){clearInterval(timer);timer=null;}
+    if(modal.parentNode)modal.remove();
+    console.log('[AutoStart] Starting scripts...');
+    try{ startFarming(); }catch(e){ console.warn('[AutoStart] startFarming failed:',e.message); }
+    try{ if(typeof __wbBossAutoScriptStart==='function') __wbBossAutoScriptStart(); }catch(e){ console.warn('[AutoStart] BossScript failed:',e.message); }
+    try{ __wbBossAutoStart(); }catch(e){ console.warn('[AutoStart] BossAuto failed:',e.message); }
+  }
+
+  function doCancel(){
+    if(timer){clearInterval(timer);timer=null;}
+    if(modal.parentNode)modal.remove();
+    console.log('[AutoStart] Cancelled by user');
+  }
+
+  document.getElementById('__gmp_autostart_cancel').onclick=doCancel;
+  document.getElementById('__gmp_autostart_now').onclick=doStart;
+
+  timer=setInterval(function(){
+    sec--;
+    var el=document.getElementById('__gmp_autostart_countdown');
+    if(el)el.textContent=sec;
+    if(sec<=0)doStart();
+  },1000);
+})();
+
   // 自動進入模式下拉：監聽變更並儲存/廣播
 document.addEventListener('change',function(e){
     var t=e.target;
@@ -3369,69 +3432,75 @@ document.addEventListener('change',function(e){
 console.log('[GM] Monitor injected '+ver);
 
 
-  // === 匯出所有 Socket.IO 事件（SEND + RECEIVE）===
-  window.__gmExportSioEvents=function(){
-    var sends=(window.__wbBossEmitLog||[]).slice(-200);
-    var recvs=(window.__wbAllEvents||[]).slice(-200);
-    var lines=[];
-    lines.push('=== Socket.IO 事件匯出 ===');
-    lines.push('時間: '+new Date().toLocaleString('zh-TW',{hour12:false}));
-    lines.push('角色: '+(window.lastState&&window.lastState.char?window.lastState.char.name:'?'));
-    lines.push('SEND 筆數: '+sends.length+' | RECEIVE 筆數: '+recvs.length);
-    lines.push('');
-    lines.push('--- SEND ('+sends.length+' 筆) ---');
-    sends.forEach(function(s,i){
-      lines.push('['+(i+1)+'] '+s.evt+' | '+s.args.substring(0,300));
-    });
-    lines.push('');
-    lines.push('--- RECEIVE ('+recvs.length+' 筆) ---');
-    recvs.forEach(function(r,i){
-      var t=new Date(r.t).toLocaleTimeString('zh-TW',{hour12:false});
-      lines.push('['+(i+1)+']['+t+'] '+r.evt+' | '+r.payload.substring(0,300));
-    });
-    lines.push('');
-    lines.push('--- worldBoss cache ---');
-    var cache=window.__wbWorldBossCache||{};
-    lines.push(JSON.stringify(cache.data,null,2).substring(0,2000));
-    var txt=lines.join('\n');
-    var existing=document.getElementById('__gm_export_modal');
-    if(existing)existing.remove();
-    var modal=document.createElement('div');
-    modal.id='__gm_export_modal';
-    modal.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:99999;display:flex;align-items:center;justify-content:center;';
-    modal.innerHTML='<div style="background:#1a1a2e;border:1px solid #0f3460;border-radius:12px;padding:20px;width:90%;max-width:800px;max-height:85vh;display:flex;flex-direction:column;gap:12px;">'+
-      '<div style="display:flex;justify-content:space-between;align-items:center;">'+
-      '<span style="color:#4ade80;font-weight:bold;font-size:13px;">Socket.IO 事件 ('+sends.length+' SEND / '+recvs.length+' RECV)</span>'+
-      '<button id="__gm_export_copy" style="padding:5px 14px;background:#1a4a1a;border:1px solid #4ade80;color:#4ade80;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">COPY</button>'+
-      '<button id="__gm_export_dl" style="padding:5px 14px;background:#1a3a1a;border:1px solid #00d9ff;color:#00d9ff;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">DL TXT</button>'+
-      '<button id="__gm_export_close" style="padding:5px 12px;background:#333;border:1px solid #555;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">X</button></div>'+
-      '<textarea id="__gm_export_ta" readonly style="flex:1;min-height:300px;max-height:60vh;background:#0a0a1a;border:1px solid #0f3460;color:#86c5ff;font-family:monospace;font-size:11px;padding:10px;border-radius:6px;resize:none;line-height:1.5;"></textarea>'+
-    '</div>';
-    document.body.appendChild(modal);
-    var ta=document.getElementById('__gm_export_ta');
-    ta.value=txt;
-    document.getElementById('__gm_export_close').onclick=function(){modal.remove()};
-    modal.onclick=function(e){if(e.target===modal)modal.remove()};
-    document.getElementById('__gm_export_copy').onclick=function(){
-      navigator.clipboard.writeText(txt).then(function(){
-        var b=document.getElementById('__gm_export_copy');
-        if(b){b.textContent='COPIED!';setTimeout(function(){b.textContent='COPY';},1500);}
-      }).catch(function(){
-        ta.select();document.execCommand('copy');
-        var b=document.getElementById('__gm_export_copy');
-        if(b){b.textContent='COPIED!';setTimeout(function(){b.textContent='COPY';},1500);}
-      });
-    };
-    document.getElementById('__gm_export_dl').onclick=function(){
-      var blob=new Blob([txt],{type:'text/plain;charset=utf-8'});
-      var url=URL.createObjectURL(blob);
-      var a=document.createElement('a');
-      a.href=url;
-      var ts=new Date().toISOString().replace(/[:.]/g,'-').substring(0,19);
-      a.download='sio_events_'+ts+'.txt';
-      document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
-    };
-  }
 
+  // === Gacha auto-send ===
+  (function(){
+    var gachaTimer = null;
+    var gachaCount = 0;
+    var gachaMax = 30;
+    var gachaEnabled = false;
+
+    function sendGacha(){
+      if (!gachaEnabled) { stopGacha(); return; }
+      if (gachaCount >= gachaMax) { stopGacha(); updateStatus('已完成'); return; }
+      try {
+        window.__gmSend('WB-SEND', 'wbGacha', []);
+      } catch(e) { /* socket 不可用 */ }
+      gachaCount++;
+      updateStatus('發送中 ' + gachaCount + '/' + gachaMax);
+    }
+
+    function startGacha(){
+      gachaEnabled = true;
+      var countEl = document.getElementById('__gmp_gacha_count');
+      gachaMax = countEl ? Math.max(1, parseInt(countEl.value)||30) : 30;
+      gachaCount = 0;
+      if (gachaTimer) clearInterval(gachaTimer);
+      gachaTimer = setInterval(sendGacha, 1000);
+      updateStatus('開始 ' + gachaMax + ' 次');
+    }
+
+    function stopGacha(){
+      gachaEnabled = false;
+      if (gachaTimer) { clearInterval(gachaTimer); gachaTimer = null; }
+      var chk = document.getElementById('__gmp_gacha_enable');
+      if (chk) chk.checked = false;
+      updateStatus('已停止');
+    }
+
+    function updateStatus(msg){
+      var el = document.getElementById('__gmp_gacha_status');
+      if (el) el.textContent = msg;
+    }
+
+    document.addEventListener('click', function(e){
+      var t = e.target;
+      while (t && t.nodeType === 3) t = t.parentElement;
+      if (!t || !t.getAttribute) return;
+      if (t.tagName === 'INPUT' && t.type === 'checkbox' && t.id === '__gmp_gacha_enable') {
+        if (t.checked) {
+          startGacha();
+        } else {
+          stopGacha();
+        }
+        return;
+      }
+    });
+
+    // 讀取次數變更
+    document.addEventListener('change', function(e){
+      var t = e.target;
+      if (t && t.id === '__gmp_gacha_count') {
+        gachaMax = Math.max(1, parseInt(t.value)||30);
+        if (gachaEnabled) {
+          gachaCount = 0;
+          updateStatus('發送中 ' + gachaCount + '/' + gachaMax);
+        }
+      }
+    });
+
+    // expose for external stop
+    window.__gmpGachaStop = stopGacha;
+  })();
 
 })();

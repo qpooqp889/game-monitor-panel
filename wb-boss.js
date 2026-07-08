@@ -385,7 +385,14 @@ function __wbBossAutoScriptLoop(){
     // 排序: priority=0 最優先 → priority=1 次之(依secondsLeft升序) → priority=2 最後(依secondsLeft升序)
     scoredList.sort(function(a,b){
       if(a.priority!==b.priority)return a.priority-b.priority;
-      if(a.priority===0)return a.idx-b.idx; // 存活用原始順序
+      if(a.priority===0){
+        // 存活BOSS：currentIdx之後的優先（保持連續性），currentIdx之前的排後面
+        var cur = window.__wbBossAutoScript.currentIdx || 0;
+        var aAfter = a.idx >= cur ? 0 : 1;
+        var bAfter = b.idx >= cur ? 0 : 1;
+        if(aAfter !== bAfter) return aAfter - bAfter;
+        return a.idx - b.idx;
+      }
       return a.secondsLeft-b.secondsLeft; // 死了按重生時間由近到遠
     });
     // 全部 BOSS 都保留，取最好的（不過濾，讓遠的重生也能排隊等）
@@ -1503,51 +1510,15 @@ function __wbBossAutoScriptClickLobby(){
   doClick();
 }
 
-// ★ 安排跳到下一位 BOSS（確認 #br-lobby 消失後才排程）
-// 最長等待 8 秒讓結算畫面完全消失，再切到世界王頁籤開始下一次掃描
-// @param {number} idx   - 當前清單索引
-// @param {Array}  list  - 完整討伐清單
-function __wbBossAutoScriptScheduleNext(idx, list){
-  var maxWait=8000;   // 最多等 8s
-  var pollInterval=300;
-  var elapsed=0;
-  function poll(){
-    elapsed+=pollInterval;
-    // #br-lobby 消失 → 結算畫面已離開，可安全前進
-    if(!document.getElementById('br-lobby')){
-      console.log('[WB-Schedule] Lobby cleared after '+elapsed+'ms, advancing to next boss');
-      window.__wbBossAutoScript.currentIdx = (idx||0) + 1;
-      if(window.__wbBossAutoScript.timer) clearTimeout(window.__wbBossAutoScript.timer);
-      // 確保切到世界王頁籤
-      if(window.__wbEnsureWBTab) __wbEnsureWBTab();
-      window.__wbBossAutoScript.timer = setTimeout(__wbBossAutoScriptLoop, 1500);
-      return;
-    }
-    if(elapsed>=maxWait){
-      console.warn('[WB-Schedule] Timeout waiting for lobby clear, advancing anyway');
-      window.__wbBossAutoScript.currentIdx = (idx||0) + 1;
-      if(window.__wbBossAutoScript.timer) clearTimeout(window.__wbBossAutoScript.timer);
-      if(window.__wbEnsureWBTab) __wbEnsureWBTab();
-      window.__wbBossAutoScript.timer = setTimeout(__wbBossAutoScriptLoop, 1500);
-    } else {
-      setTimeout(poll, pollInterval);
-    }
-  }
-  poll();
-}
-
 // 處理 BOSS 擊敗後續：
 // v3.77 串列順序流程：
-//   1. 點 #br-lobby (重試到消失) → 2. selectChar[0] 回村
-//   3. currentIdx++ 跳下一位 → 4. __wbEnsureWBTab
-//   5. 直接點下一隻卡片 → 6. 確認進場 → 7. 開始攻擊
-// @param {Object} target - BOSS 物件
-// @param {number} idx   - 清單索引
-// @param {Array}  list  - 完整討伐清單
+//   1. 點 #br-lobby (重試到消失) → 2. toLobby + selectChar[0] 回村
+//   3. currentIdx++ → 4. 等待 DOM 就緒 → 5. 交由 Loop 接管
+// 簡化版：不再自行點卡片 / 驗證進場，全部委託 Loop 處理（Loop 已有完整掃描+進場邏輯）
 function __wbBossAutoScriptHandleDefeat(target, idx, list){
   __wbDebugLog('defeat','BOSS defeated: '+target.name);
   __wbDebugStop('defeated');
-  console.log('[WB-AutoScript] ' + target.name + ' defeated! HP=0 -> serial next-boss flow');
+  console.log('[WB-AutoScript] ' + target.name + ' defeated! HP=0 -> cleanup & delegate to Loop');
 
   __wbAddBossHistory(target.name, 'defeat', '\u64CA\u6557 BOSS', 0, null);
 
@@ -1556,54 +1527,44 @@ function __wbBossAutoScriptHandleDefeat(target, idx, list){
 
   var nextIdx = idx + 1;
   if(list && nextIdx >= list.length){
-    // 清單已走完 → 恢復掛機
     console.log('[WB-AutoScript] Hunt list completed, restoring farm');
     __wbAddBossHistory(target.name, 'leave', '\u6E05\u55AE\u5DF2\u8D70\u5B8C\uFF0C\u56DE\u5FA9\u639B\u6A5F', 0, null);
+    window.__wbBossAutoScript.currentIdx = 0;
     __wbBossAutoScriptRestoreFarm();
     return;
   }
 
-  var nextTarget = list[nextIdx];
   var statusEl=document.getElementById('__gmp_boss_script_status');
-  if(statusEl) statusEl.textContent = '\u2705 '+target.name+' \u64CA\u6557! \u2192 '+nextTarget.name+' ('+(nextIdx+1)+'/'+list.length+')';
+  if(statusEl) statusEl.textContent = '\u2705 '+target.name+' \u64CA\u6557! \u6E05\u7406\u4E2D...';
 
-  // === Step 1: 點 #br-lobby 返回大廳（輪詢等待彈窗出現，最多 20 次 ~10s） ===
-  var _step1Retries = 0;
-  var _step1MaxRetries = 20;
-  function step1_clickLobby(){
-    _step1Retries++;
-    var lobbyBtn = document.getElementById('br-lobby');
-    if(lobbyBtn){
-      // 找到了 → 點擊
-      console.log('[WB-Defeat] Step1: Clicking #br-lobby (attempt '+_step1Retries+'/'+_step1MaxRetries+')');
-      __wbAddBossHistory(target.name, 'leave', 'Step1: \u9EDE\u64CA #br-lobby ('+_step1Retries+'/'+_step1MaxRetries+')', 0, null);
-      lobbyBtn.click();
+  // Step 1: 點 #br-lobby（重試至消失，最多 15 次 ~7.5s）
+  var _retries = 0;
+  function clickLobby(){
+    _retries++;
+    var btn = document.getElementById('br-lobby');
+    if(btn){
+      console.log('[WB-Defeat] Clicking #br-lobby (attempt '+_retries+')');
+      btn.click();
       setTimeout(function(){
         if(!document.getElementById('br-lobby')){
-          console.log('[WB-Defeat] Step1: #br-lobby gone');
-          __wbAddBossHistory(target.name, 'leave', 'Step1 OK: #br-lobby\u5DF2\u6D88\u5931', 0, null);
-          step2_selectChar();
+          console.log('[WB-Defeat] #br-lobby gone');
+          doReturnToLobby();
         } else {
-          console.log('[WB-Defeat] Step1: #br-lobby still present, retry');
-          step1_clickLobby();
+          clickLobby();
         }
       }, 500);
-    } else if(_step1Retries < _step1MaxRetries){
-      // 彈窗還沒出現 → 等 500ms 重試
-      console.log('[WB-Defeat] Step1: #br-lobby not found yet, waiting... ('+_step1Retries+'/'+_step1MaxRetries+')');
-      setTimeout(step1_clickLobby, 500);
+    } else if(_retries < 15){
+      setTimeout(clickLobby, 500);
     } else {
-      // 超過 20 次仍無彈窗 → 強制 toLobby
-      console.log('[WB-Defeat] Step1: #br-lobby never appeared after '+_step1MaxRetries+' retries, force toLobby');
-      __wbAddBossHistory(target.name, 'leave', 'Step1 timeout: \u8D85\u904E'+_step1MaxRetries+'\u6B21\uFF0C\u5F37\u5236toLobby', 0, null);
-      step2_selectChar();
+      console.log('[WB-Defeat] #br-lobby not found after retries, force continue');
+      doReturnToLobby();
     }
   }
 
-  // === Step 2: toLobby + selectChar[0] 回村 ===
-  function step2_selectChar(){
-    console.log('[WB-Defeat] Step2: Sending toLobby + selectChar [0]');
-    __wbAddBossHistory(target.name, 'leave', 'Step2: toLobby+selectChar[0]', 0, null);
+  // Step 2: toLobby + selectChar[0] 回村
+  function doReturnToLobby(){
+    console.log('[WB-Defeat] Sending toLobby + selectChar[0]');
+    __wbAddBossHistory(target.name, 'leave', '\u56DE\u6751: toLobby+selectChar[0]', 0, null);
     try {
       if(window.__wbSocket && window.__wbSocket.emit){
         window.__wbSocket.emit('toLobby', []);
@@ -1617,111 +1578,25 @@ function __wbBossAutoScriptHandleDefeat(target, idx, list){
         }, 500);
       }
     } catch(e){ console.warn('[WB-Defeat] toLobby/selectChar failed:', e.message); }
-    // 等 1.5s 讓遊戲切回村莊
-    setTimeout(function(){
-      __wbAddBossHistory(target.name, 'leave', 'Step2 OK: \u5DF2\u56DE\u6751', 0, null);
-      step3_advanceIndex();
-    }, 1500);
-  }
 
-  // === Step 3: currentIdx++ ===
-  function step3_advanceIndex(){
+    // Step 3: currentIdx++
     window.__wbBossAutoScript.currentIdx = nextIdx;
-    console.log('[WB-Defeat] Step3: currentIdx='+nextIdx+' next='+nextTarget.name);
-    __wbAddBossHistory(target.name, 'leave', 'Step3: \u8DF3\u4E0B\u4E00\u4F4D '+nextTarget.name+' ('+(nextIdx+1)+'/'+list.length+')', 0, null);
-    if(statusEl) statusEl.textContent = '\u2192 '+nextTarget.name+' ('+(nextIdx+1)+'/'+list.length+')...';
-    step4_ensureWBTab();
-  }
+    console.log('[WB-Defeat] currentIdx='+nextIdx);
 
-  // === Step 4: 切到世界王頁籤 ===
-  function step4_ensureWBTab(){
-    console.log('[WB-Defeat] Step4: Ensuring WB tab');
-    __wbAddBossHistory(target.name, 'leave', 'Step4: \u5207\u63DB\u4E16\u754C\u738B\u9801\u7C64', 0, null);
-    try{ __wbEnsureWBTab(); }catch(e){}
-    // __wbEnsureWBTab 內部 600ms 後才切子頁籤，等 2s 確保 DOM 就緒
+    // Step 4: 等 2.5s 讓遊戲切回村莊 → 切 WB tab → 交給 Loop 掃描進場
+    if(statusEl) statusEl.textContent = '\u2705 '+target.name+' \u64CA\u6557! \u2192 \u6E96\u5099\u9032\u5165\u4E0B\u4E00\u4F4D ('+(nextIdx+1)+'/'+list.length+')...';
+    __wbAddBossHistory(target.name, 'leave', 'Step3: idx='+nextIdx+' \u59D4\u8A17Loop\u9032\u5834', 0, null);
+
     setTimeout(function(){
-      __wbAddBossHistory(target.name, 'leave', 'Step4 OK: \u9801\u7C64\u5DF2\u5207\u63DB', 0, null);
-      step5_clickCard();
-    }, 2000);
+      // 確保 WB 頁籤
+      try{ __wbEnsureWBTab(); }catch(e){}
+      // 委託 Loop 處理後續（掃描 DOM → 點卡片 → 進場 → 攻擊）
+      console.log('[WB-Defeat] Delegating to Loop for next boss (idx='+nextIdx+')');
+      __wbBossAutoScriptLoop();
+    }, 2500);
   }
 
-  // === Step 5: 點下一隻 BOSS 卡片進場 ===
-  function step5_clickCard(){
-    console.log('[WB-Defeat] Step5: Looking for card of '+nextTarget.name+' (id='+nextTarget.id+')');
-    var card = document.querySelector('.wb-card[data-boss="'+nextTarget.id+'"]');
-    if(card){
-      __wbAddBossHistory(target.name, 'leave', 'Step5: \u9EDE\u64CA\u5361\u7247 '+nextTarget.name, 0, null);
-      card.click();
-      console.log('[WB-Defeat] Step5: Clicked card for '+nextTarget.name);
-      // 等 2s 讓遊戲處理進場封包
-      setTimeout(function(){ step6_verifyEnter(); }, 2000);
-    } else {
-      console.warn('[WB-Defeat] Step5: Card NOT found for '+nextTarget.name+', retry in 1s');
-      __wbAddBossHistory(target.name, 'leave', 'Step5 FAIL: \u5361\u7247\u4E0D\u5B58\u5728 '+nextTarget.name+', 1s retry', 0, null);
-      setTimeout(step5_clickCard, 1000);
-    }
-  }
-
-  // === Step 6: 確認進場 (mode==='bosscombat' 且有 BOSS HP) ===
-  var _enterCheckCount = 0;
-  var _enterDismissCount = 0;
-  function step6_verifyEnter(){
-    _enterCheckCount++;
-    // 先處理「未重生」對話框 → 點確定、再點卡片重試
-    var msgOk = document.getElementById('msg-ok');
-    if(msgOk){
-      _enterDismissCount++;
-      console.log('[WB-Defeat] Step6: msg-ok dismissed #'+_enterDismissCount+' ('+nextTarget.name+')');
-      msgOk.click();
-      if(_enterDismissCount >= 3){
-        console.warn('[WB-Defeat] Step6: Boss not spawned after 3 dismiss, skip to next');
-        __wbAddBossHistory(nextTarget.name, 'skip', '\u672A\u91CD\u751F(3\u6B21)', 0, null);
-        currentIdx = nextIdx + 1;
-        window.__wbBossAutoScript.timer = setTimeout(function(){
-          if(window.__wbBossAutoScript) window.__wbBossAutoScript.running = false;
-          __wbBossAutoScriptLoop();
-        }, 2000);
-        return;
-      }
-      // 關掉對話框後重新點卡片
-      var cardRetry = document.querySelector('.wb-card[data-boss="'+nextTarget.id+'"]');
-      if(cardRetry) cardRetry.click();
-      setTimeout(step6_verifyEnter, 2000);
-      return;
-    }
-    var ls = window.lastState || {};
-    var mode = ls.mode || '';
-    var boss = ls.boss || {};
-    var bossHp = boss.hp || 0;
-    if(mode==='bosscombat' && bossHp > 0){
-      console.log('[WB-Defeat] Step6: ENTERED! mode='+mode+' boss='+nextTarget.name+' HP='+bossHp);
-      __wbAddBossHistory(nextTarget.name, 'enter', 'Step6 OK: \u9032\u5834 \u5F00\u59CB\u653B\u64CA HP='+bossHp, bossHp, null);
-      if(statusEl) statusEl.textContent = '[BOSS] '+nextTarget.name+' ('+(nextIdx+1)+'/'+list.length+')';
-      // 啟動攻擊
-      var atkChk = document.getElementById('__gmp_boss_auto_atk');
-      if(atkChk) atkChk.checked = true;
-      var enableChk = document.getElementById('__gmp_boss_auto_enable');
-      if(enableChk) enableChk.checked = true;
-      if(window.__wbBossAuto && !window.__wbBossAuto.running && window.__wbBossAutoStart){
-        __wbBossAutoStart();
-      }
-      // 開始監控 HP
-      __wbBossAutoScriptMonitorBossHP(nextTarget, nextIdx, list);
-    } else if(_enterCheckCount < 5){
-      console.log('[WB-Defeat] Step6: Not yet entered (attempt '+_enterCheckCount+', mode='+mode+', hp='+bossHp+'), retry click + wait 2s');
-      // 重新點卡片
-      var cardRetry = document.querySelector('.wb-card[data-boss="'+nextTarget.id+'"]');
-      if(cardRetry) cardRetry.click();
-      setTimeout(step6_verifyEnter, 2000);
-    } else {
-      console.warn('[WB-Defeat] Step6: Entry failed after 5 attempts, fallback to Loop');
-      __wbAddBossHistory(nextTarget.name, 'fail_entry', 'Step6 FAIL: \u7121\u6CD5\u9032\u5834, \u56DELoop', 0, null);
-      window.__wbBossAutoScript.timer = setTimeout(__wbBossAutoScriptLoop, 2000);
-    }
-  }
-
-  // 開始串列
-  step1_clickLobby();
+  clickLobby();
 }
 
 
