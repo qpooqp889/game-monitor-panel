@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v3.87';
+var ver='v3.88';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -1367,7 +1367,23 @@ function __gmBuildPanel(){
           '<button id="__gmp_status_import" style="flex:1;padding:5px 4px;background:#0f3460;border:1px solid #fbbf24;color:#fbbf24;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">📥 匯入全部設定</button>'+
           '<input type="file" id="__gmp_status_import_file" accept=".json" style="display:none;">'+
         '</div>'+
-        '<div id="__gmp_status_summary" style="font-size:10px;color:#aaa;margin-top:4px;padding:6px;background:rgba(0,0,0,0.2);border-radius:4px;max-height:200px;overflow-y:auto;"></div>'+
+        
+      // -- Friend List --
+      '<div style="background:rgba(34,211,238,0.06);padding:8px;border-radius:6px;margin-top:8px;">'+
+        '<div style="font-size:11px;color:#22d3ee;font-weight:bold;margin-bottom:6px;">🔍 好友查詢</div>'+
+        '<div style="display:flex;gap:4px;margin-bottom:4px;">'+
+          '<input id="__gmp_player_name" placeholder="輸入角色名稱..." style="flex:1;padding:5px 8px;background:#2a2a4a;border:1px solid #0f3460;border-radius:6px;color:#fff;font-size:11px;outline:none;">'+
+          '<button id="__gmp_player_lookup" style="padding:5px 10px;background:#0f3460;border:1px solid #22d3ee;color:#22d3ee;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">送出</button>'+
+        '</div>'+
+        '<div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">'+
+          '<input type="checkbox" id="__gmp_player_auto_refresh" style="width:12px;height:12px;cursor:pointer;">'+
+          '<span style="font-size:9px;color:#888;">每60秒自動更新</span>'+
+          '<span style="flex:1;"></span>'+
+          '<button id="__gmp_player_export_sel" style="padding:3px 6px;background:#1a3a1a;border:1px solid #7bd14a;color:#7bd14a;border-radius:4px;cursor:pointer;font-size:9px;">📤 匯出勾選</button>'+
+          '<button id="__gmp_player_import" style="padding:3px 6px;background:#1a3a1a;border:1px solid #fbbf24;color:#fbbf24;border-radius:4px;cursor:pointer;font-size:9px;">📥 匯入</button>'+
+          '<input type="file" id="__gmp_player_import_file" accept=".json" style="display:none;">'+
+        '</div>'+
+        '<div id="__gmp_player_history" style="font-size:10px;color:#aaa;max-height:240px;overflow-y:auto;"></div>'+
       '</div>'+
     '</div>'+
 
@@ -2241,7 +2257,291 @@ function __gmBuildPanel(){
   document.getElementById('__gmp_status_import_file').onchange=function(e){var f=e.target.files[0];if(!f)return;var rd=new FileReader();rd.onload=function(ev){__gmImportAllSettings(ev.target.result);};rd.readAsText(f);};
   var __gmOrigSwitchTab2=window.switchTab;
   if(typeof __gmOrigSwitchTab2==='function'){window.switchTab=function(t){__gmOrigSwitchTab2(t);if(t==='status')setTimeout(__gmRefreshStatusView,50);};}
-  document.getElementById('__gmp_skill_read').onclick = __pmReadFromGame;
+  
+  // === Player Viewer v2 (friend list + modal + export/import) ===
+  window.__gmPlayerHistory=[];
+  window.__gmPlayerRefreshTimer=null;
+  window.__gmPlayerRefreshing=false;
+
+  function __gmPlayerHistoryLoad(){
+    try{chrome.storage.local.get('__gmp_player_history',function(r){
+      window.__gmPlayerHistory=r.__gmp_player_history||[];
+      __gmPlayerLookupRenderHistory();
+    });}catch(e){__gmPlayerLookupRenderHistory();}
+  }
+  function __gmPlayerHistorySave(){
+    try{chrome.storage.local.set({__gmp_player_history:window.__gmPlayerHistory},function(){});}catch(e){}
+  }
+
+  function __gmPlayerParseInfo(){
+    var subs=document.querySelectorAll('.pp-box .pp-sub');
+    var info={cls:'',lv:'',status:'offline',location:'离线'};
+    for(var i=0;i<subs.length;i++){
+      var t=subs[i].textContent||'';
+      var m=t.match(/(\S+?)·Lv\s*(\d+)/);
+      if(m){info.cls=m[1];info.lv=m[2];}
+      if(subs[i].innerHTML.indexOf('#86efac')>-1)info.status='online';
+      else if(subs[i].innerHTML.indexOf('#ff8a6b')>-1)info.status='fighting';
+      else if(subs[i].innerHTML.indexOf('#888')>-1&&t.indexOf('离线')>-1)info.status='offline';
+    }
+    for(var j=0;j<subs.length;j++){
+      var txt=subs[j].textContent||'';
+      if(txt.indexOf('当前所在')>-1||txt.indexOf('目前位置')>-1){
+        var lm=txt.match(/(?:当前所在|目前位置)[：:]\s*(.+)/);
+        if(lm)info.location=lm[1].trim();
+      }
+    }
+    if(info.status==='fighting'&&info.location==='离线')info.location='战斗中';
+    return info;
+  }
+
+  function __gmPlayerStatusDot(status){
+    if(status==='online')return '<span style="color:#86efac">●</span>';
+    if(status==='fighting')return '<span style="color:#ff8a6b">●</span>';
+    return '<span style="color:#e94560">●</span>';
+  }
+
+  function __gmPlayerStatusText(status){
+    if(status==='online')return '在线';
+    if(status==='fighting')return '战斗中';
+    return '离线';
+  }
+
+  window.__gmPlayerDelete=function(idx){
+    window.__gmPlayerHistory.splice(idx,1);
+    __gmPlayerHistorySave();
+    __gmPlayerLookupRenderHistory();
+  };
+
+  function __gmPlayerLookupRenderHistory(){
+    var el=document.getElementById('__gmp_player_history');if(!el)return;
+    if(!window.__gmPlayerHistory.length){el.innerHTML='<span style="color:#555;">尚无查询记录</span>';return;}
+    var sorted=window.__gmPlayerHistory.slice().map(function(h,i){h._idx=i;return h;});
+    sorted.sort(function(a,b){if(a.fav&&!b.fav)return -1;if(!a.fav&&b.fav)return 1;return b._idx-a._idx;});
+    el.innerHTML=sorted.map(function(h){
+      var star=h.fav?'★':'☆';
+      var sc=h.name.replace(/'/g,"\\'"); var six=h._idx;
+      var clsLv=(h.cls?' '+h.cls+' Lv'+h.lv:'');
+      var dot=__gmPlayerStatusDot(h.status||'offline');
+      var stText=__gmPlayerStatusText(h.status||'offline');
+      var loc=h.location||'离线';
+      return '<div style="padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04);">'+
+        '<div style="display:flex;align-items:center;gap:3px;">'+
+          '<input type="checkbox" class="__gmp_player_cb" data-idx="'+six+'" style="width:10px;height:10px;cursor:pointer;margin:0;">'+
+          '<span style="cursor:pointer;font-size:12px;" onclick="event.stopPropagation();'+
+            'window.__gmPlayerToggleFav('+six+');">'+star+'</span>'+
+          '<span style="font-size:9px;color:#777;">'+clsLv+'</span>'+
+          dot+'<span style="font-size:8px;color:#aaa;">'+stText+'</span>'+
+          '<span style="flex:1;cursor:pointer;color:#22d3ee;font-size:10px;font-weight:bold;" onclick="window.__gmPlayerShowModal(\''+sc+'\')">'+h.name+'</span>'+
+          '<span style="cursor:pointer;font-size:9px;color:#e94560;padding:0 2px;" onclick="event.stopPropagation();window.__gmPlayerDelete('+six+');" title="删除">✕</span>'+
+        '</div>'+
+        '<div style="font-size:8px;color:#666;padding-left:42px;">'+loc+'</div>'+
+      '</div>';
+    }).join('');
+  }
+
+  window.__gmPlayerToggleFav=function(idx){
+    var h=window.__gmPlayerHistory[idx]; if(!h)return;
+    h.fav=!h.fav;
+    __gmPlayerHistorySave();
+    __gmPlayerLookupRenderHistory();
+  };
+
+  function __gmPlayerAddHistory(name, info){
+    var found=null;
+    for(var i=0;i<window.__gmPlayerHistory.length;i++){
+      if(window.__gmPlayerHistory[i].name===name){found=window.__gmPlayerHistory[i];break;}
+    }
+    var now=new Date();var ts=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+    if(found){
+      found.ts=ts;
+      if(info){found.cls=info.cls;found.lv=info.lv;found.status=info.status;found.location=info.location;}
+    } else {
+      var entry={name:name,ts:ts,fav:false};
+      if(info){entry.cls=info.cls;entry.lv=info.lv;entry.status=info.status;entry.location=info.location;}
+      window.__gmPlayerHistory.push(entry);
+    }
+    if(window.__gmPlayerHistory.length>100)window.__gmPlayerHistory.splice(0,window.__gmPlayerHistory.length-100);
+    __gmPlayerHistorySave();
+  }
+
+  window.__gmPlayerShowModal=function(name){
+    var old=document.getElementById('__gmp_player_modal');if(old)old.remove();
+    var m=document.createElement('div');m.id='__gmp_player_modal';
+    m.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:transparent;z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding-top:40px;pointer-events:none;';
+    m.innerHTML='<div style="pointer-events:auto;background:#0f0f23;border:2px solid #22d3ee;border-radius:10px;width:360px;max-height:85vh;display:flex;flex-direction:column;color:#fff;font-family:Consolas,monospace;">'+
+      '<div style="display:flex;align-items:center;padding:8px 12px;border-bottom:1px solid #22d3ee;background:rgba(34,211,238,0.1);border-radius:8px 8px 0 0;">'+
+        '<span style="flex:1;font-size:12px;font-weight:bold;color:#22d3ee;">玩家资讯</span>'+
+        '<span id="__gmp_player_modal_close" style="cursor:pointer;font-size:18px;color:#e94560;font-weight:bold;line-height:1;" title="关闭">✕</span>'+
+      '</div>'+
+      '<div id="__gmp_player_body" style="padding:12px;overflow-y:auto;flex:1;text-align:center;color:#888;">查询中...</div>'+
+    '</div>';
+    document.body.appendChild(m);
+    // Close handlers
+    var closeFn=function(){m.remove();};
+    document.getElementById('__gmp_player_modal_close').onclick=closeFn;
+    // Click outside the card to close
+    m.onclick=function(e){if(e.target===m)closeFn();};
+
+    if(window.__wbSocket){window.__wbSocket.emit('viewPlayer',[name]);}
+    var mn=name;
+    var deadline=Date.now()+6000;
+    var polling=setInterval(function(){
+      var msgOk=document.querySelector('#msg-ok');
+      if(msgOk){
+        var msgText=document.querySelector('#msg-text');
+        if(msgText&&msgText.textContent.indexOf('查无此玩家')>-1){
+          clearInterval(polling);
+          var b=document.getElementById('__gmp_player_body');
+          if(b)b.innerHTML='<span style="color:#e94560;">查无此玩家（可能已改名或删除角色）</span>';
+          window.__gmPlayerHistory=window.__gmPlayerHistory.filter(function(h){return h.name!==mn;});
+          __gmPlayerHistorySave();
+          __gmPlayerLookupRenderHistory();
+          msgOk.click();
+          return;
+        }
+      }
+      var pp=document.querySelector('.pp-box');if(!pp){
+        if(Date.now()>deadline){clearInterval(polling);document.getElementById('__gmp_player_body').innerHTML='<span style="color:#e94560;">查询超时</span>';}
+        return;
+      }
+      var body=document.getElementById('pp-body');
+      var el=document.getElementById('__gmp_player_body');
+      if(el&&body)el.innerHTML=body.outerHTML;
+      var info=__gmPlayerParseInfo();
+      __gmPlayerAddHistory(mn, info);
+      __gmPlayerLookupRenderHistory();
+      if(pp){pp.style.display='none';}
+      clearInterval(polling);
+    },300);
+  };
+
+  // Silent refresh (no modal)
+  function __gmPlayerSilentRefreshByName(name, callback){
+    if(window.__wbSocket){window.__wbSocket.emit('viewPlayer',[name]);}
+    var deadline=Date.now()+5000;
+    var polling=setInterval(function(){
+      var msgOk=document.querySelector('#msg-ok');
+      if(msgOk){
+        var msgText=document.querySelector('#msg-text');
+        if(msgText&&msgText.textContent.indexOf('查无此玩家')>-1){
+          clearInterval(polling);
+          msgOk.click();
+          window.__gmPlayerHistory=window.__gmPlayerHistory.filter(function(h){return h.name!==name;});
+          __gmPlayerHistorySave();
+          __gmPlayerLookupRenderHistory();
+          if(callback)callback();return;
+        }
+      }
+      var pp=document.querySelector('.pp-box');if(!pp){if(Date.now()>deadline){clearInterval(polling);if(callback)callback();}return;}
+      var info=__gmPlayerParseInfo();
+      if(pp){pp.style.display='none';}
+      clearInterval(polling);
+      for(var j=0;j<window.__gmPlayerHistory.length;j++){
+        if(window.__gmPlayerHistory[j].name===name&&info){
+          window.__gmPlayerHistory[j].cls=info.cls;
+          window.__gmPlayerHistory[j].lv=info.lv;
+          window.__gmPlayerHistory[j].status=info.status;
+          window.__gmPlayerHistory[j].location=info.location;
+          break;
+        }
+      }
+      __gmPlayerHistorySave();
+      __gmPlayerLookupRenderHistory();
+      if(callback)callback();
+    },300);
+  }
+
+  function __gmPlayerRefreshAllSilent(){
+    if(window.__gmPlayerRefreshing)return;
+    if(!window.__gmPlayerHistory.length)return;
+    window.__gmPlayerRefreshing=true;
+    var queue=window.__gmPlayerHistory.map(function(h){return h.name;});
+    function next(i){
+      if(i>=queue.length){window.__gmPlayerRefreshing=false;return;}
+      __gmPlayerSilentRefreshByName(queue[i], function(){
+        setTimeout(function(){next(i+1);}, 600);
+      });
+    }
+    next(0);
+  }
+
+  function __gmPlayerToggleAutoRefresh(){
+    var chk=document.getElementById('__gmp_player_auto_refresh');
+    if(!chk)return;
+    if(chk.checked){
+      console.log('[GM] Player auto-refresh ON (every 60s)');
+      __gmPlayerRefreshAllSilent();
+      window.__gmPlayerRefreshTimer=setInterval(__gmPlayerRefreshAllSilent, 60000);
+    } else {
+      console.log('[GM] Player auto-refresh OFF');
+      if(window.__gmPlayerRefreshTimer){clearInterval(window.__gmPlayerRefreshTimer);window.__gmPlayerRefreshTimer=null;}
+    }
+  }
+
+  // Export selected (checked) players
+  function __gmPlayerExportSelected(){
+    var cbs=document.querySelectorAll('.__gmp_player_cb:checked');
+    if(!cbs.length){alert('请先勾选要汇出的好友');return;}
+    var selected=[];
+    for(var i=0;i<cbs.length;i++){
+      var idx=parseInt(cbs[i].getAttribute('data-idx'));
+      if(!isNaN(idx)&&window.__gmPlayerHistory[idx])selected.push(window.__gmPlayerHistory[idx]);
+    }
+    var json=JSON.stringify(selected,null,2);
+    var blob=new Blob([json],{type:'application/json'});
+    var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='friends-export.json';a.click();
+    URL.revokeObjectURL(a.href);
+    console.log('[GM] Exported '+selected.length+' players');
+  }
+
+  // Import friends from JSON
+  function __gmPlayerImportFile(file){
+    var reader=new FileReader();
+    reader.onload=function(e){
+      try{
+        var data=JSON.parse(e.target.result);
+        if(!Array.isArray(data)){alert('格式错误：需为数组');return;}
+        var added=0;
+        for(var i=0;i<data.length;i++){
+          if(!data[i].name)continue;
+          var exists=false;
+          for(var j=0;j<window.__gmPlayerHistory.length;j++){if(window.__gmPlayerHistory[j].name===data[i].name){exists=true;break;}}
+          if(!exists){
+            window.__gmPlayerHistory.push({
+              name:data[i].name,
+              cls:data[i].cls||'',
+              lv:data[i].lv||'',
+              status:data[i].status||'offline',
+              location:data[i].location||'离线',
+              ts:'--:--',
+              fav:!!data[i].fav
+            });
+            added++;
+          }
+        }
+        __gmPlayerHistorySave();
+        __gmPlayerLookupRenderHistory();
+        alert('已汇入 '+added+' 位好友');
+      }catch(ex){alert('JSON 解析失败：'+ex.message);}
+    };
+    reader.readAsText(file);
+  }
+
+  // Bind events
+  document.getElementById('__gmp_player_lookup').onclick=function(){
+    var inp=document.getElementById('__gmp_player_name');var n=(inp.value||'').trim();if(!n)return;
+    window.__gmPlayerShowModal(n);
+    inp.value='';
+  };
+  document.getElementById('__gmp_player_name').onkeydown=function(e){if(e.key==='Enter')document.getElementById('__gmp_player_lookup').click();};
+  document.getElementById('__gmp_player_export_sel').onclick=__gmPlayerExportSelected;
+  document.getElementById('__gmp_player_import').onclick=function(){document.getElementById('__gmp_player_import_file').click();};
+  document.getElementById('__gmp_player_import_file').onchange=function(e){if(e.target.files[0])__gmPlayerImportFile(e.target.files[0]);};
+  __gmPlayerHistoryLoad();
+  var _arChk=document.getElementById('__gmp_player_auto_refresh');
+  if(_arChk)_arChk.onchange=__gmPlayerToggleAutoRefresh;
+document.getElementById('__gmp_skill_read').onclick = __pmReadFromGame;
   document.getElementById('__gmp_skill_clear').onclick = function() {
     window.__pmAuto = {boxes: [], all: {}, gameEls: {}};
     __pmRenderSkillList();
