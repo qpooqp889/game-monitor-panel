@@ -2414,7 +2414,7 @@ function __gmBuildPanel(){
     __gmPlayerHistorySave();
   }
 
-  window.__gmPlayerShowModal=function(name){
+  window.__gmPlayerShowModal=function(name,autoClose){
     var old=document.getElementById('__gmp_player_modal');if(old)old.remove();
     var m=document.createElement('div');m.id='__gmp_player_modal';
     m.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:transparent;z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding-top:40px;pointer-events:none;';
@@ -2470,7 +2470,7 @@ function __gmBuildPanel(){
       __gmPlayerLookupRenderHistory();
       if(pp){pp.style.display='none';}
       clearInterval(polling);
-      closeFn();
+      if(autoClose)closeFn();
     },300);
   };
 
@@ -2594,7 +2594,7 @@ function __gmBuildPanel(){
 
   document.getElementById('__gmp_player_lookup').onclick=function(){
     var inp=document.getElementById('__gmp_player_name');var n=(inp.value||'').trim();if(!n)return;
-    window.__gmPlayerShowModal(n);
+    window.__gmPlayerShowModal(n,true);
     inp.value='';
   };
   document.getElementById('__gmp_player_name').onkeydown=function(e){if(e.key==='Enter')document.getElementById('__gmp_player_lookup').click();};
@@ -3761,8 +3761,12 @@ document.addEventListener('__gm_show_panel',function(){__gmBuildPanel()});
     if(modal.parentNode)modal.remove();
     console.log('[AutoStart] Starting scripts...');
     try{ startFarming(); }catch(e){ console.warn('[AutoStart] startFarming failed:',e.message); }
-    try{ if(typeof __wbBossAutoScriptStart==='function') __wbBossAutoScriptStart(); }catch(e){ console.warn('[AutoStart] BossScript failed:',e.message); }
-    try{ __wbBossAutoStart(); }catch(e){ console.warn('[AutoStart] BossAuto failed:',e.message); }
+    try{
+      var cb=document.getElementById('__gmp_boss_auto_enable');
+      if(cb&&!cb.checked){cb.checked=true;cb.dispatchEvent(new Event('change',{bubbles:true}));}
+      if(typeof __wbBossAutoScriptStart==='function') __wbBossAutoScriptStart();
+      __wbBossAutoStart();
+    }catch(e){ console.warn('[AutoStart] Boss scripts failed:',e.message); }
   }
 
   function doCancel(){
