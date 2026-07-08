@@ -1370,8 +1370,9 @@ function __gmBuildPanel(){
         '</div>'+
         '<div id="__gmp_status_summary" style="font-size:10px;color:#aaa;margin-top:4px;padding:6px;background:rgba(0,0,0,0.2);border-radius:4px;max-height:200px;overflow-y:auto;"></div>'+
       '</div>'+
+    '</div>'+
 
-        // === FRIEND TAB ===
+    // === FRIEND TAB ===
     '<div id="__gmp_tab_content_friend" style="display:none;">'+
       '<div style="background:rgba(34,211,238,0.06);padding:8px;border-radius:6px;margin-bottom:8px;">'+
         '<div style="font-size:11px;color:#22d3ee;font-weight:bold;margin-bottom:6px;">🔍 好友查詢</div>'+
