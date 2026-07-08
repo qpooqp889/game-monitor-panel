@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v3.91';
+var ver='v3.92';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -1122,8 +1122,14 @@ function __gmBuildPanel(){
 '<input type="checkbox" id="__gmp_boss_auto_script_enable" style="width:16px;height:16px;cursor:pointer;">'+
 '<label for="__gmp_boss_auto_script_enable" style="font-size:12px;color:#4caf50;font-weight:bold;cursor:pointer;">\uD83C\uDFAF 自動進入世界王</label>'+
 '<span id="__gmp_boss_script_status" style="font-size:9px;color:#888;margin-left:4px;">\u00B7 閒置中</span>'+
-'<select id="__gmp_boss_script_mode" style="background:#1a3a1a;color:#fbbf24;border:1px solid #4ade80;border-radius:4px;padding:1px 3px;font-size:9px;margin-left:4px;cursor:pointer;"><option value="scheduled">智能模式</option><option value="realtime">即時模式</option></select><button id="__gmp_debug_export_btn" style="margin-left:auto;padding:2px 8px;background:#1a1a3a;border:1px solid #ffd700;color:#ffd700;border-radius:3px;cursor:pointer;font-size:9px;" title="匯出 Debug Log 到 Console (F12)" data-wb-action="exportDebug">📋 匯出Log</button>'+
-'</div>'+'<div style="display:flex;align-items:center;gap:2px;margin-top:4px;margin-bottom:4px;">'+
+'<select id="__gmp_boss_script_mode" style="background:#1a3a1a;color:#fbbf24;border:1px solid #4ade80;border-radius:4px;padding:1px 3px;font-size:9px;margin-left:4px;cursor:pointer;"><option value="cron">定時模式</option><option value="scheduled">智能模式</option><option value="realtime">即時模式</option></select><button id="__gmp_debug_export_btn" style="margin-left:auto;padding:2px 8px;background:#1a1a3a;border:1px solid #ffd700;color:#ffd700;border-radius:3px;cursor:pointer;font-size:9px;" title="匯出 Debug Log 到 Console (F12)" data-wb-action="exportDebug">📋 匯出Log</button>'+
+'</div>'+
+'<div id="__gmp_cron_config" style="display:none;padding:4px 8px;background:rgba(255,215,0,0.06);border-radius:4px;margin-bottom:4px;font-size:10px;color:#ffd700;">'+
+  '<span>每整點 </span><input id="__gmp_cron_start_min" type="number" value="58" min="0" max="59" style="width:36px;padding:2px 4px;background:#2a2a4a;border:1px solid #0f3460;border-radius:3px;color:#fff;font-size:10px;outline:none;text-align:center;">'+
+  '<span> 分開始偵測BOSS & 戰鬥， </span><input id="__gmp_cron_stop_min" type="number" value="2" min="0" max="59" style="width:36px;padding:2px 4px;background:#2a2a4a;border:1px solid #0f3460;border-radius:3px;color:#fff;font-size:10px;outline:none;text-align:center;">'+
+  '<span> 分停止並恢復掛機</span>'+
+'</div>'+
+'<div style="display:flex;align-items:center;gap:2px;margin-top:4px;margin-bottom:4px;">'+
 '<input type="checkbox" id="__gmp_boss_auto_reenter" style="width:13px;height:13px;cursor:pointer;">'+
 '<label for="__gmp_boss_auto_reenter" style="font-size:11px;color:#86c5ff;cursor:pointer;">\u2620 \u6b7b\u4ea1\u81ea\u52a8\u56de\u5927\u5385\u91cd\u8fdb\u672c\u6b21\u4e16\u754c\u738b</label>'+
 '</div>'+
@@ -2492,7 +2498,7 @@ function __gmBuildPanel(){
           if(callback)callback();return;
         }
       }
-      var pp=document.querySelector('.pp-box');if(!pp){if(Date.now()>deadline){clearInterval(polling);if(callback)callback();}return;}
+      var pp=document.querySelector('.pp-box');if(!pp){if(Date.now()>deadline){clearInterval(polling);try{var ppPop3=document.getElementById('pp-popup');if(ppPop3)ppPop3.classList.add('hidden');}catch(e){}if(callback)callback();}return;}
       var info=__gmPlayerParseInfo();
       var ppPop2=document.getElementById('pp-popup');
       try{ppPop2.classList.add('hidden');}catch(e){}
@@ -3800,11 +3806,14 @@ document.addEventListener('__gm_show_panel',function(){__gmBuildPanel()});
 document.addEventListener('change',function(e){
     var t=e.target;
     if(t && t.id==='__gmp_boss_script_mode'){
-      var mode=t.value;console.log('[BossScript] Mode changed to:'+mode);
+  var _mode=t.value;console.log('[BossScript] Mode changed to:'+_mode);
       // 寫入 runtime state
-      if(window.__wbBossAutoScript)window.__wbBossAutoScript.mode=mode;
+      if(window.__wbBossAutoScript)window.__wbBossAutoScript.mode=_mode;
+      // 顯示/隱藏定時設定
+      var cronDiv=document.getElementById('__gmp_cron_config');
+      if(cronDiv)cronDiv.style.display=(_mode==='cron')?'block':'none';
       // 儲存到 chrome.storage
-      if(typeof __wbSaveBossScriptMode==='function')__wbSaveBossScriptMode(mode);
+      if(typeof __wbSaveBossScriptMode==='function')__wbSaveBossScriptMode(_mode);
     }
   });
 console.log('[GM] Monitor injected '+ver);

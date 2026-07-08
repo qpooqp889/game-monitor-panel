@@ -185,7 +185,7 @@ function __wbHuntDeleteSelected(){
 // ====== BOSS 自動腳本狀態 ======
 // 全域狀態物件：running/停止中、timer/排程器、currentIdx/目前索引、phase/階段、farmWasRunning/農怪是否先前執行中
 window.__wbBossAutoScript={running:false,timer:null,currentIdx:0,phase:'idle',farmWasRunning:false,
-mode:'scheduled',respawnTimer:null,respawnBoss:null,respawnAttempts:0};
+mode:'cron',respawnTimer:null,respawnBoss:null,respawnAttempts:0};
 // mode: 'scheduled' (盯第一個+重生計時) 或 'realtime' (每輪掃全部)
 // respawnTimer: 重生專屬計時器
 // respawnBoss: 正在等重生的 BOSS 物件
@@ -205,12 +205,30 @@ function __wbLoadBossScriptMode(){
   __gmStorageGet('wb_script_mode',function(v){
     var el=document.getElementById('__gmp_boss_script_mode');
     if(el&&v)el.value=v;
-    window.__wbBossAutoScript.mode=v||'scheduled';
+    window.__wbBossAutoScript.mode=v||'cron';
+    // 載入 cron 設定
+    if(window.__gmStorageGet){
+      window.__gmStorageGet('wb_cron_config',function(cfg){
+        if(cfg){
+          var s=document.getElementById('__gmp_cron_start_min');
+          if(s&&cfg.startMin!=null)s.value=cfg.startMin;
+          var t=document.getElementById('__gmp_cron_stop_min');
+          if(t&&cfg.stopMin!=null)t.value=cfg.stopMin;
+        }
+        // 顯示/隱藏 cron panel
+        var cd=document.getElementById('__gmp_cron_config');
+        if(cd)cd.style.display=(window.__wbBossAutoScript.mode==='cron')?'block':'none';
+      });
+    }
   });
 }
 function __wbSaveBossScriptMode(m){
   window.__wbBossAutoScript.mode=m;
   if(window.__gmStorageSet)window.__gmStorageSet('wb_script_mode',{mode:m});
+  // 同時儲存 cron 參數
+  var s=document.getElementById('__gmp_cron_start_min');
+  var t=document.getElementById('__gmp_cron_stop_min');
+  if(window.__gmStorageSet)window.__gmStorageSet('wb_cron_config',{startMin:parseInt(s?s.value:'58')||58, stopMin:parseInt(t?t.value:'2')||2});
 }
 
 
@@ -302,7 +320,47 @@ function __wbBossAutoScriptLoop(){
   if(!window.__wbBossAutoScript.running)return;
   var cfgChk=document.getElementById('__gmp_boss_auto_script_enable');
   if(!cfgChk||!cfgChk.checked){__wbBossAutoScriptStop();return;}
-  var mode=window.__wbBossAutoScript.mode||'scheduled';
+  var mode=window.__wbBossAutoScript.mode||'cron';
+  // === 定時模式：檢查目前時間是否在設定的分鐘區間內 ===
+  if(mode==='cron'){
+    var startEl=document.getElementById('__gmp_cron_start_min');
+    var stopEl=document.getElementById('__gmp_cron_stop_min');
+    var startMin=parseInt(startEl?startEl.value:'58')||58;
+    var stopMin=parseInt(stopEl?stopEl.value:'2')||2;
+    var d=new Date();
+    var cm=d.getMinutes();
+    var inWindow;
+    if(startMin<=stopMin){
+      // 正常區間 ex: start=0, stop=30
+      inWindow=cm>=startMin&&cm<stopMin;
+    }else{
+      // 跨小時區間 ex: start=58, stop=2 → 58~59 + 0~1
+      inWindow=cm>=startMin||cm<stopMin;
+    }
+    if(!inWindow){
+      window.__wbBossAutoScript.phase='idle';
+      var stEl=document.getElementById('__gmp_boss_script_status');
+      if(stEl)stEl.textContent='\u23F3 '+startMin+'~'+stopMin+'\u5206 \u7B49\u5F85\u4E2D';
+      console.log('[WB-Cron] Outside window (curr='+cm+' window=['+startMin+','+stopMin+')), check again in 15s');
+      // 如果掛機被暫停了，恢復掛機
+      if(window.__wbBossAutoScript.farmWasRunning&&window.startFarming){
+        window.__wbBossAutoScript.farmWasRunning=false;
+        console.log('[WB-Cron] Restoring farming');
+        window.startFarming();
+      }
+      window.__wbBossAutoScript.timer=setTimeout(__wbBossAutoScriptLoop,15000);
+      return;
+    }
+    // Inside window: run scheduled scan
+    var stEl2=document.getElementById('__gmp_boss_script_status');
+    if(stEl2)stEl2.textContent='\u23F0 \u5B9A\u6642\u6383\u63CF\u4E2D...';
+    // 如果掛機還在跑，先停止以便專心打 BOSS
+    if(window.__gmFarming&&window.__gmFarming.running&&window.stopFarming){
+      window.__wbBossAutoScript.farmWasRunning=true;
+      window.stopFarming();
+      console.log('[WB-Cron] Stopped farming for boss window');
+    }
+  }
   __wbGetHuntList(function(list){
     if(!list||!list.length){
       window.__wbBossAutoScript.phase='idle';
