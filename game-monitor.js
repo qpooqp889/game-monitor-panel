@@ -1,4 +1,4 @@
-﻿(function(){
+(function(){
 var ver='v3.89';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
@@ -2302,9 +2302,43 @@ function __gmBuildPanel(){
       }
     }
     if(info.status==='fighting'&&info.location==='\u96E2\u7DDA')info.location='\u6230\u9B25\u4E2D';
+    // Parse equipment from pp-box
+    var ppBox=document.querySelector('.pp-box');
+    if(ppBox){
+      var equipRows=ppBox.querySelectorAll('[class*="equip"], [class*="item"], .pp-row');
+      var equip={},stats={};
+      for(var k=0;k<equipRows.length;k++){
+        var row=equipRows[k];
+        var txt2=(row.textContent||'').trim();
+        if(!txt2)continue;
+        var em=txt2.match(/^(.+?)\s*[+：:]\s*(.+)$|^(.+?)\s+(\d+)\s*$/);
+        if(em){
+          var key=(em[1]||em[3]||'').trim();
+          var val=(em[2]||em[4]||'').trim();
+          if(key&&val)equip[key]=val;
+        } else {
+          // catch all other rows
+          equip['row'+(k+1)]=txt2;
+        }
+      }
+      if(Object.keys(equip).length>0)info.equip=equip;
+      // Try to parse stats from pp-body
+      var body=document.getElementById('pp-body');
+      if(body){
+        var statText=body.textContent||'';
+        var hpM=statText.match(/HP[：:]\s*(\d+)\s*\/\s*(\d+)/);
+        var mpM=statText.match(/MP[：:]\s*(\d+)\s*\/\s*(\d+)/);
+        var atkM=statText.match(/(?:攻擊|ATK)[：:]\s*(\d+)/);
+        var defM=statText.match(/(?:防禦|DEF)[：:]\s*(\d+)/);
+        if(hpM)stats.hp=hpM[1]+'/'+hpM[2];
+        if(mpM)stats.mp=mpM[1]+'/'+mpM[2];
+        if(atkM)stats.atk=atkM[1];
+        if(defM)stats.def=defM[1];
+        if(Object.keys(stats).length>0)info.stats=stats;
+      }
+    }
     return info;
   }
-
   function __gmPlayerStatusDot(status){
     if(status==='online')return '<span style=\"color:#86efac\">\u25CF</span>';
     if(status==='fighting')return '<span style=\"color:#ff8a6b\">\u25CF</span>';
@@ -2312,9 +2346,9 @@ function __gmBuildPanel(){
   }
 
   function __gmPlayerStatusText(status){
-    if(status==='online')return '\u5728\u7DDA';
-    if(status==='fighting')return '\u6230\u9B25\u4E2D';
-    return '\u96E2\u7DDA';
+    if(status==='online')return '';
+    if(status==='fighting')return '';
+    return '';
   }
 
   window.__gmPlayerDelete=function(idx){
@@ -2325,40 +2359,36 @@ function __gmBuildPanel(){
 
   function __gmPlayerLookupRenderHistory(filter){
     var el=document.getElementById('__gmp_player_history');if(!el)return;
-    if(!window.__gmPlayerHistory.length){el.innerHTML='<span style=\"color:#555;\">\u5C1A\u7121\u67E5\u8A62\u8A18\u9304</span>';return;}
+    if(!window.__gmPlayerHistory.length){el.innerHTML='<span style="color:#555;">\u5C1A\u7121\u67E5\u8A62\u8A18\u9304</span>';return;}
     var sorted=window.__gmPlayerHistory.slice().map(function(h,i){h._idx=i;return h;});
     if(filter){
       var kw=filter.toLowerCase();
       sorted=sorted.filter(function(h){return h.name.toLowerCase().indexOf(kw)>=0;});
     }
     sorted.sort(function(a,b){if(a.fav&&!b.fav)return -1;if(!a.fav&&b.fav)return 1;return b._idx-a._idx;});
-    if(!sorted.length){el.innerHTML='<span style=\"color:#555;\">\u7121\u7B26\u5408\u689D\u4EF6\u7684\u8A18\u9304</span>';return;}
-    el.innerHTML=sorted.map(function(h){
+    if(!sorted.length){el.innerHTML='<span style="color:#555;">\u7121\u7B26\u5408\u689D\u4EF6\u7684\u8A18\u9304</span>';return;}
+    el.innerHTML='<div style="max-height:500px;overflow-y:auto;">'+sorted.map(function(h){
       var star=h.fav?'\u2605':'\u2606';
       var starColor=h.fav?'#fbbf24':'#888';
       var sc=h.name.replace(/'/g,"\\'");
       var six=h._idx;
       var clsLv=(h.cls?' '+h.cls+' Lv'+h.lv:'');
       var dot=__gmPlayerStatusDot(h.status||'offline');
-      var stText=__gmPlayerStatusText(h.status||'offline');
       var loc=h.location||'\u96E2\u7DDA';
-      var locColor=(h.status==='fighting')?'#ff8a6b':'#fbbf24';
-      return '<div style=\"padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04);\">'+
-        '<div style=\"display:flex;align-items:center;gap:3px;\">'+
-          '<input type=\"checkbox\" class=\"__gmp_player_cb\" data-idx=\"'+six+'\" style=\"width:10px;height:10px;cursor:pointer;margin:0;\">'+
-          '<span style=\"cursor:pointer;font-size:16px;color:'+starColor+';\" onclick=\"event.stopPropagation();'+
-            'window.__gmPlayerToggleFav('+six+');\">'+star+'</span>'+
-          '<span style=\"font-size:20px;\">'+dot+'</span>'+
-          '<span style=\"font-size:9px;color:#777;\">'+clsLv+'</span>'+
-          '<span style=\"font-size:20pt;color:'+(h.status==='fighting'?'#ff8a6b':(h.status==='online'?'#86efac':'#555'))+';\">'+stText+'</span>'+
-          '<span style=\"flex:1;cursor:pointer;color:#22d3ee;font-size:20pt;font-weight:bold;\" onclick=\"window.__gmPlayerShowModal(\x27'+sc+'\x27)\">'+h.name+'</span>'+
-          '<span style=\"cursor:pointer;font-size:9px;color:#e94560;padding:0 2px;\" onclick=\"event.stopPropagation();window.__gmPlayerDelete('+six+');\" title=\"\u522A\u9664\">\u2715</span>'+
+      return '<div style="padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04);">'+
+        '<div style="display:flex;align-items:center;gap:4px;">'+
+          '<input type="checkbox" class="__gmp_player_cb" data-idx="'+six+'" style="width:10px;height:10px;cursor:pointer;margin:0;">'+
+          '<span style="cursor:pointer;font-size:16px;color:'+starColor+';" onclick="event.stopPropagation();'+
+            'window.__gmPlayerToggleFav('+six+');">'+star+'</span>'+
+          '<span style="font-size:20px;">'+dot+'</span>'+
+          '<span style="font-size:20px;color:#fff;font-weight:bold;">'+clsLv+'</span>'+
+          '<span style="flex:1;cursor:pointer;color:#fbbf24;font-size:20pt;font-weight:bold;" onclick="window.__gmPlayerShowModal(\x27'+sc+'\x27)">'+h.name+'</span>'+
+          '<span style="cursor:pointer;font-size:9px;color:#e94560;padding:0 2px;" onclick="event.stopPropagation();window.__gmPlayerDelete('+six+');" title="\u522A\u9664">\u2715</span>'+
         '</div>'+
-        '<div style=\"font-size:14px;color:'+locColor+';padding-left:49px;\">'+loc+'</div>'+
+        '<div style="font-size:14px;color:#86efac;padding-left:49px;">'+loc+'</div>'+
       '</div>';
-    }).join('');
+    }).join('')+'</div>';
   }
-
   window.__gmPlayerToggleFav=function(idx){
     var h=window.__gmPlayerHistory[idx]; if(!h)return;
     h.fav=!h.fav;
@@ -2513,7 +2543,13 @@ function __gmBuildPanel(){
     var selected=[];
     for(var i=0;i<cbs.length;i++){
       var idx=parseInt(cbs[i].getAttribute('data-idx'));
-      if(!isNaN(idx)&&window.__gmPlayerHistory[idx])selected.push(window.__gmPlayerHistory[idx]);
+      if(!isNaN(idx)&&window.__gmPlayerHistory[idx]){
+        var h=window.__gmPlayerHistory[idx];
+        var o={name:h.name,cls:h.cls,lv:h.lv,status:h.status,location:h.location,ts:h.ts,fav:!!h.fav};
+        if(h.equip)o.equip=h.equip;
+        if(h.stats)o.stats=h.stats;
+        selected.push(o);
+      }
     }
     var json=JSON.stringify(selected,null,2);
     var blob=new Blob([json],{type:'application/json'});
@@ -2521,7 +2557,6 @@ function __gmBuildPanel(){
     URL.revokeObjectURL(a.href);
     console.log('[GM] Exported '+selected.length+' players');
   }
-
   function __gmPlayerImportFile(file){
     var reader=new FileReader();
     reader.onload=function(e){
