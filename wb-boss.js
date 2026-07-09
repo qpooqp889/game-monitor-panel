@@ -399,12 +399,21 @@ function __wbCronQuickProcess(idx){
     as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},300);
     return;
   }
-  // 狂點 3 次，每次間隔 ~300ms
+  // 狂點 3 次，每次間隔 ~300ms，每次檢查 msg-ok（未重生對話框）
   var clicks=0;
   function spamClick(){
     clicks++;
     try{card.click();}catch(e){}
     console.log('[WB-CronQuick] Click '+clicks+' on '+tgt.name);
+    // 檢查是否已出現 msg-ok（BOSS 未重生）
+    var msgOk=document.getElementById('msg-ok');
+    if(msgOk){
+      console.log('[WB-CronQuick] msg-ok on click #'+clicks+', boss '+tgt.name+' not respawned, skipping');
+      try{msgOk.click();}catch(e){}
+      window.__wbCronQuick.done[tgt.id]=true;
+      as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},300);
+      return;
+    }
     if(clicks<3){setTimeout(spamClick,300); return;}
     // 點完後等待進場
     console.log('[WB-CronQuick] Done spamming, waiting for boss combat...');
@@ -418,6 +427,26 @@ function __wbCronQuickWaitCombat(tgt,idx){
   var waited=0;
   function check(){
     waited+=500;
+
+    // 檢查 msg-ok（未重生對話框 → 點確定 → 跳下一位）
+    var msgOk=document.getElementById('msg-ok');
+    if(msgOk){
+      console.log('[WB-CronQuick] msg-ok found, boss '+tgt.name+' not respawned, skipping');
+      try{msgOk.click();}catch(e){}
+      window.__wbCronQuick.done[tgt.id]=true;
+      as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},300);
+      return;
+    }
+
+    // 檢查 br-lobby（擊敗結算畫面 → 觸發離開流程 → 跳下一位）
+    var lobbyBtn=document.getElementById('br-lobby');
+    if(lobbyBtn){
+      console.log('[WB-CronQuick] br-lobby found during wait, triggering defeat flow for '+tgt.name);
+      window.__wbCronQuick.currentTarget=tgt;
+      __wbCronQuickHandleDefeat(tgt, idx, null);
+      return;
+    }
+
     // 檢查是否已進入戰鬥 (lastState.mode === 'boss' 或 'bosscombat')
     var ls=window.lastState||{};
     if(ls.mode==='boss'||ls.mode==='bosscombat'){
