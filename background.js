@@ -1,4 +1,4 @@
-// background.js - Chrome Debugger for WebSocket monitoring
+﻿// background.js - Chrome Debugger for WebSocket monitoring
 var activeTabId = null;
 var isMonitoring = false;
 var packets = { send: [], receive: [] };
@@ -24,6 +24,50 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
   }
 });
 
+
+
+function doWindowAction(sender, gameTabId, sendResponse, targetState) {
+  var tabId = (sender && sender.tab && sender.tab.id) || gameTabId;
+  var windowId = sender && sender.tab && sender.tab.windowId;
+  console.log('[GM Background] doWindowAction', targetState, 'tabId=', tabId, 'winId=', windowId, 'senderTab=', !!(sender&&sender.tab));
+  if (!tabId) { sendResponse({ success: false, error: 'No tabId' }); return; }
+  
+  function doIt(wid) {
+    if (!wid) { sendResponse({ success: false, error: 'No windowId' }); return; }
+    console.log('[GM Background] Updating window', wid, 'state=', targetState);
+    var props = targetState === 'minimized' ? { state: 'minimized' } : { state: 'normal', focused: true };
+    chrome.windows.update(wid, props, function(win) {
+      if (chrome.runtime.lastError) {
+        console.error('[GM Background] windows.update error:', chrome.runtime.lastError.message);
+        sendResponse({ success: false, error: chrome.runtime.lastError.message });
+        return;
+      }
+      if (targetState !== 'minimized') {
+        chrome.tabs.update(tabId, { active: true }, function() {
+          if (chrome.runtime.lastError) console.error('[GM Background] tabs.update error:', chrome.runtime.lastError.message);
+          console.log('[GM Background] Focused window', wid, 'tab', tabId);
+          sendResponse({ success: true });
+        });
+      } else {
+        console.log('[GM Background] Minimized window', wid);
+        sendResponse({ success: true });
+      }
+    });
+  }
+
+  if (windowId) {
+    doIt(windowId);
+  } else {
+    chrome.tabs.get(tabId, function(tab) {
+      if (chrome.runtime.lastError) {
+        console.error('[GM Background] tabs.get error:', chrome.runtime.lastError.message);
+        sendResponse({ success: false, error: chrome.runtime.lastError.message });
+        return;
+      }
+      doIt(tab.windowId);
+    });
+  }
+}
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   if (request.action === 'registerGameTab') {
     // 來自 content script：註冊遊戲分頁 ID
@@ -55,47 +99,12 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     chrome.tabs.sendMessage(request.tabId, { action: 'sendWS', data: request.data }, sendResponse);
     return true;
 
-  } else if (request.action === 'minimizeGameWindow') {
-    // content script 要求將遊戲視窗最小化
-    var tabId2 = sender.tab ? sender.tab.id : gameTabId;
-    if (tabId2) {
-      chrome.tabs.get(tabId2, function(tab) {
-        var wid = tab.windowId;
-        if (wid) {
-          chrome.windows.update(wid, { state: 'minimized' }, function() {
-            console.log('[GM Background] Minimized window', wid);
-            sendResponse({ success: true });
-          });
-        } else {
-          sendResponse({ success: false, error: 'No windowId' });
-        }
-      });
-    } else {
-      sendResponse({ success: false, error: 'No tabId' });
-    }
+    } else if (request.action === 'minimizeGameWindow') {
+    doWindowAction(sender, gameTabId, sendResponse, 'minimized');
     return true;
 
   } else if (request.action === 'focusGameWindow') {
-    // content script 要求將遊戲視窗拉到最前面
-    var tabId = sender.tab ? sender.tab.id : gameTabId;
-    if (tabId) {
-      chrome.tabs.get(tabId, function(tab) {
-        var wid = tab.windowId;
-        if (wid) {
-          // state:normal 確保不是最小化，focused:true 拉到最前
-          chrome.windows.update(wid, { state: 'normal', focused: true }, function() {
-            chrome.tabs.update(tabId, { active: true }, function() {
-              console.log('[GM Background] Focused window', wid, 'tab', tabId);
-              sendResponse({ success: true });
-            });
-          });
-        } else {
-          sendResponse({ success: false, error: 'No windowId' });
-        }
-      });
-    } else {
-      sendResponse({ success: false, error: 'No tabId' });
-    }
+    doWindowAction(sender, gameTabId, sendResponse, 'normal');
     return true;
 
   } else if (request.action === 'injectScript') {
