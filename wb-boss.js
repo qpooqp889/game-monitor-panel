@@ -336,7 +336,7 @@ function __wbCronQuickStartFocus(){
     }catch(e){
       console.warn('[WB-CronQuick] focusGameWindow failed:',e.message);
     }
-  }, 8000);
+  }, 2000);
 }
 function __wbCronQuickStopFocus(){
   if(window.__wbCronQuick._focusInterval){

@@ -62,7 +62,8 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
       chrome.tabs.get(tabId, function(tab) {
         var wid = tab.windowId;
         if (wid) {
-          chrome.windows.update(wid, { focused: true }, function() {
+          // state:normal 確保不是最小化，focused:true 拉到最前
+          chrome.windows.update(wid, { state: 'normal', focused: true }, function() {
             chrome.tabs.update(tabId, { active: true }, function() {
               console.log('[GM Background] Focused window', wid, 'tab', tabId);
               sendResponse({ success: true });
