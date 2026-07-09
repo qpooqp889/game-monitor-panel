@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v4.14';
+var ver='v4.15';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -3926,7 +3926,7 @@ console.log('[GM] Monitor injected '+ver);
       }
     }
 
-    function addGachaItem(itemName){
+    function addGachaItem(itemName, itemColor){
       var now = new Date();
       var ts = now.getFullYear()+'-'+
         (now.getMonth()+1).toString().padStart(2,'0')+'-'+
@@ -3934,7 +3934,7 @@ console.log('[GM] Monitor injected '+ver);
         now.getHours().toString().padStart(2,'0')+':'+
         now.getMinutes().toString().padStart(2,'0')+':'+
         now.getSeconds().toString().padStart(2,'0');
-      gachaHistory.unshift({name: itemName, time: ts});
+      gachaHistory.unshift({name: itemName, time: ts, color: itemColor || '#4ade80'});
       if (gachaHistory.length > 500) gachaHistory.length = 500;
       updateHistSummary();
       gachaHistSave();
@@ -3951,7 +3951,6 @@ console.log('[GM] Monitor injected '+ver);
       gachaObserver = new MutationObserver(function(){
         var span = msgEl.querySelector('span');
         if (!span) {
-          // check for text content directly
           var text = msgEl.textContent.trim();
           if (text && text.indexOf('恭喜獲得') > -1) {
             var m = text.match(/恭喜獲得\s*(.+?)\s*[！!]?\s*$/);
@@ -3960,7 +3959,8 @@ console.log('[GM] Monitor injected '+ver);
           return;
         }
         var item = span.textContent.trim();
-        if (item) addGachaItem(item);
+        var color = span.style.color || '';
+        if (item) addGachaItem(item, color);
       });
       gachaObserver.observe(msgEl, {childList: true, subtree: true, characterData: true});
       console.log('[Gacha] Observer started on #gacha-msg');
@@ -3972,7 +3972,7 @@ console.log('[GM] Monitor injected '+ver);
       m.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:transparent;z-index:99998;display:flex;align-items:flex-start;justify-content:center;padding-top:40px;pointer-events:none;';
       var items = gachaHistory.map(function(h, i){
         return '<div style="display:flex;align-items:center;padding:4px 0;border-bottom:1px solid rgba(34,211,238,0.1);">'+
-          '<span style="flex:1;color:#4ade80;font-size:14px;font-weight:bold;font-family:sans-serif;">'+h.name+'</span>'+
+          '<span style="flex:1;color:'+(h.color||'#4ade80')+';font-size:14px;font-weight:bold;font-family:sans-serif;">'+h.name+'</span>'+
           '<span style="color:#666;font-size:11px;">'+h.time+'</span>'+
           '</div>';
       }).join('');
