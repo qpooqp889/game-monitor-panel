@@ -314,6 +314,165 @@ function __wbBossAutoScriptStop(){
   }
 }
 
+
+// ====== Cron 快速進入模式：略過優先列表，直接照 DOM 世界王卡片順序逐一搶房 ======
+// 流程：整點 startMin 分觸發 → 停掛機 → 確保 WB tab → 掃全部 .wb-card 照順序
+// → 對當前目標狂點 3 次 → 進場攻擊 → 擊敗後回大廳 → 標記已點過 → 跳下一位
+// → 全部點過或 stopMin 到 → 恢復掛機
+window.__wbCronQuick={done:{},currentIdx:0,targets:[],phase:'idle',timer:null};
+// done: { "wb_sema": true, ... }  已點過的名單
+// targets: [{id, name, card}] 本次輪掃全部卡片
+// currentIdx: 當前處理到的 index
+
+function __wbCronQuickEnter(){
+  var as=window.__wbBossAutoScript;
+  if(!as||!as.running)return;
+  // 檢查時間是否還在窗口內
+  var startEl=document.getElementById('__gmp_cron_start_min');
+  var stopEl=document.getElementById('__gmp_cron_stop_min');
+  var startMin=parseInt(startEl?startEl.value:'58')||58;
+  var stopMin=parseInt(stopEl?stopEl.value:'2')||2;
+  var d=new Date(); var cm=d.getMinutes();
+  var inWindow;
+  if(startMin<=stopMin){inWindow=cm>=startMin&&cm<stopMin;}
+  else{inWindow=cm>=startMin||cm<stopMin;}
+  if(!inWindow){
+    console.log('[WB-CronQuick] Outside window ('+cm+'), stopping');
+    __wbCronQuickReset(); __wbBossAutoScriptRestoreFarm(); return;
+  }
+  // 停止掛機
+  if(window.__gmFarming&&window.__gmFarming.running&&window.stopFarming){
+    as.farmWasRunning=true; window.stopFarming();
+    console.log('[WB-CronQuick] Stopped farming');
+  }
+  // 確保 WB tab
+  try{__wbEnsureWBTab();}catch(e){}
+  // 掃 DOM 所有世界王卡片
+  var cards=document.querySelectorAll('.wb-card[data-boss]');
+  if(!cards||cards.length===0){
+    console.log('[WB-CronQuick] No .wb-card found, retrying in 5s');
+    as.timer=setTimeout(__wbCronQuickEnter,5000); return;
+  }
+  // 建立 target 列表（未點過者）
+  var targets=[];
+  for(var i=0;i<cards.length;i++){
+    var card=cards[i];
+    var bossId=card.getAttribute('data-boss');
+    if(window.__wbCronQuick.done[bossId])continue; // 已點過
+    var nameEl=card.querySelector('.wb-r1 span:first-child');
+    var name=bossId;
+    if(nameEl){var t=nameEl.textContent.trim(); t=t.replace(/^世界王\s*/,''); name=t.split(' ')[0];}
+    targets.push({id:bossId, name:name, card:card});
+  }
+  if(!targets.length){
+    console.log('[WB-CronQuick] All bosses clicked this round, resetting loop');
+    window.__wbCronQuick.done={}; window.__wbCronQuick.currentIdx=0;
+    as.timer=setTimeout(__wbCronQuickEnter,5000); return;
+  }
+  window.__wbCronQuick.targets=targets;
+  window.__wbCronQuick.currentIdx=0;
+  window.__wbCronQuick.phase='spamming';
+  var stEl=document.getElementById('__gmp_boss_script_status');
+  if(stEl)stEl.textContent='⚡ 快速進入: '+targets.length+' 隻待處理';
+  console.log('[WB-CronQuick] Starting quick-enter for '+targets.length+' bosses: '+targets.map(function(t){return t.name;}).join(', '));
+  __wbCronQuickProcess(0);
+}
+
+function __wbCronQuickProcess(idx){
+  var as=window.__wbBossAutoScript;
+  if(!as||!as.running)return;
+  var tgt=window.__wbCronQuick.targets[idx];
+  if(!tgt){
+    console.log('[WB-CronQuick] All done, restarting scan');
+    as.timer=setTimeout(__wbCronQuickEnter,5000); return;
+  }
+  window.__wbCronQuick.currentIdx=idx;
+  window.__wbCronQuick.phase='spamming';
+  var stEl=document.getElementById('__gmp_boss_script_status');
+  if(stEl)stEl.textContent='⚡ 狂點: '+tgt.name+' ('+(idx+1)+'/'+window.__wbCronQuick.targets.length+')';
+  console.log('[WB-CronQuick] Spamming '+tgt.name+' (id='+tgt.id+')...');
+  // 確保 card 還在 DOM
+  var card=document.querySelector('.wb-card[data-boss="'+tgt.id+'"]');
+  if(!card){
+    console.log('[WB-CronQuick] Card gone for '+tgt.name+', marking done & skipping');
+    window.__wbCronQuick.done[tgt.id]=true;
+    as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},300);
+    return;
+  }
+  // 狂點 3 次，每次間隔 ~300ms
+  var clicks=0;
+  function spamClick(){
+    clicks++;
+    try{card.click();}catch(e){}
+    console.log('[WB-CronQuick] Click '+clicks+' on '+tgt.name);
+    if(clicks<3){setTimeout(spamClick,300); return;}
+    // 點完後等待進場
+    console.log('[WB-CronQuick] Done spamming, waiting for boss combat...');
+    __wbCronQuickWaitCombat(tgt,idx);
+  }
+  spamClick();
+}
+
+function __wbCronQuickWaitCombat(tgt,idx){
+  var as=window.__wbBossAutoScript;
+  var waited=0;
+  function check(){
+    waited+=500;
+    // 檢查是否已進入戰鬥 (lastState.mode === 'boss' 或 'bosscombat')
+    var ls=window.lastState||{};
+    if(ls.mode==='boss'||ls.mode==='bosscombat'){
+      console.log('[WB-CronQuick] In combat with '+tgt.name+'! Starting auto-attack');
+      // 標記已進入（不算完成，等擊敗才標記 done）
+      window.__wbCronQuick.currentTarget=tgt;
+      // 確保自動攻擊中
+      if(window.__wbBossAuto&&!window.__wbBossAuto.running){
+        __wbBossAutoStart();
+      }
+      // 啟動 MonitorBossHP 監控
+      if(window.__wbMonitorBossHP)window.__wbMonitorBossHP(tgt.name);
+      __wbDebugStart(tgt.name,'cron-quick');
+      // 註冊擊敗時跳到下一位的回調
+      window.__wbCronQuick._defeating=false;
+      window.__wbCronQuick._nextIdx=idx;
+      return;
+    }
+    if(waited>=10000){
+      console.log('[WB-CronQuick] 10s timeout waiting for combat, marking '+tgt.name+' done & next');
+      window.__wbCronQuick.done[tgt.id]=true;
+      as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},500);
+      return;
+    }
+    setTimeout(check,500);
+  }
+  // 等 2s 讓遊戲載入戰鬥畫面再開始檢查
+  setTimeout(check,2000);
+}
+
+// 擊敗後由 HandleDefeat 呼叫此函數來推進到下一位
+function __wbCronQuickOnDefeat(targetName){
+  var tgt=window.__wbCronQuick.currentTarget;
+  if(tgt){
+    window.__wbCronQuick.done[tgt.id]=true;
+    console.log('[WB-CronQuick] '+tgt.name+' done, '+Object.keys(window.__wbCronQuick.done).length+' bosses completed');
+  }
+  window.__wbCronQuick.currentTarget=null;
+  // 讓 HandleDefeat 處理完回大廳後，延遲 3s 再跳下一位
+  var as=window.__wbBossAutoScript;
+  var nextIdx=window.__wbCronQuick.currentIdx+1;
+  as.timer=setTimeout(function(){__wbCronQuickProcess(nextIdx);},3000);
+}
+
+
+// 重置快速進入狀態（停止時呼叫）
+function __wbCronQuickReset(){
+  window.__wbCronQuick.done={};
+  window.__wbCronQuick.currentIdx=0;
+  window.__wbCronQuick.targets=[];
+  window.__wbCronQuick.phase='idle';
+  window.__wbCronQuick.currentTarget=null;
+  if(window.__wbCronQuick.timer){clearTimeout(window.__wbCronQuick.timer);window.__wbCronQuick.timer=null;}
+  console.log('[WB-CronQuick] Reset');
+}
 // BOSS 自動討伐主循環
 // 依序檢查討伐清單中的每隻 BOSS：找到目標 → 切換頁籤 → 等待資料 → 檢查狀態
 function __wbBossAutoScriptLoop(){
@@ -354,6 +513,13 @@ function __wbBossAutoScriptLoop(){
     // Inside window: run scheduled scan
     var stEl2=document.getElementById('__gmp_boss_script_status');
     if(stEl2)stEl2.textContent='\u23F0 \u5B9A\u6642\u6383\u63CF\u4E2D...';
+
+    // 快速進入模式：略過優先列表，直接掃 DOM 所有世界王卡片
+    var quickChk=document.getElementById('__gmp_cron_quick_enter');
+    if(quickChk&&quickChk.checked){
+      __wbCronQuickEnter();
+      return;
+    }
     // 如果掛機還在跑，先停止以便專心打 BOSS
     if(window.__gmFarming&&window.__gmFarming.running&&window.stopFarming){
       window.__wbBossAutoScript.farmWasRunning=true;
@@ -986,6 +1152,7 @@ function __wbStartRespawnTimer(target,seconds,list){
   window.__wbBossAutoScript.respawnTimer=null;
   window.__wbBossAutoScript.respawnBoss=target;
   window.__wbBossAutoScript.respawnAttempts=0;
+  if(window.__wbCronQuick)__wbCronQuickReset();
   var statusEl=document.getElementById('__gmp_boss_script_status');
   if(statusEl)statusEl.textContent='計時: '+target.name+' '+seconds+'s';
   console.log('[WB-RespawnTimer] '+target.name+' respawn in '+seconds+'s');
@@ -1048,6 +1215,7 @@ function __wbRespawnAttemptCheck(target,list,attempt){
     if(ls.mode==='bosscombat'&&(ls.boss||{}).hp>0){
       console.log('[WB-RespawnTimer] Entered successfully!');
       window.__wbBossAutoScript.respawnAttempts=0;
+  if(window.__wbCronQuick)__wbCronQuickReset();
       window.__wbBossAutoScript.respawnTimer=null;
       window.__wbBossAutoScript.respawnBoss=null;
       window.__wbBossAutoScript.phase='attacking';
@@ -1058,6 +1226,7 @@ function __wbRespawnAttemptCheck(target,list,attempt){
       console.log('[WB-RespawnTimer] 3 attempts failed, moving to next boss');
       __wbAddBossHistory(target.name,'fail_entry','重生3次失敗',0,null);
       window.__wbBossAutoScript.respawnAttempts=0;
+  if(window.__wbCronQuick)__wbCronQuickReset();
       clearTimeout(window.__wbBossAutoScript.respawnTimer);
       window.__wbBossAutoScript.respawnTimer=null;
       window.__wbBossAutoScript.respawnBoss=null;
@@ -1573,6 +1742,68 @@ function __wbBossAutoScriptClickLobby(){
 //   1. 點 #br-lobby (重試到消失) → 2. toLobby + selectChar[0] 回村
 //   3. currentIdx++ → 4. 等待 DOM 就緒 → 5. 交由 Loop 接管
 // 簡化版：不再自行點卡片 / 驗證進場，全部委託 Loop 處理（Loop 已有完整掃描+進場邏輯）
+// ====== Cron 快速進入專用：簡化擊敗處理（點 lobby → 回村 → 跳下一位） ======
+function __wbCronQuickHandleDefeat(target, idx, list){
+  console.log('[WB-CronQuick] HandleDefeat for '+target.name+', routing to quick flow');
+  __wbDebugLog('defeat','BOSS defeated: '+target.name);
+  __wbDebugStop('defeated');
+  __wbAddBossHistory(target.name, 'defeat', '擊敗 BOSS (CronQuick)', 0, null);
+  // 標記 done
+  if(window.__wbCronQuick.currentTarget){
+    window.__wbCronQuick.done[window.__wbCronQuick.currentTarget.id]=true;
+    console.log('[WB-CronQuick] Done: '+window.__wbCronQuick.currentTarget.name+', total done: '+Object.keys(window.__wbCronQuick.done).length);
+  }
+  window.__wbCronQuick._defeating=true;
+  var nextIdx=window.__wbCronQuick.currentIdx+1;
+  var stEl=document.getElementById('__gmp_boss_script_status');
+  if(stEl)stEl.textContent='✅ '+target.name+' 擊敗! 回大廳中...';
+  // Step 1: 點 #br-lobby 直到消失（最多 15 次 ~7.5s）
+  var retries=0;
+  function clickLobby(){
+    retries++;
+    var btn=document.getElementById('br-lobby');
+    if(btn){
+      console.log('[WB-CronQuick] Clicking #br-lobby (attempt '+retries+')');
+      btn.click();
+      setTimeout(function(){
+        if(!document.getElementById('br-lobby')){ doReturn(); }
+        else{ clickLobby(); }
+      },500);
+    }else if(retries<15){
+      setTimeout(clickLobby,500);
+    }else{
+      console.log('[WB-CronQuick] #br-lobby not found, force continue');
+      doReturn();
+    }
+  }
+  // Step 2: selectChar[0] 回村 → Step 3: 跳下一位
+  function doReturn(){
+    console.log('[WB-CronQuick] Returning to lobby + selectChar[0]');
+    __wbAddBossHistory(target.name, 'leave', '回村: toLobby+selectChar[0] (CronQuick)', 0, null);
+    try{
+      if(window.__wbSocket&&window.__wbSocket.emit){
+        window.__wbSocket.emit('toLobby',[]);
+        setTimeout(function(){
+          if(window.__wbSocket&&window.__wbSocket.emit)window.__wbSocket.emit('selectChar',0);
+        },500);
+      }else if(window.__ws&&window.__ws.readyState===WebSocket.OPEN){
+        window.__ws.send('42["toLobby",[]]');
+        setTimeout(function(){
+          if(window.__ws&&window.__ws.readyState===WebSocket.OPEN)window.__ws.send('42["selectChar",0]');
+        },500);
+      }
+    }catch(e){console.warn('[WB-CronQuick] toLobby/selectChar error:',e.message);}
+    // Step 3: 等 2.5s → 跳下一位
+    if(stEl)stEl.textContent='✅ '+target.name+' → 下一位 ('+(nextIdx+1)+'/...)...';
+    __wbAddBossHistory(target.name, 'leave', 'CronQuick: idx='+nextIdx, 0, null);
+    setTimeout(function(){
+      try{__wbEnsureWBTab();}catch(e){}
+      window.__wbCronQuick._defeating=false;
+      __wbCronQuickProcess(nextIdx);
+    },2500);
+  }
+  clickLobby();
+}
 function __wbBossAutoScriptHandleDefeat(target, idx, list){
   __wbDebugLog('defeat','BOSS defeated: '+target.name);
   __wbDebugStop('defeated');
