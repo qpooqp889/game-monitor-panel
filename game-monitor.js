@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v4.09';
+var ver='v4.10';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -3976,20 +3976,12 @@ console.log('[GM] Monitor injected '+ver);
     }
 
     // Listen for relay responses from content.js (ISOLATED world)
-    window.addEventListener('message', function(e){
-      if(!e.data||!e.data.type)return;
-      if(e.data.type==='GM_WINDOW_FOCUS_RESULT'||e.data.type==='GM_WINDOW_MINIMIZE_RESULT'){
-        var action=e.data.type==='GM_WINDOW_FOCUS_RESULT'?'focusGameWindow':'minimizeGameWindow';
-        if(e.data.success){addLog(action+' OK','#4ade80');}
-        else{addLog(action+' FAIL (relay)','#e94560');}
-      }
-    });
+    // CustomEvent is fire-and-forget; response logged in content.js console
 
     function sendAction(action){
-      var s=++seq;
-      addLog('postMessage: '+action,'#ffd700');
+      addLog('dispatch: '+action,'#ffd700');
       try{
-        window.postMessage({type: action==='focusGameWindow'?'GM_WINDOW_FOCUS':'GM_WINDOW_MINIMIZE', seq:s},'*');
+        document.dispatchEvent(new CustomEvent('__gm_'+action));
       }catch(e){
         addLog(action+' EX: '+e.message,'#e94560');
       }

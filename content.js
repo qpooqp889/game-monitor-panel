@@ -204,20 +204,6 @@ window.addEventListener('message', function(e) {
     }
   }
 
-  // ---------- WINDOW FOCUS / MINIMIZE relay (MAIN world via content.js) ----------
-  if (e.data.type === 'GM_WINDOW_FOCUS') {
-    __gmSafeSendMessage({action:'focusGameWindow'}, function(resp) {
-      window.postMessage({type:'GM_WINDOW_FOCUS_RESULT', success: !!(resp && resp.success), seq: e.data.seq || 0}, '*');
-    });
-    return;
-  }
-  if (e.data.type === 'GM_WINDOW_MINIMIZE') {
-    __gmSafeSendMessage({action:'minimizeGameWindow'}, function(resp) {
-      window.postMessage({type:'GM_WINDOW_MINIMIZE_RESULT', success: !!(resp && resp.success), seq: e.data.seq || 0}, '*');
-    });
-    return;
-  }
-
 });
 
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
@@ -246,3 +232,14 @@ function togglePanel() {
   }
 }
 })();
+// ---------- WINDOW FOCUS / MINIMIZE relay ----------
+document.addEventListener('__gm_focusGameWindow', function() {
+  __gmSafeSendMessage({action:'focusGameWindow'}, function(resp) {
+    console.log('[GM Content] focusGameWindow relay response:', resp);
+  });
+});
+document.addEventListener('__gm_minimizeGameWindow', function() {
+  __gmSafeSendMessage({action:'minimizeGameWindow'}, function(resp) {
+    console.log('[GM Content] minimizeGameWindow relay response:', resp);
+  });
+});
