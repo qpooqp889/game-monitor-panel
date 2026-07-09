@@ -228,7 +228,7 @@ function __wbSaveBossScriptMode(m){
   // 同時儲存 cron 參數
   var s=document.getElementById('__gmp_cron_start_min');
   var t=document.getElementById('__gmp_cron_stop_min');
-  if(window.__gmStorageSet)window.__gmStorageSet('wb_cron_config',{startMin:parseInt(s?s.value:'58')||58, stopMin:parseInt(t?t.value:'2')||2});
+  if(window.__gmStorageSet)window.__gmStorageSet('wb_cron_config',{startMin:parseInt(s?s.value:'0')||0, stopMin:parseInt(t?t.value:'2')||2});
 }
 
 
@@ -351,7 +351,7 @@ function __wbCronQuickEnter(){
   // 檢查時間是否還在窗口內
   var startEl=document.getElementById('__gmp_cron_start_min');
   var stopEl=document.getElementById('__gmp_cron_stop_min');
-  var startMin=parseInt(startEl?startEl.value:'58')||58;
+  var startMin=parseInt(startEl?startEl.value:'0')||0;
   var stopMin=parseInt(stopEl?stopEl.value:'2')||2;
   var d=new Date(); var cm=d.getMinutes();
   var inWindow;
@@ -371,6 +371,14 @@ function __wbCronQuickEnter(){
   }
   // 確保 WB tab
   try{__wbEnsureWBTab();}catch(e){}
+  // ★ 00分進入：先清掉可能殘留的 br-lobby 結算畫面
+  var lbClean=document.getElementById('br-lobby');
+  if(lbClean){
+    console.log('[WB-CronQuick] Window start, cleaning br-lobby');
+    try{lbClean.click();}catch(e){}
+    // 等畫面切換後再繼續
+    return setTimeout(function(){__wbCronQuickEnter();},2000);
+  }
   // 先對 #panel-scroll 滾輪連續滾兩次，確保 lazy-load 卡片全部渲染
   var panel=document.getElementById('panel-scroll');
   if(panel){
@@ -545,6 +553,17 @@ function __wbCronQuickCombatPoll(tgt,idx){
     if(enChk&&!enChk.checked)enChk.checked=true;
   }
 
+  // ★ 每次輪詢都檢查 msg-ok（BOSS 未重生/無法進入等對話框）
+  var _msgOk=document.getElementById('msg-ok');
+  if(_msgOk){
+    console.log('[WB-CronQuick] msg-ok in combat poll, clicking and skipping '+tgt.name);
+    try{_msgOk.click();}catch(e){}
+    window.__wbCronQuick.done[tgt.id]=true;
+    window.__wbCronQuick.currentTarget=null;
+    as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},500);
+    return;
+  }
+
   // HP=0 → 觸發擊敗流程
   if(bossHp<=0&&mode!=='boss'&&mode!=='bosscombat'){
     console.log('[WB-CronQuick] HP=0 detected (mode='+mode+'), waiting for br-lobby...');
@@ -640,7 +659,7 @@ function __wbBossAutoScriptLoop(){
   if(mode==='cron'){
     var startEl=document.getElementById('__gmp_cron_start_min');
     var stopEl=document.getElementById('__gmp_cron_stop_min');
-    var startMin=parseInt(startEl?startEl.value:'58')||58;
+    var startMin=parseInt(startEl?startEl.value:'0')||0;
     var stopMin=parseInt(stopEl?stopEl.value:'2')||2;
     var d=new Date();
     var cm=d.getMinutes();
