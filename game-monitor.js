@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v4.13';
+var ver='v4.14';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -1545,7 +1545,7 @@ function __gmBuildPanel(){
     '      <input id="__gmp_gacha_count" type="number" value="30" min="1" max="999" style="width:55px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;outline:none;text-align:center;">'+
     '      <label style="display:flex;align-items:center;gap:3px;cursor:pointer;font-size:10px;color:#aaa;">'+
     '        <input type="checkbox" id="__gmp_gacha_enable" style="width:14px;height:14px;cursor:pointer;">'+
-    '        <span>每 1 秒自動抽</span>'+
+    '        <span>每 2 秒自動抽</span>'+
     '      </label>'+
     '      <span id="__gmp_gacha_status" style="font-size:10px;color:#888;">--</span>'+
     '      <button id="__gmp_gacha_hist_btn" style="margin-left:auto;padding:2px 8px;background:#2a2a4a;border:1px solid #22d3ee;color:#22d3ee;border-radius:4px;cursor:pointer;font-size:10px;">📋 歷史</button>'+
@@ -4024,7 +4024,7 @@ console.log('[GM] Monitor injected '+ver);
       gachaMax = countEl ? Math.max(1, parseInt(countEl.value)||30) : 30;
       gachaCount = 0;
       if (gachaTimer) clearInterval(gachaTimer);
-      gachaTimer = setInterval(sendGacha, 1000);
+      gachaTimer = setInterval(sendGacha, 2000);
       updateStatus('開始 ' + gachaMax + ' 次');
       startObservingGachaMsg();
     }
