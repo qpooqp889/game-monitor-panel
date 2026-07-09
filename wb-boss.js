@@ -324,6 +324,27 @@ window.__wbCronQuick={done:{},currentIdx:0,targets:[],phase:'idle',timer:null};
 // targets: [{id, name, card}] 本次輪掃全部卡片
 // currentIdx: 當前處理到的 index
 
+
+// ====== CronQuick 自動置前 ======
+window.__wbCronQuick._focusInterval=null;
+function __wbCronQuickStartFocus(){
+  if(window.__wbCronQuick._focusInterval)return;
+  console.log('[WB-CronQuick] Starting foreground focus interval');
+  window.__wbCronQuick._focusInterval = setInterval(function(){
+    try{
+      chrome.runtime.sendMessage({action:'focusGameWindow',windowId:chrome.windows.WINDOW_ID_CURRENT},function(r){});
+    }catch(e){
+      console.warn('[WB-CronQuick] focusGameWindow failed:',e.message);
+    }
+  }, 8000);
+}
+function __wbCronQuickStopFocus(){
+  if(window.__wbCronQuick._focusInterval){
+    clearInterval(window.__wbCronQuick._focusInterval);
+    window.__wbCronQuick._focusInterval=null;
+    console.log('[WB-CronQuick] Stopped foreground focus');
+  }
+}
 function __wbCronQuickEnter(){
   var as=window.__wbBossAutoScript;
   if(!as||!as.running)return;
@@ -338,8 +359,11 @@ function __wbCronQuickEnter(){
   else{inWindow=cm>=startMin||cm<stopMin;}
   if(!inWindow){
     console.log('[WB-CronQuick] Outside window ('+cm+'), stopping');
+    __wbCronQuickStopFocus();
     __wbCronQuickReset(); __wbBossAutoScriptRestoreFarm(); return;
   }
+  // ★ 啟動定時聚焦：每 8 秒把遊戲視窗拉到最前面
+  __wbCronQuickStartFocus();
   // 停止掛機
   if(window.__gmFarming&&window.__gmFarming.running&&window.stopFarming){
     as.farmWasRunning=true; window.stopFarming();
@@ -596,6 +620,7 @@ function __wbCronQuickOnDefeat(targetName){
 
 // 重置快速進入狀態（停止時呼叫）
 function __wbCronQuickReset(){
+  __wbCronQuickStopFocus();
   window.__wbCronQuick.done={};
   window.__wbCronQuick.currentIdx=0;
   window.__wbCronQuick.targets=[];
