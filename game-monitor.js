@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v4.11';
+var ver='v4.12';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -1548,7 +1548,9 @@ function __gmBuildPanel(){
     '        <span>每 1 秒自動抽</span>'+
     '      </label>'+
     '      <span id="__gmp_gacha_status" style="font-size:10px;color:#888;">--</span>'+
+    '      <button id="__gmp_gacha_hist_btn" style="margin-left:auto;padding:2px 8px;background:#2a2a4a;border:1px solid #22d3ee;color:#22d3ee;border-radius:4px;cursor:pointer;font-size:10px;">📋 歷史</button>'+
     '    </div>'+
+    '    <div id="__gmp_gacha_hist_summary" style="font-size:9px;color:#666;margin-top:2px;"></div>'+
     '  </div>'+
     '  <div style="background:rgba(255,255,255,0.04);padding:10px;border-radius:6px;margin-bottom:8px;">'+
     '    <div style="font-size:11px;color:#ffd700;font-weight:bold;margin-bottom:6px;">🪟 自動置頂測試</div>'+
@@ -3882,21 +3884,133 @@ console.log('[GM] Monitor injected '+ver);
 
 
 
-  // === Gacha auto-send ===
+  // === Gacha auto-send + history ===
   (function(){
     var gachaTimer = null;
     var gachaCount = 0;
     var gachaMax = 30;
     var gachaEnabled = false;
+    var gachaHistory = [];
+    var gachaObserver = null;
+    var STORAGE_KEY = '__gmp_gacha_history';
+
+    function updateHistSummary(){
+      var el = document.getElementById('__gmp_gacha_hist_summary');
+      if (el) { el.textContent = gachaHistory.length ? '📋 '+gachaHistory.length+' 筆歷史記錄' : ''; }
+    }
+
+    function gachaHistSave(){
+      var data = gachaHistory.slice(0, 500);
+      if (window.__gmStorageSet) {
+        window.__gmStorageSet(STORAGE_KEY, data, function(){});
+      } else if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        var o = {}; o[STORAGE_KEY] = data;
+        chrome.storage.local.set(o, function(){});
+      }
+    }
+
+    function gachaHistLoad(cb){
+      if (window.__gmStorageGet) {
+        window.__gmStorageGet([STORAGE_KEY], function(result){
+          gachaHistory = (result && result[STORAGE_KEY]) || [];
+          updateHistSummary();
+          if (cb) cb();
+        });
+      } else if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.get([STORAGE_KEY], function(result){
+          if (chrome.runtime.lastError) { gachaHistory = []; } else { gachaHistory = result[STORAGE_KEY] || []; }
+          updateHistSummary();
+          if (cb) cb();
+        });
+      } else {
+        if (cb) cb();
+      }
+    }
+
+    function addGachaItem(itemName){
+      var now = new Date();
+      var ts = now.getFullYear()+'-'+
+        (now.getMonth()+1).toString().padStart(2,'0')+'-'+
+        now.getDate().toString().padStart(2,'0')+' '+
+        now.getHours().toString().padStart(2,'0')+':'+
+        now.getMinutes().toString().padStart(2,'0')+':'+
+        now.getSeconds().toString().padStart(2,'0');
+      gachaHistory.unshift({name: itemName, time: ts});
+      if (gachaHistory.length > 500) gachaHistory.length = 500;
+      updateHistSummary();
+      gachaHistSave();
+    }
+
+    function startObservingGachaMsg(){
+      if (gachaObserver) return;
+      var msgEl = document.getElementById('gacha-msg');
+      if (!msgEl) {
+        // DOM not ready yet, retry
+        setTimeout(startObservingGachaMsg, 2000);
+        return;
+      }
+      gachaObserver = new MutationObserver(function(){
+        var span = msgEl.querySelector('span');
+        if (!span) {
+          // check for text content directly
+          var text = msgEl.textContent.trim();
+          if (text && text.indexOf('恭喜獲得') > -1) {
+            var m = text.match(/恭喜獲得\s*(.+?)\s*[！!]?\s*$/);
+            if (m && m[1]) addGachaItem(m[1].trim());
+          }
+          return;
+        }
+        var item = span.textContent.trim();
+        if (item) addGachaItem(item);
+      });
+      gachaObserver.observe(msgEl, {childList: true, subtree: true, characterData: true});
+      console.log('[Gacha] Observer started on #gacha-msg');
+    }
+
+    function showHistModal(){
+      var old = document.getElementById('__gmp_gacha_modal'); if (old) old.remove();
+      var m = document.createElement('div'); m.id = '__gmp_gacha_modal';
+      m.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:transparent;z-index:99998;display:flex;align-items:flex-start;justify-content:center;padding-top:40px;pointer-events:none;';
+      var items = gachaHistory.map(function(h, i){
+        return '<div style="display:flex;align-items:center;padding:4px 0;border-bottom:1px solid rgba(34,211,238,0.1);">'+
+          '<span style="flex:1;color:#4ade80;font-size:14px;font-weight:bold;font-family:sans-serif;">'+h.name+'</span>'+
+          '<span style="color:#666;font-size:11px;">'+h.time+'</span>'+
+          '</div>';
+      }).join('');
+      m.innerHTML = '<div style="pointer-events:auto;background:#0f0f23;border:2px solid #22d3ee;border-radius:10px;width:380px;max-height:85vh;display:flex;flex-direction:column;color:#fff;font-family:sans-serif;">'+
+        '<div style="display:flex;align-items:center;padding:8px 12px;border-bottom:1px solid #22d3ee;background:rgba(34,211,238,0.1);border-radius:8px 8px 0 0;">'+
+          '<span style="flex:1;font-size:14px;font-weight:bold;color:#22d3ee;">🎁 抽獎歷史</span>'+
+          '<button id="__gmp_gacha_export" style="padding:2px 8px;background:#2a2a4a;border:1px solid #fbbf24;color:#fbbf24;border-radius:4px;cursor:pointer;font-size:10px;margin-right:6px;">📤 匯出</button>'+
+          '<button id="__gmp_gacha_clear" style="padding:2px 8px;background:#2a2a4a;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:10px;margin-right:6px;">🗑 清空</button>'+
+          '<span id="__gmp_gacha_modal_close" style="cursor:pointer;font-size:20px;color:#e94560;font-weight:bold;line-height:1;">✕</span>'+
+        '</div>'+
+        '<div id="__gmp_gacha_list" style="padding:8px 12px;overflow-y:auto;flex:1;max-height:500px;">'+(items||'<div style="color:#666;text-align:center;padding:20px;">尚無記錄</div>')+'</div>'+
+        '<div style="padding:4px 12px;border-top:1px solid rgba(34,211,238,0.1);font-size:9px;color:#666;text-align:right;">共 '+gachaHistory.length+' 筆</div>'+
+      '</div>';
+      document.body.appendChild(m);
+      var closeFn = function(){ m.remove(); };
+      document.getElementById('__gmp_gacha_modal_close').onclick = closeFn;
+      m.onclick = function(e){ if (e.target === m) closeFn(); };
+      document.getElementById('__gmp_gacha_export').onclick = function(){
+        var csv = 'name,time\n' + gachaHistory.map(function(h){ return '"'+h.name+'","'+h.time+'"'; }).join('\n');
+        var blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
+        var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'gacha_history.csv'; a.click();
+      };
+      document.getElementById('__gmp_gacha_clear').onclick = function(){
+        if (!confirm('確定要清空所有抽獎歷史記錄？')) return;
+        gachaHistory = [];
+        updateHistSummary();
+        gachaHistSave();
+        closeFn();
+      };
+    }
 
     function sendGacha(){
       if (!gachaEnabled) { stopGacha(); return; }
       if (gachaCount >= gachaMax) { stopGacha(); updateStatus('已完成'); return; }
       try {
-        // 用 __wbEmit（wb-boss.js L2176），而非不存在的 __gmSend
         if (window.__wbEmit) {
           window.__wbEmit('wbGacha', []);
-          console.log('[Gacha] wbGacha sent', gachaCount+1, '/', gachaMax);
         } else {
           console.warn('[Gacha] __wbEmit not available');
         }
@@ -3913,6 +4027,7 @@ console.log('[GM] Monitor injected '+ver);
       if (gachaTimer) clearInterval(gachaTimer);
       gachaTimer = setInterval(sendGacha, 1000);
       updateStatus('開始 ' + gachaMax + ' 次');
+      startObservingGachaMsg();
     }
 
     function stopGacha(){
@@ -3933,16 +4048,15 @@ console.log('[GM] Monitor injected '+ver);
       while (t && t.nodeType === 3) t = t.parentElement;
       if (!t || !t.getAttribute) return;
       if (t.tagName === 'INPUT' && t.type === 'checkbox' && t.id === '__gmp_gacha_enable') {
-        if (t.checked) {
-          startGacha();
-        } else {
-          stopGacha();
-        }
+        if (t.checked) { startGacha(); } else { stopGacha(); }
+        return;
+      }
+      if (t.id === '__gmp_gacha_hist_btn') {
+        gachaHistLoad(function(){ showHistModal(); });
         return;
       }
     });
 
-    // 讀取次數變更
     document.addEventListener('change', function(e){
       var t = e.target;
       if (t && t.id === '__gmp_gacha_count') {
@@ -3954,8 +4068,13 @@ console.log('[GM] Monitor injected '+ver);
       }
     });
 
-    // expose for external stop
+    // Load history on init
+    gachaHistLoad();
+    // Also try to start observer after a delay (DOM may not be ready yet)
+    setTimeout(startObservingGachaMsg, 3000);
+
     window.__gmpGachaStop = stopGacha;
+    window.__gmpGachaShowHist = showHistModal;
   })();
 
   // === Focus Test: auto-foreground every 10s, minimize after 5s ===
