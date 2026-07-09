@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v4.10';
+var ver='v4.11';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -3893,8 +3893,14 @@ console.log('[GM] Monitor injected '+ver);
       if (!gachaEnabled) { stopGacha(); return; }
       if (gachaCount >= gachaMax) { stopGacha(); updateStatus('已完成'); return; }
       try {
-        window.__gmSend('WB-SEND', 'wbGacha', []);
-      } catch(e) { /* socket 不可用 */ }
+        // 用 __wbEmit（wb-boss.js L2176），而非不存在的 __gmSend
+        if (window.__wbEmit) {
+          window.__wbEmit('wbGacha', []);
+          console.log('[Gacha] wbGacha sent', gachaCount+1, '/', gachaMax);
+        } else {
+          console.warn('[Gacha] __wbEmit not available');
+        }
+      } catch(e) { console.error('[Gacha] error:', e.message); }
       gachaCount++;
       updateStatus('發送中 ' + gachaCount + '/' + gachaMax);
     }
