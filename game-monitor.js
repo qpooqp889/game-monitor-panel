@@ -1047,7 +1047,9 @@ function __gmBuildPanel(){
     '<button id="__gmp_zoom_in" style="background:#333;border:none;color:#fff;width:20px;height:20px;border-radius:4px;cursor:pointer;font-size:12px;">+</button>'+
     '<button id="__gmp_zoom_out" style="background:#333;border:none;color:#fff;width:20px;height:20px;border-radius:4px;cursor:pointer;font-size:12px;">-</button>'+
     '<button id="__gmp_close" style="background:#e94560;border:none;color:#fff;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:12px;">X</button>'+
-  
+'</div>'+
+'</div>'+
+
     // === GAME TAB ===
     '<div id="__gmp_tab_content_game" style="display:block;">'+
     '<div style="display:flex;gap:5px;margin-bottom:8px;">'+
