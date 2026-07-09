@@ -1047,9 +1047,7 @@ function __gmBuildPanel(){
     '<button id="__gmp_zoom_in" style="background:#333;border:none;color:#fff;width:20px;height:20px;border-radius:4px;cursor:pointer;font-size:12px;">+</button>'+
     '<button id="__gmp_zoom_out" style="background:#333;border:none;color:#fff;width:20px;height:20px;border-radius:4px;cursor:pointer;font-size:12px;">-</button>'+
     '<button id="__gmp_close" style="background:#e94560;border:none;color:#fff;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:12px;">X</button>'+
-  '\n<div style="display:flex;align-items:center;gap:5px;margin-top:6px;padding:4px 0;border-top:1px solid #333;"><span style="font-size:10px;color:#fbbf24;">\u958b\u59cb\u689d\u4ef6 </span><span style="font-size:10px;color:#7bd14a;">HP&gt;</span><input id="__gmp_boss_auto_start_hp" type="number" value="80" min="0" max="100" style="width:45px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;outline:none;text-align:center;"><span style="font-size:9px;color:#888;">%</span><span style="font-size:10px;color:#60a5fa;">MP&gt;</span><input id="__gmp_boss_auto_start_mp" type="number" value="50" min="0" max="100" style="width:45px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;outline:none;text-align:center;"><span style="font-size:9px;color:#888;">%</span></div>\n</div>'+
-  '</div>'+
-  '<div id="__gmp_content" style="height:calc(100% - 50px);overflow-y:auto;">'+
+  
     // === GAME TAB ===
     '<div id="__gmp_tab_content_game" style="display:block;">'+
     '<div style="display:flex;gap:5px;margin-bottom:8px;">'+

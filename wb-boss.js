@@ -332,7 +332,7 @@ function __wbCronQuickStartFocus(){
   console.log('[WB-CronQuick] Starting foreground focus interval');
   window.__wbCronQuick._focusInterval = setInterval(function(){
     try{
-      chrome.runtime.sendMessage({action:'focusGameWindow',windowId:chrome.windows.WINDOW_ID_CURRENT},function(r){});
+      chrome.runtime.sendMessage({action:'focusGameWindow'},function(r){});
     }catch(e){
       console.warn('[WB-CronQuick] focusGameWindow failed:',e.message);
     }
