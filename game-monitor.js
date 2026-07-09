@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v4.04';
+var ver='v4.05';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -1675,6 +1675,7 @@ function __gmBuildPanel(){
     if(menu)menu.style.display='none';
     if(tab==='zone')renderZones(activeZoneTab);
     if(tab==='boss'){if(window.__wbEnsureWBTab)window.__wbEnsureWBTab();setTimeout(function(){__wbUpdateWorldBossUI();},1500);window.__wbInitHuntToggle();__wbUpdateBossStatus();}
+    if(tab==='friend'){if(typeof __gmPlayerHistoryLoad==='function')__gmPlayerHistoryLoad();}
   }
   // More menu toggle
   document.getElementById('__gmp_tab_more_btn').onclick=function(e){
@@ -2310,19 +2311,29 @@ function __gmBuildPanel(){
   window.__gmPlayerRefreshing=false;
 
   function __gmPlayerHistoryLoad(){
-    try{chrome.storage.local.get('__gmp_player_history',function(r){
-      window.__gmPlayerHistory=r.__gmp_player_history||[];
+    if(typeof window.__gmStorageGet==='function'){
+      window.__gmStorageGet(['__gmp_player_history']).then(function(r){
+        window.__gmPlayerHistory=r.__gmp_player_history||[];
+        __gmPlayerLookupRenderHistory();
+      }).catch(function(e){
+        console.warn('[GM] Player load failed:',e);
+        window.__gmPlayerHistory=[];
+        __gmPlayerLookupRenderHistory();
+      });
+    } else {
+      window.__gmPlayerHistory=[];
       __gmPlayerLookupRenderHistory();
-    });}catch(e){__gmPlayerLookupRenderHistory();}
+    }
   }
   function __gmPlayerHistorySave(){
     if(!window.__gmPlayerHistory||!window.__gmPlayerHistory.length){return;}
+    if(typeof window.__gmStorageSet!=='function'){console.warn("[GM] No storage relay for player save");return;}
     try{
-      // 深拷貝避免 chrome.storage 序列化失敗（DOM reference/循環參照）
       var copy=JSON.parse(JSON.stringify(window.__gmPlayerHistory));
-      chrome.storage.local.set({__gmp_player_history:copy},function(){
-        if(chrome.runtime.lastError)console.warn("[GM] Player save failed:",chrome.runtime.lastError.message);
-        else console.log("[GM] Player list saved:",copy.length,"entries");
+      window.__gmStorageSet('__gmp_player_history',copy).then(function(){
+        console.log("[GM] Player list saved:",copy.length,"entries");
+      }).catch(function(e){
+        console.warn("[GM] Player save failed:",e);
       });
     }catch(e){console.warn("[GM] Player save error:",e.message);}
   }
