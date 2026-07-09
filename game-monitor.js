@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v3.97';
+var ver='v3.98';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -2285,7 +2285,15 @@ function __gmBuildPanel(){
     });}catch(e){__gmPlayerLookupRenderHistory();}
   }
   function __gmPlayerHistorySave(){
-    try{chrome.storage.local.set({__gmp_player_history:window.__gmPlayerHistory},function(){});}catch(e){}
+    if(!window.__gmPlayerHistory||!window.__gmPlayerHistory.length){return;}
+    try{
+      // 深拷貝避免 chrome.storage 序列化失敗（DOM reference/循環參照）
+      var copy=JSON.parse(JSON.stringify(window.__gmPlayerHistory));
+      chrome.storage.local.set({__gmp_player_history:copy},function(){
+        if(chrome.runtime.lastError)console.warn("[GM] Player save failed:",chrome.runtime.lastError.message);
+        else console.log("[GM] Player list saved:",copy.length,"entries");
+      });
+    }catch(e){console.warn("[GM] Player save error:",e.message);}
   }
 
   function __gmPlayerParseInfo(){
