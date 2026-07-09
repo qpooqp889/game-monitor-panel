@@ -55,6 +55,28 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     chrome.tabs.sendMessage(request.tabId, { action: 'sendWS', data: request.data }, sendResponse);
     return true;
 
+  } else if (request.action === 'focusGameWindow') {
+    // content script 要求將遊戲視窗拉到最前面
+    var tabId = sender.tab ? sender.tab.id : gameTabId;
+    if (tabId) {
+      chrome.tabs.get(tabId, function(tab) {
+        var wid = tab.windowId;
+        if (wid) {
+          chrome.windows.update(wid, { focused: true }, function() {
+            chrome.tabs.update(tabId, { active: true }, function() {
+              console.log('[GM Background] Focused window', wid, 'tab', tabId);
+              sendResponse({ success: true });
+            });
+          });
+        } else {
+          sendResponse({ success: false, error: 'No windowId' });
+        }
+      });
+    } else {
+      sendResponse({ success: false, error: 'No tabId' });
+    }
+    return true;
+
   } else if (request.action === 'injectScript') {
     // 優先使用 caller 指定的 tabId，否則用快取的 gameTabId，否則用 sender.tab.id
     var targetTabId = request.tabId || gameTabId || (sender.tab && sender.tab.id);
