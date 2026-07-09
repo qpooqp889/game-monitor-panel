@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v4.12';
+var ver='v4.13';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -3901,8 +3901,8 @@ console.log('[GM] Monitor injected '+ver);
 
     function gachaHistSave(){
       var data = gachaHistory.slice(0, 500);
-      if (window.__gmStorageSet) {
-        window.__gmStorageSet(STORAGE_KEY, data, function(){});
+      if (typeof window.__gmStorageSet === 'function') {
+        window.__gmStorageSet(STORAGE_KEY, data).catch(function(){});
       } else if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
         var o = {}; o[STORAGE_KEY] = data;
         chrome.storage.local.set(o, function(){});
@@ -3910,20 +3910,19 @@ console.log('[GM] Monitor injected '+ver);
     }
 
     function gachaHistLoad(cb){
-      if (window.__gmStorageGet) {
-        window.__gmStorageGet([STORAGE_KEY], function(result){
-          gachaHistory = (result && result[STORAGE_KEY]) || [];
-          updateHistSummary();
-          if (cb) cb();
-        });
+      function done(result){
+        gachaHistory = (result && result[STORAGE_KEY]) || [];
+        updateHistSummary();
+        if (cb) cb();
+      }
+      if (typeof window.__gmStorageGet === 'function') {
+        window.__gmStorageGet([STORAGE_KEY]).then(done).catch(function(){ done({}); });
       } else if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
         chrome.storage.local.get([STORAGE_KEY], function(result){
-          if (chrome.runtime.lastError) { gachaHistory = []; } else { gachaHistory = result[STORAGE_KEY] || []; }
-          updateHistSummary();
-          if (cb) cb();
+          if (chrome.runtime.lastError) { done({}); } else { done(result); }
         });
       } else {
-        if (cb) cb();
+        done({});
       }
     }
 
