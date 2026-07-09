@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v4.05';
+var ver='v4.06';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -1548,6 +1548,16 @@ function __gmBuildPanel(){
     '        <span>每 1 秒自動抽</span>'+
     '      </label>'+
     '      <span id="__gmp_gacha_status" style="font-size:10px;color:#888;">--</span>'+
+    '    </div>'+
+    '  </div>'+
+    '  <div style="background:rgba(255,255,255,0.04);padding:10px;border-radius:6px;margin-bottom:8px;">'+
+    '    <div style="font-size:11px;color:#ffd700;font-weight:bold;margin-bottom:6px;">🪟 自動置頂測試</div>'+
+    '    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'+
+    '      <label style="display:flex;align-items:center;gap:3px;cursor:pointer;font-size:10px;color:#aaa;">'+
+    '        <input type="checkbox" id="__gmp_focus_test" style="width:14px;height:14px;cursor:pointer;">'+
+    '        <span>每 10 秒置頂，5 秒後縮小</span>'+
+    '      </label>'+
+    '      <span id="__gmp_focus_test_status" style="font-size:10px;color:#888;">已停止</span>'+
     '    </div>'+
     '  </div>'+
     '</div>'+
@@ -3939,6 +3949,51 @@ console.log('[GM] Monitor injected '+ver);
 
     // expose for external stop
     window.__gmpGachaStop = stopGacha;
+  })();
+
+  // === Focus Test: auto-foreground every 10s, minimize after 5s ===
+  (function(){
+    var focusOn=false;
+    var focusTimer=null;
+    var minimizeTimer=null;
+    var chk=document.getElementById('__gmp_focus_test');
+    var stEl=document.getElementById('__gmp_focus_test_status');
+
+    function startFocusTest(){
+      focusOn=true;
+      if(stEl){stEl.textContent='運行中';stEl.style.color='#4ade80';}
+      console.log('[FocusTest] Started');
+      focusTimer=setInterval(function(){
+        if(window.__wbSocket&&window.__wbSocket.connected){
+          chrome.runtime.sendMessage({action:'focusGameWindow'},function(){});
+          console.log('[FocusTest] Focus sent');
+        }
+        minimizeTimer=setTimeout(function(){
+          chrome.runtime.sendMessage({action:'minimizeGameWindow'},function(){});
+          console.log('[FocusTest] Minimize sent');
+        },5000);
+      },10000);
+    }
+
+    function stopFocusTest(){
+      focusOn=false;
+      if(focusTimer){clearInterval(focusTimer);focusTimer=null;}
+      if(minimizeTimer){clearTimeout(minimizeTimer);minimizeTimer=null;}
+      if(stEl){stEl.textContent='已停止';stEl.style.color='#888';}
+      if(chk)chk.checked=false;
+      console.log('[FocusTest] Stopped');
+    }
+
+    document.addEventListener('click',function(e){
+      var t=e.target;
+      while(t&&t.nodeType===3)t=t.parentElement;
+      if(!t||!t.getAttribute)return;
+      if(t.tagName==='INPUT'&&t.type==='checkbox'&&t.id==='__gmp_focus_test'){
+        if(t.checked){startFocusTest();}
+        else{stopFocusTest();}
+      }
+    });
+    window.__gmpFocusTestStop=stopFocusTest;
   })();
 
 })();
