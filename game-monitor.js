@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v4.06';
+var ver='v4.07';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -1559,6 +1559,7 @@ function __gmBuildPanel(){
     '      </label>'+
     '      <span id="__gmp_focus_test_status" style="font-size:10px;color:#888;">已停止</span>'+
     '    </div>'+
+    '    <div id="__gmp_focus_test_log" style="margin-top:6px;max-height:120px;overflow-y:auto;font-size:9px;color:#aaa;font-family:Consolas,monospace;line-height:1.4;"></div>'+
     '  </div>'+
     '</div>'+
     '</div>'; // closes __gmp_content wrapper
@@ -3958,21 +3959,58 @@ console.log('[GM] Monitor injected '+ver);
     var minimizeTimer=null;
     var chk=document.getElementById('__gmp_focus_test');
     var stEl=document.getElementById('__gmp_focus_test_status');
+    var logEl=document.getElementById('__gmp_focus_test_log');
+    var logLines=[];
+
+    function addLog(msg,color){
+      var now=new Date();
+      var ts=now.getHours().toString().padStart(2,'0')+':'+
+              now.getMinutes().toString().padStart(2,'0')+':'+
+              now.getSeconds().toString().padStart(2,'0')+'.'+
+              Math.floor(now.getMilliseconds()/100);
+      logLines.push('<div style="color:'+(color||'#aaa')+'">['+ts+'] '+msg+'</div>');
+      if(logLines.length>50)logLines.shift();
+      if(logEl)logEl.innerHTML=logLines.join('');
+    }
+
+    function sendAction(action){
+      addLog('sendMessage: '+action,'#ffd700');
+      try{
+        if(typeof chrome==='undefined'||!chrome.runtime||!chrome.runtime.sendMessage){
+          addLog('ERROR: chrome.runtime unavailable','#e94560');
+          return;
+        }
+        chrome.runtime.sendMessage({action:action},function(resp){
+          if(chrome.runtime.lastError){
+            addLog(action+' ERR: '+chrome.runtime.lastError.message,'#e94560');
+          }else if(resp&&resp.success){
+            addLog(action+' OK','#4ade80');
+          }else{
+            addLog(action+' FAIL: '+JSON.stringify(resp||{}),'#e94560');
+          }
+        });
+      }catch(e){
+        addLog(action+' EX: '+e.message,'#e94560');
+      }
+    }
+
+    function cycle(){
+      addLog('>>> Focus <<<','#ffd700');
+      sendAction('focusGameWindow');
+      minimizeTimer=setTimeout(function(){
+        addLog('>>> Minimize <<<','#a78bfa');
+        sendAction('minimizeGameWindow');
+      },5000);
+    }
 
     function startFocusTest(){
       focusOn=true;
       if(stEl){stEl.textContent='運行中';stEl.style.color='#4ade80';}
-      console.log('[FocusTest] Started');
-      focusTimer=setInterval(function(){
-        if(window.__wbSocket&&window.__wbSocket.connected){
-          chrome.runtime.sendMessage({action:'focusGameWindow'},function(){});
-          console.log('[FocusTest] Focus sent');
-        }
-        minimizeTimer=setTimeout(function(){
-          chrome.runtime.sendMessage({action:'minimizeGameWindow'},function(){});
-          console.log('[FocusTest] Minimize sent');
-        },5000);
-      },10000);
+      if(logEl)logEl.innerHTML='';
+      logLines=[];
+      addLog('STARTED','#22d3ee');
+      cycle();
+      focusTimer=setInterval(cycle,10000);
     }
 
     function stopFocusTest(){
@@ -3981,7 +4019,7 @@ console.log('[GM] Monitor injected '+ver);
       if(minimizeTimer){clearTimeout(minimizeTimer);minimizeTimer=null;}
       if(stEl){stEl.textContent='已停止';stEl.style.color='#888';}
       if(chk)chk.checked=false;
-      console.log('[FocusTest] Stopped');
+      addLog('STOPPED','#e94560');
     }
 
     document.addEventListener('click',function(e){
