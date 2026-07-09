@@ -347,12 +347,29 @@ function __wbCronQuickEnter(){
   }
   // 確保 WB tab
   try{__wbEnsureWBTab();}catch(e){}
+  // 先對 #panel-scroll 滾輪連續滾兩次，確保 lazy-load 卡片全部渲染
+  var panel=document.getElementById('panel-scroll');
+  if(panel){
+    panel.scrollTop=panel.scrollTop+400;
+    setTimeout(function(){
+      panel.scrollTop=panel.scrollTop+400;
+      setTimeout(function(){ __wbCronQuickScanCards(); },300);
+    },300);
+    return;
+  }
+  __wbCronQuickScanCards();
+}
+
+function __wbCronQuickScanCards(){
+  var as=window.__wbBossAutoScript;
+  if(!as||!as.running)return;
   // 掃 DOM 所有世界王卡片
   var cards=document.querySelectorAll('.wb-card[data-boss]');
   if(!cards||cards.length===0){
     console.log('[WB-CronQuick] No .wb-card found, retrying in 5s');
     as.timer=setTimeout(__wbCronQuickEnter,5000); return;
   }
+  console.log('[WB-CronQuick] Found '+cards.length+' boss cards in DOM');
   // 建立 target 列表（未點過者）
   var targets=[];
   for(var i=0;i<cards.length;i++){
@@ -453,16 +470,14 @@ function __wbCronQuickWaitCombat(tgt,idx){
       console.log('[WB-CronQuick] In combat with '+tgt.name+'! Starting auto-attack');
       // 標記已進入（不算完成，等擊敗才標記 done）
       window.__wbCronQuick.currentTarget=tgt;
+      window.__wbCronQuick.phase='combat';
       // 確保自動攻擊中
       if(window.__wbBossAuto&&!window.__wbBossAuto.running){
         __wbBossAutoStart();
       }
-      // 啟動 MonitorBossHP 監控
-      if(window.__wbMonitorBossHP)window.__wbMonitorBossHP(tgt.name);
       __wbDebugStart(tgt.name,'cron-quick');
-      // 註冊擊敗時跳到下一位的回調
-      window.__wbCronQuick._defeating=false;
-      window.__wbCronQuick._nextIdx=idx;
+      // ★ 自行輪詢 br-lobby/msg-ok/lastState HP=0，獨立於 MonitorBossHP
+      __wbCronQuickCombatPoll(tgt,idx);
       return;
     }
     if(waited>=10000){
@@ -475,6 +490,83 @@ function __wbCronQuickWaitCombat(tgt,idx){
   }
   // 等 2s 讓遊戲載入戰鬥畫面再開始檢查
   setTimeout(check,2000);
+}
+
+
+// ====== CronQuick 自行輪詢：進入戰鬥後監控 HP=0 → br-lobby → 離開 ======
+function __wbCronQuickCombatPoll(tgt,idx){
+  var as=window.__wbBossAutoScript;
+  if(!as||!as.running){__wbCronQuickReset();return;}
+  var ls=window.lastState||{};
+  var boss=ls.boss||{};
+  var mode=ls.mode||'';
+  var bossHp=boss.hp||0;
+  var bossMax=boss.maxHp||1;
+  var hpPct=bossMax>0?Math.round(bossHp/bossMax*100):0;
+
+  var stEl=document.getElementById('__gmp_boss_script_status');
+  if(stEl)stEl.textContent='⚔ '+tgt.name+' HP:'+hpPct+'%';
+
+  // 確保 auto-atk ON
+  if(mode==='bosscombat'){
+    var atkChk=document.getElementById('__gmp_boss_auto_atk');
+    if(atkChk&&!atkChk.checked)atkChk.checked=true;
+    var enChk=document.getElementById('__gmp_boss_auto_enable');
+    if(enChk&&!enChk.checked)enChk.checked=true;
+  }
+
+  // HP=0 → 觸發擊敗流程
+  if(bossHp<=0&&mode!=='boss'&&mode!=='bosscombat'){
+    console.log('[WB-CronQuick] HP=0 detected (mode='+mode+'), waiting for br-lobby...');
+    // 輪詢 br-lobby 出現後點擊
+    var waitLobby=0;
+    function pollLobby(){
+      waitLobby+=500;
+      var lb=document.getElementById('br-lobby');
+      var msg=document.getElementById('msg-ok');
+      if(msg){console.log('[WB-CronQuick] msg-ok during combat poll, clicking');msg.click();lb=document.getElementById('br-lobby');}
+      if(lb){
+        console.log('[WB-CronQuick] br-lobby appeared after '+waitLobby+'ms, clicking');
+        window.__wbCronQuick.done[tgt.id]=true;
+        window.__wbCronQuick.currentTarget=null;
+        __wbCronQuickHandleDefeatNow(tgt,idx);
+        return;
+      }
+      if(waitLobby>=15000){console.log('[WB-CronQuick] br-lobby timeout, marking done');window.__wbCronQuick.done[tgt.id]=true;__wbCronQuickProcess(idx+1);return;}
+      setTimeout(pollLobby,500);
+    }
+    setTimeout(pollLobby,500);
+    return;
+  }
+
+  // 持續輪詢
+  as.timer=setTimeout(function(){__wbCronQuickCombatPoll(tgt,idx);},1000);
+}
+
+// ★ 簡化擊敗處理：只點 br-lobby + selectChar → 回大廳 → 跳下位
+function __wbCronQuickHandleDefeatNow(tgt,idx){
+  var as=window.__wbBossAutoScript;
+  var stEl=document.getElementById('__gmp_boss_script_status');
+  if(stEl)stEl.textContent='✅ '+tgt.name+' 擊敗! 回大廳...';
+  var retry=0;
+  function clickLobby(){
+    retry++;
+    var btn=document.getElementById('br-lobby');
+    if(btn){console.log('[WB-CronQuick] Lobby click #'+retry);btn.click();}
+    setTimeout(function(){
+      if(document.getElementById('br-lobby')){setTimeout(clickLobby,400);return;}
+      console.log('[WB-CronQuick] br-lobby gone, selectChar[0]');
+      try{
+        if(window.__ws&&window.__ws.readyState===WebSocket.OPEN)window.__ws.send('42["toLobby",[]]');
+        setTimeout(function(){
+          try{if(window.__ws&&window.__ws.readyState===WebSocket.OPEN)window.__ws.send('42["selectChar",0]');}catch(e){}
+        },500);
+      }catch(e){}
+      // 跳下一位
+      as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},3000);
+    },600);
+  }
+  clickLobby();
 }
 
 // 擊敗後由 HandleDefeat 呼叫此函數來推進到下一位
