@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v4.07';
+var ver='v4.08';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -3961,6 +3961,8 @@ console.log('[GM] Monitor injected '+ver);
     var stEl=document.getElementById('__gmp_focus_test_status');
     var logEl=document.getElementById('__gmp_focus_test_log');
     var logLines=[];
+    var seq=0;
+    var pending={};
 
     function addLog(msg,color){
       var now=new Date();
@@ -3973,22 +3975,21 @@ console.log('[GM] Monitor injected '+ver);
       if(logEl)logEl.innerHTML=logLines.join('');
     }
 
+    // Listen for relay responses from content.js (ISOLATED world)
+    window.addEventListener('message', function(e){
+      if(!e.data||!e.data.type)return;
+      if(e.data.type==='GM_WINDOW_FOCUS_RESULT'||e.data.type==='GM_WINDOW_MINIMIZE_RESULT'){
+        var action=e.data.type==='GM_WINDOW_FOCUS_RESULT'?'focusGameWindow':'minimizeGameWindow';
+        if(e.data.success){addLog(action+' OK','#4ade80');}
+        else{addLog(action+' FAIL (relay)','#e94560');}
+      }
+    });
+
     function sendAction(action){
-      addLog('sendMessage: '+action,'#ffd700');
+      var s=++seq;
+      addLog('postMessage: '+action,'#ffd700');
       try{
-        if(typeof chrome==='undefined'||!chrome.runtime||!chrome.runtime.sendMessage){
-          addLog('ERROR: chrome.runtime unavailable','#e94560');
-          return;
-        }
-        chrome.runtime.sendMessage({action:action},function(resp){
-          if(chrome.runtime.lastError){
-            addLog(action+' ERR: '+chrome.runtime.lastError.message,'#e94560');
-          }else if(resp&&resp.success){
-            addLog(action+' OK','#4ade80');
-          }else{
-            addLog(action+' FAIL: '+JSON.stringify(resp||{}),'#e94560');
-          }
-        });
+        window.postMessage({type: action==='focusGameWindow'?'GM_WINDOW_FOCUS':'GM_WINDOW_MINIMIZE', seq:s},'*');
       }catch(e){
         addLog(action+' EX: '+e.message,'#e94560');
       }
