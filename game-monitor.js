@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v3.98';
+var ver='v3.99';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -1026,14 +1026,20 @@ function __gmBuildPanel(){
   p.innerHTML=
   '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #0f3460;">'+
   '<div style="display:flex;align-items:center;gap:6px;">'+
-    '<button id="__gmp_tab_other" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">🔧其他</button>'+
     '<button id="__gmp_tab_game" style="padding:5px 9px;background:#0f3460;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">狀態</button>'+
-    '<button id="__gmp_tab_zone" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">地圖</button>'+
     '<button id="__gmp_tab_farm" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">掛機</button>'+
     '<button id="__gmp_tab_boss" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">👑BOSS</button>'+
-    '<button id="__gmp_tab_monitor" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">📡監控</button>'+
-    '<button id="__gmp_tab_skill" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">⚡技能</button><button id="__gmp_tab_status" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">📊狀態</button>'+
     '<button id="__gmp_tab_friend" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">🔍 好友</button>'+
+    '<div style="position:relative;display:inline-block;">'+
+      '<button id="__gmp_tab_more_btn" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:14px;line-height:1;" title="更多">⋮</button>'+
+      '<div id="__gmp_tab_more_menu" style="display:none;position:absolute;top:100%;right:0;background:#1a1a2e;border:1px solid #0f3460;border-radius:6px;padding:4px 0;z-index:100;min-width:100px;box-shadow:0 4px 12px rgba(0,0,0,0.5);">'+
+        '<button id="__gmp_tab_zone" style="display:block;width:100%;padding:6px 12px;background:transparent;border:none;color:#aaa;cursor:pointer;font-size:11px;text-align:left;">🗺️ 地圖</button>'+
+        '<button id="__gmp_tab_monitor" style="display:block;width:100%;padding:6px 12px;background:transparent;border:none;color:#aaa;cursor:pointer;font-size:11px;text-align:left;">📡 監控</button>'+
+        '<button id="__gmp_tab_skill" style="display:block;width:100%;padding:6px 12px;background:transparent;border:none;color:#aaa;cursor:pointer;font-size:11px;text-align:left;">⚡ 技能</button>'+
+        '<button id="__gmp_tab_status" style="display:block;width:100%;padding:6px 12px;background:transparent;border:none;color:#aaa;cursor:pointer;font-size:11px;text-align:left;">📊 狀態</button>'+
+        '<button id="__gmp_tab_other" style="display:block;width:100%;padding:6px 12px;background:transparent;border:none;color:#aaa;cursor:pointer;font-size:11px;text-align:left;">🔧 其他</button>'+
+      '</div>'+
+    '</div>'+
     '<span id="__gmp_ver" style="font-size:10px;color:#4ade80;font-weight:bold;">'+ver+'</span>'+
   '</div>'+
   '<div style="display:flex;gap:3px;">'+
@@ -1481,6 +1487,15 @@ function __gmBuildPanel(){
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:10px;color:#888;">'+
       '檢測間隔 <input id="__gmp_farm_reconnect_interval" type="number" value="600" min="10" max="900" style="width:50px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;outline:none;text-align:center;"> 秒'+
     '</div>'+
+    // Character slot — right below reconnect settings
+    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding:6px;background:#1a1a2e;border:1px solid #0f3460;border-radius:6px;">'+
+      '<span style="font-size:10px;color:#ffd700;width:70px;">角色槽位</span>'+
+      '<select id="__gmp_farm_char_slot" style="flex:1;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;">'+
+        '<option value="0">槽 0</option>'+
+        '<option value="1">槽 1</option>'+
+        '<option value="2">槽 2</option>'+
+      '</select>'+
+    '</div>'+
     // Auto attack
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
       '<input type="checkbox" id="__gmp_farm_atk" checked style="width:14px;height:14px;cursor:pointer;">'+
@@ -1517,16 +1532,8 @@ function __gmBuildPanel(){
       '<button id="__gmp_farm_logout_history" style="padding:3px 8px;background:#0f3460;border:1px solid #4ade80;border-radius:4px;color:#4ade80;font-size:10px;font-weight:bold;cursor:pointer;">📜 歷史</button>'+
     '</div>'+
 
-    // Character slot selector — MOVED TO BOTTOM
-    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding:6px;background:#1a1a2e;border:1px solid #0f3460;border-radius:6px;">'+
-      '<span style="font-size:10px;color:#ffd700;width:70px;">角色槽位</span>'+
-      '<select id="__gmp_farm_char_slot" style="flex:1;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;">'+
-        '<option value="0">槽 0</option>'+
-        '<option value="1">槽 1</option>'+
-        '<option value="2">槽 2</option>'+
-      '</select>'+
-    '</div>'+
     // Test Reconnect button
+
     '<button id="__gmp_farm_test_reconnect" style="width:100%;padding:6px;background:#2a2a4a;border:1px solid #ffd700;color:#ffd700;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;margin-bottom:4px;">🧪 測試斷線重連</button>'+ 
     '</div>'+  // closes inner farm content div
     '</div>'+ // closes farm tab content div
@@ -1643,19 +1650,43 @@ function __gmBuildPanel(){
   // @param {string} tab - Tab 名稱 ('zone','game','skill','status','farm','boss','monitor')
   function switchTab(tab){
     activeTab=tab;
-    ['game','zone','farm','boss','monitor','skill','status','friend','other'].forEach(function(t){
+    var mainBtns=['game','farm','boss','friend'];
+    var dropdownBtns=['zone','monitor','skill','status','other'];
+    var allTabs=mainBtns.concat(dropdownBtns);
+    allTabs.forEach(function(t){
       var el=document.getElementById('__gmp_tab_content_'+t);
       if(el)el.style.display=t===tab?'block':'none';
       var btn=document.getElementById('__gmp_tab_'+t);
-      if(btn){
+      if(!btn)return;
+      if(mainBtns.indexOf(t)>=0){
+        // main bar buttons: background switch
         btn.style.background=t===tab?'#0f3460':'#333';
         btn.style.color=t===tab?'#fff':'#aaa';
         btn.style.fontWeight=t===tab?'bold':'normal';
+      } else {
+        // dropdown buttons: highlight text only
+        btn.style.background=t===tab?'rgba(34,211,238,0.15)':'transparent';
+        btn.style.color=t===tab?'#22d3ee':'#aaa';
+        btn.style.fontWeight=t===tab?'bold':'normal';
       }
     });
+    // Close more menu
+    var menu=document.getElementById('__gmp_tab_more_menu');
+    if(menu)menu.style.display='none';
     if(tab==='zone')renderZones(activeZoneTab);
     if(tab==='boss'){if(window.__wbEnsureWBTab)window.__wbEnsureWBTab();setTimeout(function(){__wbUpdateWorldBossUI();},1500);window.__wbInitHuntToggle();__wbUpdateBossStatus();}
   }
+  // More menu toggle
+  document.getElementById('__gmp_tab_more_btn').onclick=function(e){
+    e.stopPropagation();
+    var m=document.getElementById('__gmp_tab_more_menu');
+    m.style.display=m.style.display==='block'?'none':'block';
+  };
+  document.addEventListener('click',function(e){
+    var m=document.getElementById('__gmp_tab_more_menu');
+    var btn=document.getElementById('__gmp_tab_more_btn');
+    if(m&&btn&&!m.contains(e.target)&&e.target!==btn)m.style.display='none';
+  });
   document.getElementById('__gmp_tab_game').onclick=function(){switchTab('game')};
   document.getElementById('__gmp_tab_zone').onclick=function(){switchTab('zone')};
   document.getElementById('__gmp_tab_farm').onclick=function(){switchTab('farm')};
