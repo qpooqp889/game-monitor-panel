@@ -416,12 +416,18 @@ function __wbCronQuickProcess(idx){
     as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},300);
     return;
   }
-  // 狂點 3 次，每次間隔 ~300ms，每次檢查 msg-ok（未重生對話框）
+  // 狂點 3 次，每次間隔 ~300ms，點前確保卡片可見+頁面前台
   var clicks=0;
   function spamClick(){
     clicks++;
+    // 確保卡片在 viewport 內 + 頁面前台
+    try{card.scrollIntoView({block:'center',behavior:'instant'});}catch(e){}
+    if(document.visibilityState!=='visible'){
+      console.log('[WB-CronQuick] Page hidden, retrying click '+clicks+' in 500ms');
+      setTimeout(spamClick,500); return;
+    }
     try{card.click();}catch(e){}
-    console.log('[WB-CronQuick] Click '+clicks+' on '+tgt.name);
+    console.log('[WB-CronQuick] Click '+clicks+' on '+tgt.name+' vis='+document.visibilityState);
     // 檢查是否已出現 msg-ok（BOSS 未重生）
     var msgOk=document.getElementById('msg-ok');
     if(msgOk){
@@ -551,6 +557,10 @@ function __wbCronQuickHandleDefeatNow(tgt,idx){
   var retry=0;
   function clickLobby(){
     retry++;
+    if(document.visibilityState!=='visible'){
+      console.log('[WB-CronQuick] Page hidden, lobby click #'+retry+' delayed');
+      setTimeout(clickLobby,500); return;
+    }
     var btn=document.getElementById('br-lobby');
     if(btn){console.log('[WB-CronQuick] Lobby click #'+retry);btn.click();}
     setTimeout(function(){
