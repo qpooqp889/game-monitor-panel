@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v4.17';
+var ver='v4.18';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -1566,6 +1566,15 @@ function __gmBuildPanel(){
     '    </div>'+
     '    <div id="__gmp_focus_test_log" style="margin-top:6px;max-height:120px;overflow-y:auto;font-size:9px;color:#aaa;font-family:Consolas,monospace;line-height:1.4;"></div>'+
     '  </div>'+
+    '  <div style="background:rgba(255,255,255,0.04);padding:10px;border-radius:6px;margin-bottom:8px;">'+
+    '    <div style="font-size:11px;color:#ffd700;font-weight:bold;margin-bottom:6px;">📨 Socket 封包測試</div>'+
+    '    <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">'+
+    '      <span style="font-size:10px;color:#aaa;">joinBoss</span>'+
+    '      <input id="__gmp_socket_boss_id" type="text" value="wb_casper" style="width:100px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;outline:none;">'+
+    '      <button id="__gmp_socket_send" style="padding:3px 10px;background:#e94560;border:none;color:#fff;border-radius:4px;cursor:pointer;font-size:10px;font-weight:bold;">發送</button>'+
+    '      <span id="__gmp_socket_result" style="font-size:10px;color:#888;"></span>'+
+    '    </div>'+
+    '  </div>'++
     '</div>'+
     '</div>'; // closes __gmp_content wrapper
   document.body.appendChild(p);
@@ -4152,6 +4161,32 @@ console.log('[GM] Monitor injected '+ver);
       }
     });
     window.__gmpFocusTestStop=stopFocusTest;
+  })();
+
+  // === Socket packet send (Other Tab) ===
+  (function(){
+    document.addEventListener('click',function(e){
+      var t=e.target;
+      while(t&&t.nodeType===3)t=t.parentElement;
+      if(!t||!t.getAttribute)return;
+      if(t.id==='__gmp_socket_send'){
+        var inp=document.getElementById('__gmp_socket_boss_id');
+        var bossId=inp?inp.value.trim()||'wb_casper':'wb_casper';
+        var resEl=document.getElementById('__gmp_socket_result');
+        if(!window.__wbEmit){
+          if(resEl){resEl.textContent='❌ __wbEmit 不可用';resEl.style.color='#e94560';}
+          return;
+        }
+        try{
+          window.__wbEmit('joinBoss',[bossId]);
+          if(resEl){resEl.textContent='✅ joinBoss["'+bossId+'"] 已發送';resEl.style.color='#4ade80';}
+        }catch(er){
+          if(resEl){resEl.textContent='❌ '+er.message;resEl.style.color='#e94560';}
+        }
+        // 2秒後清除結果
+        setTimeout(function(){if(resEl)resEl.textContent='';},3000);
+      }
+    });
   })();
 
 })();
