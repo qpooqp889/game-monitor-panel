@@ -1,4 +1,4 @@
-﻿/* wb-boss.js v3.25 - BOSS Auto Script */
+﻿/* wb-boss.js v3.26 - BOSS Auto Script */
 
 // ====== Debug Logger (觸發條件: 偵測到重生 < 30s) ======
 // 儲存至 chrome.storage.local key: __gmp_debug_log
@@ -1089,16 +1089,14 @@ function __wbBossAutoScriptTryEnter(target,idx,list,card){
   var retry=window.__wbBossAutoScript.entryRetry||0;
   var maxRetry=3;
 
-  // 每次進入時重新查詢 DOM 卡片（避免 reference 過期）
-  if(!card||retry>0){
-    document.querySelectorAll('.wb-card[data-boss]').forEach(function(_c){if(_c.getAttribute('data-boss')===target.id)card=_c;});
-  }
-  if(!card){console.warn('[WB-AutoScript] TryEnter: card ref is null for '+target.name);}
-
-  // 點擊卡片觸發 joinBoss 封包
-  if(card&&retry===0){
-    // 第一次嘗試：點擊 + 等待 3 秒後驗證
-    try{card.click();}catch(e){}
+  // 用 Socket 封包 joinBoss 進場
+  if(retry===0){
+    // 第一次嘗試：發送 joinBoss 封包
+    var sent=false;
+    if(window.__wbEmit){window.__wbEmit('joinBoss',[target.id]);sent=true;}
+    else if(window.__wbSocket&&window.__wbSocket.emit){window.__wbSocket.emit('joinBoss',[target.id]);sent=true;}
+    if(sent)console.log('[WB-AutoScript] Sent joinBoss packet for '+target.name);
+    else console.warn('[WB-AutoScript] No socket for joinBoss, card='+!!card);
   }
 
   // 驗證是否成功進入：檢查 lastState.mode === 'bosscombat'
@@ -1110,7 +1108,7 @@ function __wbBossAutoScriptTryEnter(target,idx,list,card){
   if(ls.mode==='bosscombat'&&bossHp>0){
     // 成功進入：記錄、啟動自動攻擊、開始 HP 監控
     var hpPct=Math.round(bossHp/bossMax*100);
-    __wbAddBossHistory(target.name, 'enter', '確認進入('+(retry+1)+'次嘗試), HP: '+bossHp+'/'+bossMax+' ('+hpPct+'%)', bossHp, null);
+    __wbAddBossHistory(target.name, 'enter', '確認進入(封包,'+(retry+1)+'次嘗試), HP: '+bossHp+'/'+bossMax+' ('+hpPct+'%)', bossHp, null);
     var atkChk=document.getElementById('__gmp_boss_auto_atk');
     if(atkChk)atkChk.checked=true;
     var enableChk=document.getElementById('__gmp_boss_auto_enable');
@@ -1118,17 +1116,15 @@ function __wbBossAutoScriptTryEnter(target,idx,list,card){
     window.__wbBossAutoScript.phase='attacking';
     __wbBossAutoScriptMonitorBossHP(target,idx,list);
   } else if(retry<maxRetry){
-    // 進入失敗，等待 3 秒後重試
-    console.log('[WB-AutoScript] Entry attempt '+(retry+1)+' failed (mode='+ls.mode+'), retrying...');
+    // 進入失敗，等待 3 秒後重發封包
+    console.log('[WB-AutoScript] Entry attempt '+(retry+1)+' failed (mode='+ls.mode+'), resending joinBoss...');
     window.__wbBossAutoScript.entryRetry=retry+1;
     window.__wbBossAutoScript.phase='entering_retry';
     window.__wbBossAutoScript.timer=setTimeout(function(){
-      // 重試前重新查詢 DOM 卡片（DOM 可能已重繪，舊 reference 無效）
-      var _rfCard=null;
-      document.querySelectorAll('.wb-card[data-boss]').forEach(function(_c){if(_c.getAttribute('data-boss')===target.id)_rfCard=_c;});
-      if(_rfCard){try{_rfCard.click();console.log('[WB-AutoScript] Retry click '+target.name+' (attempt '+(retry+2)+')');}catch(e){}}
-      else{console.warn('[WB-AutoScript] Retry: card not in DOM for '+target.name);}
-      __wbBossAutoScriptTryEnter(target,idx,list,_rfCard||card);
+      // 重發 joinBoss 封包
+      if(window.__wbEmit){window.__wbEmit('joinBoss',[target.id]);console.log('[WB-AutoScript] Retry joinBoss '+target.name+' (attempt '+(retry+2)+')');}
+      else if(window.__wbSocket&&window.__wbSocket.emit){window.__wbSocket.emit('joinBoss',[target.id]);console.log('[WB-AutoScript] Retry joinBoss '+target.name+' (attempt '+(retry+2)+')');}
+      __wbBossAutoScriptTryEnter(target,idx,list,card);
     },3000);
   } else {
     // 重試 3 次後仍失敗 → 記錄 bossName/subText/mode 並跳過
@@ -1172,23 +1168,16 @@ function __wbBossAutoScriptTryEnterSpam(target,idx,list,card){
     }
   }
 
-  // 重新查詢 DOM 卡片
-  if(!card){
-    document.querySelectorAll('.wb-card[data-boss]').forEach(function(_c){if(_c.getAttribute('data-boss')===target.id)card=_c;});
-  }
-
-  // 狂點卡片
-  if(card){
-    try{card.click();}catch(e){}
-    var spamCount=(window.__wbBossAutoScript.spamCount||0)+1;
-    window.__wbBossAutoScript.spamCount=spamCount;
-    __wbDebugLog('spam','click #'+spamCount+' on '+target.name);
-    var statusEl=document.getElementById('__gmp_boss_script_status');
-    if(statusEl)statusEl.textContent='[SPAM]'+target.name+' #'+spamCount;
-    if(spamCount%10===0){console.log('[WB-AutoScript] Spam click '+target.name+' #'+spamCount);}
-  } else {
-    console.warn('[WB-AutoScript] Spam: card not in DOM for '+target.name+', retrying in 2s');
-  }
+  // 狂發 joinBoss 封包
+  var sent=false;
+  if(window.__wbEmit){window.__wbEmit('joinBoss',[target.id]);sent=true;}
+  else if(window.__wbSocket&&window.__wbSocket.emit){window.__wbSocket.emit('joinBoss',[target.id]);sent=true;}
+  var spamCount=(window.__wbBossAutoScript.spamCount||0)+1;
+  window.__wbBossAutoScript.spamCount=spamCount;
+  var statusEl=document.getElementById('__gmp_boss_script_status');
+  if(statusEl)statusEl.textContent='[SPAM]'+target.name+' joinBoss #'+spamCount;
+  if(spamCount%10===0){console.log('[WB-AutoScript] Spam joinBoss '+target.name+' #'+spamCount);}
+  if(!sent){console.warn('[WB-AutoScript] Spam: no socket for joinBoss, retrying in 2s');}
 
   // 每 2 秒重試（無上限）
   window.__wbBossAutoScript.phase='entering_spam';
