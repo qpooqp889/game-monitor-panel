@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v4.21';
+var ver='v4.22';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -450,7 +450,8 @@ function saveFarmSettings(){
     mpAction: document.getElementById('__gmp_farm_mp_action')?document.getElementById('__gmp_farm_mp_action').value:'selectChar',
     specifyTarget: document.getElementById('__gmp_farm_specify_target')?document.getElementById('__gmp_farm_specify_target').checked:false,
     targetIndex: document.getElementById('__gmp_farm_target_index')?parseInt(document.getElementById('__gmp_farm_target_index').value)||1:1,
-    attackAll: document.getElementById('__gmp_farm_attack_all')?document.getElementById('__gmp_farm_attack_all').checked:false
+    attackAll: document.getElementById('__gmp_farm_attack_all')?document.getElementById('__gmp_farm_attack_all').checked:false,
+    teleportDelay: parseFloat(document.getElementById('__gmp_farm_teleport_delay')?document.getElementById('__gmp_farm_teleport_delay').value:'0')||0
   };
   window.postMessage({type:'GM_SAVE_SETTINGS',data:data},'*');
 }
@@ -868,15 +869,33 @@ function startFarming(){
 
       // Feature 2: Auto teleport to farm when HP/MP > threshold (in town)
       // Triggered when in town AND HP/MP above thresholds
-      if(isInTown){
+      if(isInTown&&!window.__gmFarming._teleportScheduled){
         var hpGtOk=hpGtEnabled&&hpPct>(hpGtThresh/100);
         var mpGtOk=mpGtEnabled&&mpPct>(mpGtThresh/100);
         console.log('[GM] In town, HP:',Math.round(hpPct*100)+'%, MP:',Math.round(mpPct*100)+'%, hpGtOk:',hpGtOk,'mpGtOk:',mpGtOk);
         if(hpGtOk||mpGtOk){
-          console.log('[GM] Teleporting to farm zone:',farmZone);
-          sendZone(farmZone);
-          status.textContent='HP/MP充足，傳送掛機...';
-          status.style.color='#4ade80';
+          var tpdEl=document.getElementById('__gmp_farm_teleport_delay');
+          var delayMax=parseFloat(tpdEl?tpdEl.value:'0')||0;
+          var delayMs=delayMax>0?Math.floor(Math.random()*delayMax*1000):0;
+          if(delayMs>0){
+            console.log('[GM] Teleport scheduled in '+(delayMs/1000).toFixed(1)+'s (random 0~'+delayMax.toFixed(1)+'s)');
+            status.textContent='HP/MP充足，'+delayMs/1000+'s後傳送掛機...';
+            status.style.color='#ffd700';
+            window.__gmFarming._teleportScheduled=true;
+            window.__gmFarming._teleportTimer=setTimeout(function(){
+              console.log('[GM] Teleporting to farm zone:',farmZone);
+              sendZone(farmZone);
+              window.__gmFarming._teleportScheduled=false;
+              window.__gmFarming._teleportTimer=null;
+              status.textContent='HP/MP充足，傳送掛機...';
+              status.style.color='#4ade80';
+            },delayMs);
+          }else{
+            console.log('[GM] Teleporting to farm zone:',farmZone);
+            sendZone(farmZone);
+            status.textContent='HP/MP充足，傳送掛機...';
+            status.style.color='#4ade80';
+          }
           window.__gmFarming.returning=false;
         }
       }
@@ -1007,6 +1026,8 @@ function stopFarming(){
   window.__gmFarming.running=false;
   if(window.__gmFarming.timer){clearTimeout(window.__gmFarming.timer);window.__gmFarming.timer=null;}
   if(window.__gmFarming.reconnectTimer){clearTimeout(window.__gmFarming.reconnectTimer);window.__gmFarming.reconnectTimer=null;}
+  if(window.__gmFarming._teleportTimer){clearTimeout(window.__gmFarming._teleportTimer);window.__gmFarming._teleportTimer=null;}
+  window.__gmFarming._teleportScheduled=false;
   window.__gmFarming.returning=false;
   var btn=document.getElementById('__gmp_farm_btn');
   var status=document.getElementById('__gmp_farm_status');
@@ -1142,7 +1163,21 @@ function __gmBuildPanel(){
 '<div style="display:flex;align-items:center;gap:2px;margin-top:4px;margin-bottom:4px;">'+
 '<input type="checkbox" id="__gmp_boss_auto_reenter" style="width:13px;height:13px;cursor:pointer;">'+
 '<label for="__gmp_boss_auto_reenter" style="font-size:11px;color:#86c5ff;cursor:pointer;">\u2620 \u6b7b\u4ea1\u81ea\u52a8\u56de\u5927\u5385\u91cd\u8fdb\u672c\u6b21\u4e16\u754c\u738b</label>'+
-'</div>'+
+'</div>'+    // === 定時模式 BOSS 紀錄（摺疊區塊） ===
+    '<div id="__gmp_cron_log_section" style="display:none;margin-bottom:4px;">'+
+      '<div id="__gmp_cron_log_toggle" style="display:flex;justify-content:space-between;align-items:center;padding:3px 8px;background:rgba(255,215,0,0.08);border-radius:4px;cursor:pointer;user-select:none;font-size:10px;color:#ffd700;">'+
+        '<span>&#x1F4CB; 定時紀錄 <span id="__gmp_cron_log_count" style="color:#888;">(0)</span></span>'+
+        '<span id="__gmp_cron_log_arrow" style="font-size:10px;">&#x25B6;</span>'+
+      '</div>'+
+      '<div id="__gmp_cron_log_body" style="display:none;max-height:200px;overflow-y:auto;padding:4px 6px;background:rgba(0,0,0,0.3);border-radius:0 0 4px 4px;">'+
+        '<div id="__gmp_cron_log_list" style="font-size:9px;color:#aaa;line-height:1.6;"></div>'+
+        '<div style="display:flex;gap:4px;margin-top:4px;">'+
+          '<button id="__gmp_cron_log_clear" style="padding:1px 8px;background:#3a1a1a;border:1px solid #e94560;color:#e94560;border-radius:3px;cursor:pointer;font-size:9px;">清空</button>'+
+          '<button id="__gmp_cron_log_export" style="padding:1px 8px;background:#1a1a3a;border:1px solid #ffd700;color:#ffd700;border-radius:3px;cursor:pointer;font-size:9px;">匯出</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>'+
+
 
         '<div style="background:#3a1a1a;border-radius:4px;height:14px;">'+
           '<div id="__gmp_boss_hp_bar" style="width:0%;background:#e94560;height:100%;border-radius:4px;transition:width 0.3s;"></div>'+
@@ -1474,7 +1509,14 @@ function __gmBuildPanel(){
       '<span style="font-size:10px;color:#7bd14a;width:50px;">MP大於</span>'+
       '<input id="__gmp_farm_mp_gt" type="number" value="90" min="1" max="100" style="width:55px;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;text-align:center;">'+
       '<span style="font-size:10px;color:#888;">% 傳送掛機</span>'+
+    '</div>'+    // Delay slider for HP/MP teleport
+    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding-left:70px;">'+
+      '<span style="font-size:9px;color:#888;">隨機延遲</span>'+
+      '<input id="__gmp_farm_teleport_delay" type="range" value="0" min="0" max="10" step="0.5" style="width:80px;accent-color:#4ade80;">'+
+      '<span id="__gmp_farm_teleport_delay_label" style="font-size:9px;color:#4ade80;min-width:28px;">0s</span>'+
+      '<span style="font-size:9px;color:#666;">區間隨機</span>'+
     '</div>'+
+
     // 被登出次數計數器
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding:6px 8px;background:#1a1a2e;border-radius:6px;">'+
       '<span style="font-size:11px;color:#e94560;font-weight:bold;">🚪 被登出次數</span>'+
@@ -3807,13 +3849,29 @@ function __gmBuildPanel(){
     if(data.mpReconnectThresh)document.getElementById('__gmp_farm_mp_reconnect_thresh').value=data.mpReconnectThresh;
   });
 
+  // 載入傳送延遲
+  if(data.teleportDelay!==undefined){
+    var tpdEl2=document.getElementById('__gmp_farm_teleport_delay');
+    if(tpdEl2){tpdEl2.value=data.teleportDelay;}
+    var tpdLabel2=document.getElementById('__gmp_farm_teleport_delay_label');
+    if(tpdLabel2){tpdLabel2.textContent=parseFloat(data.teleportDelay).toFixed(1)+'s';}
+  }
+
   // === Auto-save on change ===
   var farmInputs=['__gmp_farm_zone','__gmp_farm_hp','__gmp_farm_mp','__gmp_farm_hp_chk','__gmp_farm_mp_chk',
     '__gmp_farm_hp_gt','__gmp_farm_mp_gt','__gmp_farm_hp_gt_chk','__gmp_farm_mp_gt_chk',
     '__gmp_farm_logic','__gmp_farm_logic_chk','__gmp_farm_atk',
     '__gmp_farm_specify_target','__gmp_farm_target_index','__gmp_farm_attack_all',
     '__gmp_farm_char_name','__gmp_farm_reconnect','__gmp_farm_reconnect_interval',
-    '__gmp_farm_mp_reconnect','__gmp_farm_mp_reconnect_thresh','__gmp_farm_char_slot'];
+    '__gmp_farm_mp_reconnect','__gmp_farm_mp_reconnect_thresh','__gmp_farm_char_slot',
+    '__gmp_farm_teleport_delay'];
+  // 傳送延遲 slider label 更新
+  var tpd=document.getElementById('__gmp_farm_teleport_delay');
+  var tpdl=document.getElementById('__gmp_farm_teleport_delay_label');
+  if(tpd&&tpdl){
+    tpd.addEventListener('input',function(){tpdl.textContent=parseFloat(tpd.value).toFixed(1)+'s';});
+  }
+
   farmInputs.forEach(function(id){
     var el=document.getElementById(id);
     if(el){
@@ -3946,13 +4004,83 @@ document.addEventListener('change',function(e){
   var _mode=t.value;console.log('[BossScript] Mode changed to:'+_mode);
       // 寫入 runtime state
       if(window.__wbBossAutoScript)window.__wbBossAutoScript.mode=_mode;
-      // 顯示/隱藏定時設定
+      // 顯示/隱藏定時設定 + 定時紀錄面板
       var cronDiv=document.getElementById('__gmp_cron_config');
       if(cronDiv)cronDiv.style.display=(_mode==='cron')?'block':'none';
+      var cronLogSec=document.getElementById('__gmp_cron_log_section');
+      if(cronLogSec)cronLogSec.style.display=(_mode==='cron')?'block':'none';
+      if(_mode==='cron'&&typeof __wbRenderCronLog==='function'){setTimeout(__wbRenderCronLog,100);}
       // 儲存到 chrome.storage
       if(typeof __wbSaveBossScriptMode==='function')__wbSaveBossScriptMode(_mode);
     }
   });
+
+  // === 定時模式 BOSS 紀錄面板 ===
+  window.__wbRenderCronLog=function(){
+    var listEl=document.getElementById('__gmp_cron_log_list');
+    var countEl=document.getElementById('__gmp_cron_log_count');
+    if(!listEl)return;
+    var history=window.__wbBossHistory||[];
+    // 過濾：只顯示定時模式相關事件（排除即時、智能、__DIAG__）
+    var filtered=history.filter(function(h){return h.bossName!=='__DIAG__';});
+    if(countEl)countEl.textContent='('+filtered.length+')';
+    if(!filtered.length){listEl.innerHTML='<span style="color:#666;">尚無紀錄</span>';return;}
+    // 取最後 100 筆，新在上
+    var items=filtered.slice(-100).reverse();
+    var html='';
+    items.forEach(function(h){
+      var d=new Date(h.t);
+      var ts=d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')+':'+d.getSeconds().toString().padStart(2,'0');
+      var ec='#aaa';
+      if(h.event==='defeat')ec='#e94560';
+      else if(h.event==='enter'||h.event==='reenter')ec='#4caf50';
+      else if(h.event==='skip'||h.event==='fail_entry')ec='#fbbf24';
+      else if(h.event==='wait')ec='#86c5ff';
+      else if(h.event==='leave')ec='#888';
+      html+='<div style="display:flex;gap:4px;border-bottom:1px solid rgba(255,255,255,0.05);padding:2px 0;">'+
+        '<span style="color:#666;min-width:44px;">'+ts+'</span>'+
+        '<span style="color:'+ec+';min-width:28px;">['+h.event+']</span>'+
+        '<span style="color:#ffd700;min-width:60px;">'+h.bossName+'</span>'+
+        '<span style="color:#aaa;flex:1;">'+h.details+'</span>'+
+      '</div>';
+    });
+    listEl.innerHTML=html;
+  };
+
+  // 摺疊切換
+  var _logToggle=document.getElementById('__gmp_cron_log_toggle');
+  var _logBody=document.getElementById('__gmp_cron_log_body');
+  var _logArrow=document.getElementById('__gmp_cron_log_arrow');
+  if(_logToggle&&_logBody&&_logArrow){
+    _logToggle.onclick=function(){
+      var vis=_logBody.style.display!=='none';
+      _logBody.style.display=vis?'none':'block';
+      _logArrow.textContent=vis?'\u25B6':'\u25BC';
+      if(!vis&&typeof __wbRenderCronLog==='function'){
+        if(typeof __wbLoadBossHistory==='function'){__wbLoadBossHistory(function(){__wbRenderCronLog();});}
+        else __wbRenderCronLog();
+      }
+    };
+  }
+
+  // 清空
+  var _logClear=document.getElementById('__gmp_cron_log_clear');
+  if(_logClear)_logClear.onclick=function(){
+    if(typeof __wbClearBossHistory==='function'){__wbClearBossHistory().then(function(){if(typeof __wbRenderCronLog==='function')__wbRenderCronLog();});}
+    else{window.__wbBossHistory=[];if(typeof __wbRenderCronLog==='function')__wbRenderCronLog();}
+  };
+
+  // 匯出到 console (F12)
+  var _logExport=document.getElementById('__gmp_cron_log_export');
+  if(_logExport)_logExport.onclick=function(){
+    var history=window.__wbBossHistory||[];
+    var filtered=history.filter(function(h){return h.bossName!=='__DIAG__';});
+    console.log('=== BOSS Cron Log Export ('+filtered.length+' entries) ===');
+    console.table(filtered.map(function(h){return {time:new Date(h.t).toISOString(),boss:h.bossName,event:h.event,details:h.details};}));
+    console.log(JSON.stringify(filtered,null,2));
+    alert('已匯出 '+filtered.length+' 筆紀錄到 Console (F12)');
+  };
+
 console.log('[GM] Monitor injected '+ver);
 
 
