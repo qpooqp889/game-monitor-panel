@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v4.23';
+var ver='v4.24';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -3874,10 +3874,7 @@ function __gmBuildPanel(){
     document.getElementById('__gmp_farm_reconnect').checked=data.reconnectEnabled!==false;
     if(data.reconnectInterval)document.getElementById('__gmp_farm_reconnect_interval').value=data.reconnectInterval;
     if(data.charSlot!==undefined)document.getElementById('__gmp_farm_char_slot').value=data.charSlot;
-    if(data.charSlot!==undefined)document.getElementById('__gmp_farm_char_slot').value=data.charSlot;
-    if(data.charSlot!==undefined)document.getElementById('__gmp_farm_char_slot').value=data.charSlot;
-    if(data.charSlot!==undefined)document.getElementById('__gmp_farm_char_slot').value=data.charSlot;
-    // 新增：MP reconnect
+    // MP reconnect
     if(data.mpReconnectEnabled!==undefined)document.getElementById('__gmp_farm_mp_reconnect').checked=data.mpReconnectEnabled;
     if(data.mpReconnectThresh)document.getElementById('__gmp_farm_mp_reconnect_thresh').value=data.mpReconnectThresh;
   });
@@ -3911,28 +3908,6 @@ function __gmBuildPanel(){
     '__gmp_farm_char_name','__gmp_farm_reconnect','__gmp_farm_reconnect_interval',
     '__gmp_farm_mp_reconnect','__gmp_farm_mp_reconnect_thresh','__gmp_farm_char_slot',
     '__gmp_farm_teleport_delay_min','__gmp_farm_teleport_delay_max'];
-  // 傳送延遲雙拉條 label 更新
-  var tpdMin=document.getElementById('__gmp_farm_teleport_delay_min');
-  var tpdMinLbl=document.getElementById('__gmp_farm_teleport_delay_min_label');
-  var tpdMax=document.getElementById('__gmp_farm_teleport_delay_max');
-  var tpdMaxLbl=document.getElementById('__gmp_farm_teleport_delay_max_label');
-  if(tpdMin&&tpdMinLbl){
-    tpdMin.addEventListener('input',function(){
-      var minV=parseFloat(tpdMin.value)||0;
-      var maxV=parseFloat(tpdMax.value)||0;
-      if(minV>maxV){tpdMax.value=tpdMin.value;tpdMaxLbl.textContent=minV.toFixed(1)+'s';}
-      tpdMinLbl.textContent=minV.toFixed(1)+'s';
-    });
-  }
-  if(tpdMax&&tpdMaxLbl){
-    tpdMax.addEventListener('input',function(){
-      var minV=parseFloat(tpdMin.value)||0;
-      var maxV=parseFloat(tpdMax.value)||0;
-      if(maxV<minV){tpdMin.value=tpdMax.value;tpdMinLbl.textContent=maxV.toFixed(1)+'s';}
-      tpdMaxLbl.textContent=maxV.toFixed(1)+'s';
-    });
-  }
-
   farmInputs.forEach(function(id){
     var el=document.getElementById(id);
     if(el){
@@ -4004,29 +3979,80 @@ setTimeout(function() {
 }, 100);
 
 __gmBuildPanel();
-document.addEventListener('__gm_show_panel',function(){__gmBuildPanel()});
+document.addEventListener('__gm_show_panel',function(){__gmBuildPanel();setTimeout(__gmBindTeleportSliders,100);});
+
+// ==== 傳送延遲雙拉條綁定（在 panel DOM 建立之後）====
+function __gmBindTeleportSliders(){
+  var tpdMin=document.getElementById('__gmp_farm_teleport_delay_min');
+  var tpdMinLbl=document.getElementById('__gmp_farm_teleport_delay_min_label');
+  var tpdMax=document.getElementById('__gmp_farm_teleport_delay_max');
+  var tpdMaxLbl=document.getElementById('__gmp_farm_teleport_delay_max_label');
+  if(tpdMinLbl){var mv=parseFloat(tpdMin&&tpdMin.value!=null?tpdMin.value:'0')||0;tpdMinLbl.textContent=mv.toFixed(1)+'s';}
+  if(tpdMaxLbl){var xv=parseFloat(tpdMax&&tpdMax.value!=null?tpdMax.value:'0')||0;tpdMaxLbl.textContent=xv.toFixed(1)+'s';}
+  function __gmDoSaveTeleportDelay(){
+    if(typeof window.__gmStorageSet!=='function')return;
+    var minV=parseFloat(tpdMin&&tpdMin.value!=null?tpdMin.value:'0')||0;
+    var maxV=parseFloat(tpdMax&&tpdMax.value!=null?tpdMax.value:'0')||0;
+    window.__gmStorageSet('gmFarmSettings',{teleportDelayMin:minV,teleportDelayMax:maxV}).catch(function(){});
+  }
+  if(tpdMin){
+    tpdMin.oninput=function(){
+      var minV=parseFloat(tpdMin.value)||0;
+      var maxV=parseFloat(tpdMax&&tpdMax.value!=null?tpdMax.value:'0')||0;
+      if(minV>maxV){tpdMax.value=tpdMin.value;if(tpdMaxLbl)tpdMaxLbl.textContent=minV.toFixed(1)+'s';}
+      if(tpdMinLbl)tpdMinLbl.textContent=minV.toFixed(1)+'s';
+      __gmDoSaveTeleportDelay();
+    };
+  }
+  if(tpdMax){
+    tpdMax.oninput=function(){
+      var minV=parseFloat(tpdMin&&tpdMin.value!=null?tpdMin.value:'0')||0;
+      var maxV=parseFloat(tpdMax.value)||0;
+      if(maxV<minV){tpdMin.value=tpdMax.value;if(tpdMinLbl)tpdMinLbl.textContent=maxV.toFixed(1)+'s';}
+      if(tpdMaxLbl)tpdMaxLbl.textContent=maxV.toFixed(1)+'s';
+      __gmDoSaveTeleportDelay();
+    };
+  }
+}
+setTimeout(__gmBindTeleportSliders,200);
 
 // === Auto-start countdown modal (10s) ===
 (function initAutoStart(){
-  if(!document.body||!document.body.appendChild){setTimeout(initAutoStart,100);return;}
+  if(!document.body){setTimeout(initAutoStart,100);return;}
   var sec=10;
   var timer=null;
   var modal=document.createElement('div');
   modal.id='__gmp_autostart_modal';
   modal.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.82);z-index:10000000;display:flex;align-items:center;justify-content:center;';
-  modal.innerHTML='<div style="background:#1a1a2e;border:1px solid #0f3460;border-radius:14px;padding:28px 36px;text-align:center;max-width:400px;box-shadow:0 4px 30px rgba(0,0,0,0.7);">'+
-    '<div style="font-size:18px;color:#4ade80;font-weight:bold;margin-bottom:18px;">⏱ 自動啟動倒數</div>'+
-    '<div id="__gmp_autostart_countdown" style="font-size:52px;color:#ffd700;font-weight:bold;margin-bottom:14px;">'+sec+'</div>'+
-    '<div style="font-size:11px;color:#aaa;margin-bottom:18px;line-height:2;">'+
-      '✅ 掛機腳本<br>'+
-      '✅ BOSS 自動進入<br>'+
-      '✅ BOSS 自動偵測戰鬥'+
-    '</div>'+
-    '<div style="display:flex;gap:10px;justify-content:center;">'+
-      '<button id="__gmp_autostart_cancel" style="padding:10px 28px;background:#e94560;border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:14px;font-weight:bold;">取消</button>'+
-      '<button id="__gmp_autostart_now" style="padding:10px 28px;background:#4ade80;border:none;color:#000;border-radius:8px;cursor:pointer;font-size:14px;font-weight:bold;">立即啟動</button>'+
-    '</div>'+
-  '</div>';
+  var box=document.createElement('div');
+  box.style.cssText='background:#1a1a2e;border:1px solid #0f3460;border-radius:14px;padding:28px 36px;text-align:center;max-width:400px;box-shadow:0 4px 30px rgba(0,0,0,0.7);';
+  var title=document.createElement('div');
+  title.style.cssText='font-size:18px;color:#4ade80;font-weight:bold;margin-bottom:18px;';
+  title.textContent='\u23F1 \u81EA\u52D5\u555F\u52D5\u5012\u6578';
+  box.appendChild(title);
+  var countEl=document.createElement('div');
+  countEl.id='__gmp_autostart_countdown';
+  countEl.style.cssText='font-size:52px;color:#ffd700;font-weight:bold;margin-bottom:14px;';
+  countEl.textContent=String(sec);
+  box.appendChild(countEl);
+  var feat=document.createElement('div');
+  feat.style.cssText='font-size:11px;color:#aaa;margin-bottom:18px;line-height:2;';
+  feat.textContent='\u2705 \u639B\u6A5F\u8173\u672C\n\u2705 BOSS \u81EA\u52D5\u9032\u5165\n\u2705 BOSS \u81EA\u52D5\u5075\u6E2C\u6230\u9B25';
+  box.appendChild(feat);
+  var btnRow=document.createElement('div');
+  btnRow.style.cssText='display:flex;gap:10px;justify-content:center;';
+  var cancelBtn=document.createElement('button');
+  cancelBtn.id='__gmp_autostart_cancel';
+  cancelBtn.style.cssText='padding:10px 28px;background:#e94560;border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:14px;font-weight:bold;';
+  cancelBtn.textContent='\u53D6\u6D88';
+  btnRow.appendChild(cancelBtn);
+  var nowBtn=document.createElement('button');
+  nowBtn.id='__gmp_autostart_now';
+  nowBtn.style.cssText='padding:10px 28px;background:#4ade80;border:none;color:#000;border-radius:8px;cursor:pointer;font-size:14px;font-weight:bold;';
+  nowBtn.textContent='\u7ACB\u5373\u555F\u52D5';
+  btnRow.appendChild(nowBtn);
+  box.appendChild(btnRow);
+  modal.appendChild(box);
   document.body.appendChild(modal);
 
   function doStart(){
@@ -4048,8 +4074,8 @@ document.addEventListener('__gm_show_panel',function(){__gmBuildPanel()});
     console.log('[AutoStart] Cancelled by user');
   }
 
-  document.getElementById('__gmp_autostart_cancel').onclick=doCancel;
-  document.getElementById('__gmp_autostart_now').onclick=doStart;
+  cancelBtn.onclick=doCancel;
+  nowBtn.onclick=doStart;
 
   timer=setInterval(function(){
     sec--;
