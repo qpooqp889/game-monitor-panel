@@ -1574,7 +1574,7 @@ function __gmBuildPanel(){
     '      <button id="__gmp_socket_send" style="padding:3px 10px;background:#e94560;border:none;color:#fff;border-radius:4px;cursor:pointer;font-size:10px;font-weight:bold;">發送</button>'+
     '      <span id="__gmp_socket_result" style="font-size:10px;color:#888;"></span>'+
     '    </div>'+
-    '  </div>'++
+    '  </div>'+
     '</div>'+
     '</div>'; // closes __gmp_content wrapper
   document.body.appendChild(p);
