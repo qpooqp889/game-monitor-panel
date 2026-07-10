@@ -1,4 +1,4 @@
-(function(){
+ï»¿(function(){
 var ver='v4.21';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
@@ -9,8 +9,8 @@ if(window.__gmInjected){
 window.__gmInjected=true;
 window.__gmVer=ver;
 
-// ¸ü¤J¶i¶¥¼Ò²Õ¡]­Y©|¥¼¸ü¤J¡A³z¹L content script relay¡^
-// ²{¦b popup.js ·|¤@¦¸ª`¤J¨â­Ó¸}¥»¡A³o¦æ¶È§@¬°­Ý®e³Æ´©
+// ï¿½ï¿½ï¿½Jï¿½iï¿½ï¿½ï¿½Ò²Õ¡]ï¿½Yï¿½|ï¿½ï¿½ï¿½ï¿½ï¿½Jï¿½Aï¿½zï¿½L content script relayï¿½^
+// ï¿½{ï¿½b popup.js ï¿½|ï¿½@ï¿½ï¿½ï¿½`ï¿½Jï¿½ï¿½Ó¸}ï¿½ï¿½ï¿½Aï¿½oï¿½ï¿½È§@ï¿½ï¿½ï¿½Ý®eï¿½Æ´ï¿½
 if(!window.__gmAdvanced){
   window.postMessage({type:'GM_LOAD_ADVANCED',src:'advanced-farming.js'},'*');
   console.log('[GM] Requested advanced-farming.js via content script');
@@ -18,13 +18,13 @@ if(!window.__gmAdvanced){
 window.__battleStatus={packets:[]};window.__gmOnlineCount=null;
 window.__gmFarming={running:false,timer:null,returning:false,waitTimer:null};
 window.__gmLogoutModalVisible=false;
-window.__gmLogoutDayOffset=0; // 0=¤µ¤Ñ, 1=¬Q¤Ñ, 2=«e¤Ñ...
+window.__gmLogoutDayOffset=0; // 0=ï¿½ï¿½ï¿½ï¿½, 1=ï¿½Qï¿½ï¿½, 2=ï¿½eï¿½ï¿½...
 
 
 // ====== WB Boss Hook ======
 window.__wbBossEmitLog=[];
 window.__wbSocket=null;
-window.lastState=null;  // ªì©l¤Æ¥þ°ì lastState
+window.lastState=null;  // ï¿½ï¿½lï¿½Æ¥ï¿½ï¿½ï¿½ lastState
 (function(){
   function installSioHook(){
     if(window.__wbSioHooked)return;
@@ -55,16 +55,16 @@ window.lastState=null;  // ªì©l¤Æ¥þ°ì lastState
           var payload=JSON.stringify(p.data).slice(0,2000);
           window.__sioPackets=window.__sioPackets||[];
           window.__sioPackets.push({t:Date.now(),dir:'EVENT',evt:evtName,args:payload});
-          // ¸ÑªR state ¨Æ¥ó¨Ã§ó·s window.lastState
+          // ï¿½ÑªR state ï¿½Æ¥ï¿½Ã§ï¿½s window.lastState
           if(evtName==='state'&&p.data[1]){
             window.lastState=p.data[1];
           }
-          // ®·®»©Ò¦³¨Æ¥ó ¡÷ ¥@¬É¤ý§Ö¨ú + ¨Æ¥ó¦Cªí
+          // ï¿½ï¿½ï¿½ï¿½ï¿½Ò¦ï¿½ï¿½Æ¥ï¿½ ï¿½ï¿½ ï¿½@ï¿½É¤ï¿½ï¿½Ö¨ï¿½ + ï¿½Æ¥ï¿½Cï¿½ï¿½
           window.__wbAllEvents=window.__wbAllEvents||[];
           var rec={t:Date.now(),evt:evtName,payload:payload};
           window.__wbAllEvents.push(rec);
           if(window.__wbAllEvents.length>500)window.__wbAllEvents.shift();
-          // ³Q°Ê°»´ú¡G¨Æ¥ó¦W§t¥@¬É¤ýÃöÁä¦r¡A©Î state §t mode:boss¡A©Î¦³ boss:{...}
+          // ï¿½Qï¿½Ê°ï¿½ï¿½ï¿½ï¿½Gï¿½Æ¥ï¿½Wï¿½tï¿½@ï¿½É¤ï¿½ï¿½ï¿½ï¿½ï¿½rï¿½Aï¿½ï¿½ state ï¿½t mode:bossï¿½Aï¿½Î¦ï¿½ boss:{...}
           var _payloadStr=p.data.length>1?JSON.stringify(p.data[1]):'';
           var _isWbEvtName=/\b(respawn|worldBoss|bossList|world_boss|getBoss|RefreshBoss|bossInfo)\b/i.test(evtName);
           var _isStateBoss=_payloadStr.indexOf('"mode":"boss"')>-1||_payloadStr.indexOf('"mode": "boss"')>-1;
@@ -75,13 +75,13 @@ window.lastState=null;  // ªì©l¤Æ¥þ°ì lastState
             window.__wbWorldBossCache.ts=Date.now();
             window.__wbLastEvtName=evtName;
             console.log('[WB] WorldBoss event captured:',evtName,JSON.stringify(p.data[1]).slice(0,200));
-            // §ó·s UI ¤¸¯À¡]³Q°Ê°»´ú¨ì´N¥ß¨è¨ê·s¡^
+            // ï¿½ï¿½s UI ï¿½ï¿½ï¿½ï¿½ï¿½]ï¿½Qï¿½Ê°ï¿½ï¿½ï¿½ï¿½ï¿½Nï¿½ß¨ï¿½ï¿½sï¿½^
             var evtEl=document.getElementById('__gmp_wb_evt_name');
             if(evtEl){evtEl.textContent=evtName;evtEl.style.color='#4ade80';}
             var cntEl=document.getElementById('__gmp_wb_count');
             if(cntEl)cntEl.textContent='1+';
             __wbUpdateWorldBossUI();
-            // ³qª¾©Ò¦³­q¾\ªÌ
+            // ï¿½qï¿½ï¿½ï¿½Ò¦ï¿½ï¿½qï¿½\ï¿½ï¿½
             (window.__wbBossEvtSubscribers||[]).forEach(function(fn){try{fn(evtName,p.data);}catch(e){}});
           }
         }
@@ -99,22 +99,22 @@ function __wbCastSkill(id,target){if(!window.__wbSocket)return;try{var p={id:id}
 function __wbSetBossSet(s){if(!window.__wbSocket)return;try{window.__wbSocket.emit('setBossSet',s);}catch(e){}}
 function __wbEmit(evt,data){if(!window.__wbSocket||!window.__wbSocket.emit)return;try{window.__wbSocket.emit(evt,data);console.log('[WB-Emit]',evt,JSON.stringify(data).slice(0,200));}catch(e){console.warn('[WB-Emit] failed',e);}}
 
-// ====== World Boss ºÊ±± ======
-// §Ö¨ú¡G³Ìªñ¤@¦¸§t¥@¬É¤ý¸ê°Tªº socket ¨Æ¥ó
+// ====== World Boss ï¿½Ê±ï¿½ ======
+// ï¿½Ö¨ï¿½ï¿½Gï¿½Ìªï¿½@ï¿½ï¿½ï¿½tï¿½@ï¿½É¤ï¿½ï¿½ï¿½Tï¿½ï¿½ socket ï¿½Æ¥ï¿½
 window.__wbWorldBossCache={data:null,ts:0};
 window.__wbBossEvtSubscribers=[];
-// ¤w½T»{ªº¥@¬É¤ý¨Æ¥ó¦W¡]¥Ñ¨Ï¥ÎªÌ©Î¦Û°Ê°»´ú½T»{«á¼g¤J¡^
+// ï¿½wï¿½Tï¿½{ï¿½ï¿½ï¿½@ï¿½É¤ï¿½ï¿½Æ¥ï¿½Wï¿½]ï¿½Ñ¨Ï¥ÎªÌ©Î¦Û°Ê°ï¿½ï¿½ï¿½ï¿½Tï¿½{ï¿½ï¿½gï¿½Jï¿½^
 window.__wbWorldBossEvtName=null;
-// ¦Û°Ê¬d¸ß­p®É¾¹ handle
+// ï¿½Û°Ê¬dï¿½ß­pï¿½É¾ï¿½ handle
 window.__wbWorldBossTimer=null;
-// ­q¾\¯S©w¥@¬É¤ý¨Æ¥ó¡]¥Î©ó UI §Y®É§ó·s¡^
+// ï¿½qï¿½\ï¿½Sï¿½wï¿½@ï¿½É¤ï¿½ï¿½Æ¥ï¿½]ï¿½Î©ï¿½ UI ï¿½Yï¿½É§ï¿½sï¿½^
 function __wbSubscribeWorldBoss(fn){if(window.__wbBossEvtSubscribers.indexOf(fn)<0)window.__wbBossEvtSubscribers.push(fn);}
-// ¤â°Ê¬d¸ß¥@¬É¤ý¡]¹Á¸Õ±`¨£¨Æ¥ó¦W¡^
+// ï¿½ï¿½Ê¬dï¿½ß¥@ï¿½É¤ï¿½ï¿½]ï¿½ï¿½ï¿½Õ±`ï¿½ï¿½ï¿½Æ¥ï¿½Wï¿½^
 function __wbQueryWorldBoss(){
   __wbUpdateWorldBossUI();
   return true;
 }
-// ¦Û°Ê¬d¸ß¡G¨C 60 ¬í°õ¦æ¤@¦¸
+// ï¿½Û°Ê¬dï¿½ß¡Gï¿½C 60 ï¿½ï¿½ï¿½ï¿½ï¿½@ï¿½ï¿½
 function __wbStartWorldBossTimer(){
   if(window.__wbWorldBossTimer)clearInterval(window.__wbWorldBossTimer);
   window.__wbWorldBossCountdown=60;
@@ -136,15 +136,15 @@ function __wbStopWorldBossTimer(){
 function __wbParseWorldBossData(raw){
   if(!raw)return[];
   var arr=[];
-  // ¹Á¸Õ±`¨£¥]¸Ë®æ¦¡
+  // ï¿½ï¿½ï¿½Õ±`ï¿½ï¿½ï¿½]ï¿½Ë®æ¦¡
   if(Array.isArray(raw))arr=raw;
   else if(raw&&raw.list)arr=raw.list;
   else if(raw&&raw.bosses)arr=raw.bosses;
   else if(raw&&raw.data)arr=Array.isArray(raw.data)?raw.data:[raw.data];
   else if(typeof raw==='object')arr=[raw];
-  // ¹LÂo¡G¨C¶µ¶·¦³ name
+  // ï¿½Lï¿½oï¿½Gï¿½Cï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ name
   arr=arr.filter(function(it){return it&&(it.name||it.n||it.bossName);});
-  // ¼Ð·Ç¤ÆÄæ¦ì
+  // ï¿½Ð·Ç¤ï¿½ï¿½ï¿½ï¿½
   return arr.map(function(it){
     return{
       name:it.name||it.n||it.bossName||it.boss_name||'?',
@@ -157,7 +157,7 @@ function __wbParseWorldBossData(raw){
     };
   });
 }
-// §ó·s¥@¬É¤ý UI¡]Åã¥Ü¦b BOSS Tab ³»ºÝ¡^
+// ï¿½ï¿½sï¿½@ï¿½É¤ï¿½ UIï¿½]ï¿½ï¿½Ü¦b BOSS Tab ï¿½ï¿½ï¿½Ý¡^
 function __wbUpdateWorldBossUI(autoNav){
   var el=document.getElementById('__gmp_wb_list');
   var timerEl=document.getElementById('__gmp_wb_timer');
@@ -169,7 +169,7 @@ function __wbUpdateWorldBossUI(autoNav){
       timerEl.textContent=window.__wbWorldBossCountdown+'s/60s';
     }  }
 
-  // === Åª¨ú¹CÀ¸ DOM ===
+  // === Åªï¿½ï¿½ï¿½Cï¿½ï¿½ DOM ===
   var cards=document.querySelectorAll('.wb-card[data-boss]');
   var bossList=[];
   cards.forEach(function(card){
@@ -189,7 +189,7 @@ function __wbUpdateWorldBossUI(autoNav){
     var subText=subEl?subEl.textContent.trim():'';
 
     var status='unknown',respawn=null,respawnMin=null;
-    if(subText.indexOf('¤w³QÀ»±Ñ')!==-1||subText.indexOf('¤w³Q©ºªA')!==-1){
+    if(subText.indexOf('ï¿½wï¿½Qï¿½ï¿½ï¿½ï¿½')!==-1||subText.indexOf('ï¿½wï¿½Qï¿½ï¿½ï¿½A')!==-1){
       status='dead';
       var m=subText.match(/(\d{1,2}):(\d{2})/);
       if(m){
@@ -200,19 +200,19 @@ function __wbUpdateWorldBossUI(autoNav){
         respawn=Math.round((target-now)/1000);
         respawnMin=Math.ceil(respawn/60);
       }
-    } else if(subText.indexOf('¦s¬¡')!==-1||subText.indexOf('¾Ô°«¤¤')!==-1||subText.indexOf('HP')!==-1){
+    } else if(subText.indexOf('ï¿½sï¿½ï¿½')!==-1||subText.indexOf('ï¿½Ô°ï¿½ï¿½ï¿½')!==-1||subText.indexOf('HP')!==-1){
       status='alive';
-    } else if(subText.indexOf('µ¥«Ý')!==-1){
+    } else if(subText.indexOf('ï¿½ï¿½ï¿½ï¿½')!==-1){
       status='waiting';
     }
 
     bossList.push({id:bossId,name:name,lv:lv,hp:status==='alive'?1:0,maxHp:1,respawn:respawn,respawnMin:respawnMin,status:status});
   });
 
-  // === Åª¨úÀu¥ý°Q¥ï²M³æ ===
+  // === Åªï¿½ï¿½ï¿½uï¿½ï¿½ï¿½Qï¿½ï¿½Mï¿½ï¿½ ===
   window.__wbLoadHuntList(function(huntIds){
     if(bossList.length){
-      if(countEl)countEl.textContent=bossList.length+' °¦';
+      if(countEl)countEl.textContent=bossList.length+' ï¿½ï¿½';
       var html=bossList.map(function(b){
         var rsStr=b.respawn!==null?'\u91cd\u751f:'+Math.floor(b.respawn/60)+'m '+String((b.respawn%60)+'s').padStart(3,'0'):(b.status==='alive'?'\u5b58\u6d3b\u4e2d':'--');
         var sc={alive:'#4ade80',dead:'#888',waiting:'#fbbf24',unknown:'#555'};
@@ -231,10 +231,10 @@ function __wbUpdateWorldBossUI(autoNav){
       if(countEl)countEl.textContent='--';
       el.innerHTML='<div style="font-size:10px;color:#888;padding:8px;text-align:center;">\u4e16\u754c\u738b\u5217\u8868\u4e3a\u7a7a<br><span style="font-size:9px;color:#555;">\u8bf7\u5148\u5207\u6362\u5230\u300c\u72e9\u7315\u573a \u2192 \u4e16\u754c\u738b\u300d\u5206\u9875'+ (autoNav?'<br><span style="font-size:9px;color:#ffd700;">\u81ea\u52a8\u5bfc\u822a\u4e2d...</span>':'') +'</span></div>';
     }
-    // ¦P¨B§ó·sÀu¥ý°Q¥ï²M³æ UI
+    // ï¿½Pï¿½Bï¿½ï¿½sï¿½uï¿½ï¿½ï¿½Qï¿½ï¿½Mï¿½ï¿½ UI
     window.__wbUpdateHuntListUI();
   });
-  // === ¦Û°Ê¾É¯è ===
+  // === ï¿½Û°Ê¾É¯ï¿½ ===
   if(autoNav && bossList.length===0){
     try{
       var zoneTab=document.querySelector('div.tab[data-tab="zone"]');
@@ -244,7 +244,7 @@ function __wbUpdateWorldBossUI(autoNav){
     }catch(e){console.warn('[WB] autoNav error:',e);}
   }
 }
-// ¹Á¸Õ¦Û°Ê°»´ú¥@¬É¤ý¨Æ¥ó¡]¨C 5 ¬íÀË¬d³Ìªñ®·Àòªº¨Æ¥ó¡^
+// ï¿½ï¿½ï¿½Õ¦Û°Ê°ï¿½ï¿½ï¿½ï¿½@ï¿½É¤ï¿½ï¿½Æ¥ï¿½]ï¿½C 5 ï¿½ï¿½ï¿½Ë¬dï¿½Ìªï¿½ï¿½òªº¨Æ¥ï¿½^
 function __wbDetectWorldBossEvt(){
   var evts=window.__wbAllEvents||[];
   var candidates={};
@@ -260,7 +260,7 @@ function __wbDetectWorldBossEvt(){
   }
   return null;
 }
-// ªì¦¸±Ò°Ê°»´ú
+// ï¿½ì¦¸ï¿½Ò°Ê°ï¿½ï¿½ï¿½
 setTimeout(function(){
   var detected=__wbDetectWorldBossEvt();
   if(detected){
@@ -268,7 +268,7 @@ setTimeout(function(){
     console.log('[WB-WorldBoss] confirmed event:',detected);
   }
   __wbStartWorldBossTimer();
-  // ¨C 5 ¬í°»´ú·s¨Æ¥ó
+  // ï¿½C 5 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½sï¿½Æ¥ï¿½
   window.__wbWorldBossDetectTimer=setInterval(function(){
     if(!window.__wbWorldBossEvtName){
       var d=__wbDetectWorldBossEvt();
@@ -312,21 +312,21 @@ function __gmOpenLogoutHistory(){
     '<div style="background:#0f0f23;border:2px solid #4ade80;border-radius:10px;width:520px;max-height:80vh;display:flex;flex-direction:column;color:#fff;">'+
       '<div id="__gmp_logout_header" style="padding:12px 16px;border-bottom:1px solid #0f3460;display:flex;justify-content:space-between;align-items:center;">'+
         '<div>'+
-          '<div style="font-size:14px;font-weight:bold;color:#4ade80;">?? ³Qµn¥X¾ú¥v°O¿ý</div>'+
+          '<div style="font-size:14px;font-weight:bold;color:#4ade80;">?? ï¿½Qï¿½nï¿½Xï¿½ï¿½ï¿½vï¿½Oï¿½ï¿½</div>'+
           '<div id="__gmp_logout_subtitle" style="font-size:10px;color:#888;margin-top:2px;">--</div>'+
         '</div>'+
-        '<button id="__gmp_logout_close" style="background:#e94560;border:none;color:#fff;width:24px;height:24px;border-radius:4px;cursor:pointer;font-size:14px;font-weight:bold;">¡Ñ</button>'+
+        '<button id="__gmp_logout_close" style="background:#e94560;border:none;color:#fff;width:24px;height:24px;border-radius:4px;cursor:pointer;font-size:14px;font-weight:bold;">ï¿½ï¿½</button>'+
       '</div>'+
       '<div style="padding:8px 12px;background:#1a1a2e;display:flex;gap:6px;align-items:center;border-bottom:1px solid #0f3460;">'+
-        '<button id="__gmp_logout_prev_day" style="padding:4px 8px;background:#0f3460;border:1px solid #00d9ff;border-radius:4px;color:#00d9ff;font-size:10px;cursor:pointer;">? «e¤@¤Ñ</button>'+
+        '<button id="__gmp_logout_prev_day" style="padding:4px 8px;background:#0f3460;border:1px solid #00d9ff;border-radius:4px;color:#00d9ff;font-size:10px;cursor:pointer;">? ï¿½eï¿½@ï¿½ï¿½</button>'+
         '<span id="__gmp_logout_current_day" style="flex:1;text-align:center;font-size:11px;color:#aaa;font-weight:bold;">--</span>'+
-        '<button id="__gmp_logout_next_day" style="padding:4px 8px;background:#0f3460;border:1px solid #00d9ff;border-radius:4px;color:#00d9ff;font-size:10px;cursor:pointer;">«á¤@¤Ñ ?</button>'+
+        '<button id="__gmp_logout_next_day" style="padding:4px 8px;background:#0f3460;border:1px solid #00d9ff;border-radius:4px;color:#00d9ff;font-size:10px;cursor:pointer;">ï¿½ï¿½@ï¿½ï¿½ ?</button>'+
       '</div>'+
       '<div id="__gmp_logout_list" style="padding:12px 16px;overflow-y:auto;flex:1;font-size:11px;"></div>'+
       '<div style="padding:10px 12px;border-top:1px solid #0f3460;display:flex;gap:6px;align-items:center;">'+
         '<input type="date" id="__gmp_logout_date" style="padding:4px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;">'+
-        '<button id="__gmp_logout_clear_before" style="padding:5px 10px;background:#fbbf24;border:none;color:#0f0f23;border-radius:4px;font-size:11px;font-weight:bold;cursor:pointer;">??? ²M°£¿ï©w¤Î¤§«e</button>'+
-        '<button id="__gmp_logout_clear_all" style="padding:5px 10px;background:#e94560;border:none;color:#fff;border-radius:4px;font-size:11px;font-weight:bold;cursor:pointer;">?? ¥þ³¡²M°£</button>'+
+        '<button id="__gmp_logout_clear_before" style="padding:5px 10px;background:#fbbf24;border:none;color:#0f0f23;border-radius:4px;font-size:11px;font-weight:bold;cursor:pointer;">??? ï¿½Mï¿½ï¿½ï¿½ï¿½wï¿½Î¤ï¿½ï¿½e</button>'+
+        '<button id="__gmp_logout_clear_all" style="padding:5px 10px;background:#e94560;border:none;color:#fff;border-radius:4px;font-size:11px;font-weight:bold;cursor:pointer;">?? ï¿½ï¿½ï¿½ï¿½ï¿½Mï¿½ï¿½</button>'+
       '</div>'+
     '</div>';
   document.body.appendChild(modal);
@@ -344,21 +344,21 @@ function __gmOpenLogoutHistory(){
   };
   document.getElementById('__gmp_logout_clear_before').onclick=function(){
     var dateStr=document.getElementById('__gmp_logout_date').value;
-    if(!dateStr){alert('½Ð¿ï¾Ü¤é´Á');return;}
+    if(!dateStr){alert('ï¿½Ð¿ï¿½Ü¤ï¿½ï¿½');return;}
     var d=new Date(dateStr+'T00:00:00');
     var nextDay=new Date(d.getTime()+86400000);
-    if(!confirm('½T©w­n²M°£ '+d.toLocaleDateString()+' (§t) ¤§«eªº©Ò¦³°O¿ý¡H'))return;
+    if(!confirm('ï¿½Tï¿½wï¿½nï¿½Mï¿½ï¿½ '+d.toLocaleDateString()+' (ï¿½t) ï¿½ï¿½ï¿½eï¿½ï¿½ï¿½Ò¦ï¿½ï¿½Oï¿½ï¿½ï¿½H'))return;
     LogoutDB.clearBefore(nextDay).then(function(n){
-      alert('¤w²M°£ '+n+' µ§°O¿ý');
+      alert('ï¿½wï¿½Mï¿½ï¿½ '+n+' ï¿½ï¿½ï¿½Oï¿½ï¿½');
       __gmRenderLogoutList();
-    }).catch(function(e){alert('²M°£¥¢±Ñ¡G'+e.message)});
+    }).catch(function(e){alert('ï¿½Mï¿½ï¿½ï¿½ï¿½ï¿½Ñ¡G'+e.message)});
   };
   document.getElementById('__gmp_logout_clear_all').onclick=function(){
-    if(!confirm('?? ½T©w­n²M°£©Ò¦³¾ú¥v°O¿ý¡H¦¹°Ê§@µLªk´_­ì¡C'))return;
+    if(!confirm('?? ï¿½Tï¿½wï¿½nï¿½Mï¿½ï¿½ï¿½Ò¦ï¿½ï¿½ï¿½ï¿½vï¿½Oï¿½ï¿½ï¿½Hï¿½ï¿½ï¿½Ê§@ï¿½Lï¿½kï¿½_ï¿½ï¿½C'))return;
     LogoutDB.clearAll().then(function(){
-      alert('¤w²M°£©Ò¦³°O¿ý');
+      alert('ï¿½wï¿½Mï¿½ï¿½ï¿½Ò¦ï¿½ï¿½Oï¿½ï¿½');
       __gmRenderLogoutList();
-    }).catch(function(e){alert('²M°£¥¢±Ñ¡G'+e.message)});
+    }).catch(function(e){alert('ï¿½Mï¿½ï¿½ï¿½ï¿½ï¿½Ñ¡G'+e.message)});
   };
   modal.onclick=function(e){if(e.target===modal)__gmCloseLogoutHistory()};
   
@@ -377,13 +377,13 @@ function __gmRenderLogoutList(){
   var now=new Date();
   var base=new Date(now.getFullYear(),now.getMonth(),now.getDate());
   base.setDate(base.getDate()-offset);
-  if(offset===0)dayLabel='¤µ¤Ñ';
-  else if(offset===1)dayLabel='¬Q¤Ñ';
-  else if(offset===2)dayLabel='«e¤Ñ';
-  else dayLabel='«e '+offset+' ¤Ñ';
+  if(offset===0)dayLabel='ï¿½ï¿½ï¿½ï¿½';
+  else if(offset===1)dayLabel='ï¿½Qï¿½ï¿½';
+  else if(offset===2)dayLabel='ï¿½eï¿½ï¿½';
+  else dayLabel='ï¿½e '+offset+' ï¿½ï¿½';
   dayLabel+=' ('+base.toLocaleDateString()+')';
   
-  var subtitle='Åã¥Ü '+dayLabel+' ªº°O¿ý';
+  var subtitle='ï¿½ï¿½ï¿½ '+dayLabel+' ï¿½ï¿½ï¿½Oï¿½ï¿½';
   var subEl=document.getElementById('__gmp_logout_subtitle');
   if(subEl)subEl.textContent=subtitle;
   var dayEl=document.getElementById('__gmp_logout_current_day');
@@ -395,14 +395,14 @@ function __gmRenderLogoutList(){
   
   var listEl=document.getElementById('__gmp_logout_list');
   if(!listEl)return;
-  listEl.innerHTML='<div style="text-align:center;color:#888;padding:20px;">¸ü¤J¤¤...</div>';
+  listEl.innerHTML='<div style="text-align:center;color:#888;padding:20px;">ï¿½ï¿½ï¿½Jï¿½ï¿½...</div>';
   
   LogoutDB.getByDayOffset(offset).then(function(records){
     LogoutDB.count().then(function(total){
-      var subtitle2='¦@ '+records.length+' µ§¡]Á` '+total+' µ§¡^';
+      var subtitle2='ï¿½@ '+records.length+' ï¿½ï¿½ï¿½]ï¿½` '+total+' ï¿½ï¿½ï¿½^';
       if(subEl)subEl.textContent=subtitle2;
       if(records.length===0){
-        listEl.innerHTML='<div style="text-align:center;color:#666;padding:30px;">'+dayLabel+' ¨S¦³°O¿ý</div>';
+        listEl.innerHTML='<div style="text-align:center;color:#666;padding:30px;">'+dayLabel+' ï¿½Sï¿½ï¿½ï¿½Oï¿½ï¿½</div>';
         return;
       }
       var html='';
@@ -416,13 +416,13 @@ function __gmRenderLogoutList(){
         html+='<span style="color:'+color+';font-weight:bold;">#'+(total-i)+' '+dateStr+' '+timeStr+'</span>';
         html+='<span style="color:#666;font-size:10px;">id='+r.id+'</span>';
         html+='</div>';
-        if(r.mode)html+='<div style="color:#888;font-size:10px;margin-top:2px;">¨¤¦â: '+r.mode+'</div>';
+        if(r.mode)html+='<div style="color:#888;font-size:10px;margin-top:2px;">ï¿½ï¿½ï¿½ï¿½: '+r.mode+'</div>';
         html+='</div>';
       });
       listEl.innerHTML=html;
     });
   }).catch(function(e){
-    listEl.innerHTML='<div style="text-align:center;color:#e94560;padding:20px;">¸ü¤J¥¢±Ñ: '+e.message+'</div>';
+    listEl.innerHTML='<div style="text-align:center;color:#e94560;padding:20px;">ï¿½ï¿½ï¿½Jï¿½ï¿½ï¿½ï¿½: '+e.message+'</div>';
   });
 }
 
@@ -523,95 +523,95 @@ setInterval(function(){
 // Zone data
 var ZONES={
   town:[
-    {id:'town_silver_knight',name:'»ÈÃM¤h§ø',sub:'¦w¥þ°Ï'},
-    {id:'town_elf',name:'§¯ºë´ËªL',sub:'¦w¥þ°Ï'},
-    {id:'town_talking',name:'»¡¸Ü¤§®q',sub:'¦w¥þ°Ï'},
-    {id:'town_gludio',name:'¿U¬h§ø',sub:'¦w¥þ°Ï'},
-    {id:'town_giran',name:'©_©¥',sub:'¦w¥þ°Ï'},
-    {id:'town_heine',name:'®ü­µ',sub:'¦w¥þ°Ï'},
-    {id:'town_oren',name:'¼Ú·ç§ø²ø',sub:'¦w¥þ°Ï'},
-    {id:'town_ivory_tower',name:'¶H¤ú¶ð',sub:'¦w¥þ°Ï'},
-    {id:'town_sherine',name:'®uµY¯«·µ',sub:'¦w¥þ°Ï'},
-    {id:'town_witon',name:'«Â¹y§ø',sub:'¦w¥þ°Ï'},
+    {id:'town_silver_knight',name:'ï¿½ï¿½ï¿½Mï¿½hï¿½ï¿½',sub:'ï¿½wï¿½ï¿½ï¿½ï¿½'},
+    {id:'town_elf',name:'ï¿½ï¿½ï¿½ï¿½ËªL',sub:'ï¿½wï¿½ï¿½ï¿½ï¿½'},
+    {id:'town_talking',name:'ï¿½ï¿½ï¿½Ü¤ï¿½ï¿½q',sub:'ï¿½wï¿½ï¿½ï¿½ï¿½'},
+    {id:'town_gludio',name:'ï¿½Uï¿½hï¿½ï¿½',sub:'ï¿½wï¿½ï¿½ï¿½ï¿½'},
+    {id:'town_giran',name:'ï¿½_ï¿½ï¿½',sub:'ï¿½wï¿½ï¿½ï¿½ï¿½'},
+    {id:'town_heine',name:'ï¿½ï¿½ï¿½ï¿½',sub:'ï¿½wï¿½ï¿½ï¿½ï¿½'},
+    {id:'town_oren',name:'ï¿½Ú·ï¿½ï¿½ï¿½ï¿½',sub:'ï¿½wï¿½ï¿½ï¿½ï¿½'},
+    {id:'town_ivory_tower',name:'ï¿½Hï¿½ï¿½ï¿½ï¿½',sub:'ï¿½wï¿½ï¿½ï¿½ï¿½'},
+    {id:'town_sherine',name:'ï¿½uï¿½Yï¿½ï¿½ï¿½ï¿½',sub:'ï¿½wï¿½ï¿½ï¿½ï¿½'},
+    {id:'town_witon',name:'ï¿½Â¹yï¿½ï¿½',sub:'ï¿½wï¿½ï¿½ï¿½ï¿½'},
   ],
   wild:[
-    {id:'training',name:'·s§L­×½m³õ',sub:'«ØÄ³ Lv.3'},
-    {id:'silver_knight',name:'»ÈÃM¤h¦a°Ï',sub:'«ØÄ³ Lv.10'},
-    {id:'talking_island',name:'»¡¸Ü¤§®q©PÃä',sub:'«ØÄ³ Lv.6'},
-    {id:'zone_01',name:'§¯ºë´ËªL©PÃä',sub:'«ØÄ³ Lv.9'},
-    {id:'talking_island_port',name:'»¡¸Ü¤§®q´ä¤f',sub:'«ØÄ³ Lv.14'},
-    {id:'elf_forest',name:'§¯Å]´ËªL',sub:'«ØÄ³ Lv.15'},
-    {id:'gludio',name:'¥j¾|¤B',sub:'«ØÄ³ Lv.11'},
-    {id:'windwood',name:'­·¤ì',sub:'«ØÄ³ Lv.10'},
-    {id:'desert',name:'¨Fºz',sub:'«ØÄ³ Lv.20'},
-    {id:'kent',name:'ªÖ¯S',sub:'«ØÄ³ Lv.11'},
-    {id:'dragon_valley',name:'Às¤§¨¦',sub:'«ØÄ³ Lv.20'},
-    {id:'fire_dragon',name:'¤õÀs¸]',sub:'«ØÄ³ Lv.33'},
-    {id:'giran',name:'©_©¥',sub:'«ØÄ³ Lv.20'},
-    {id:'heine',name:'®ü­µ',sub:'«ØÄ³ Lv.19'},
-    {id:'mirror_forest',name:'Ãè¤l´ËªL',sub:'«ØÄ³ Lv.22'},
-    {id:'zone_02',name:'¼Ú·ç',sub:'«ØÄ³ Lv.18'},
-    {id:'zone_03',name:'¼Ú·ç³·­ì',sub:'«ØÄ³ Lv.32'},
-    {id:'zone_04',name:'¦ãº¸¼¯¿E¾Ô¦a',sub:'«ØÄ³ Lv.24'},
-    {id:'zone_05',name:'°ê¹Ò­n¶ë',sub:'«ØÄ³ Lv.29'},
-    {id:'dream_island',name:'¹Ú¤Û¤§®q',sub:'«ØÄ³ Lv.39'},
+    {id:'training',name:'ï¿½sï¿½Lï¿½×½mï¿½ï¿½',sub:'ï¿½ï¿½Ä³ Lv.3'},
+    {id:'silver_knight',name:'ï¿½ï¿½ï¿½Mï¿½hï¿½aï¿½ï¿½',sub:'ï¿½ï¿½Ä³ Lv.10'},
+    {id:'talking_island',name:'ï¿½ï¿½ï¿½Ü¤ï¿½ï¿½qï¿½Pï¿½ï¿½',sub:'ï¿½ï¿½Ä³ Lv.6'},
+    {id:'zone_01',name:'ï¿½ï¿½ï¿½ï¿½ËªLï¿½Pï¿½ï¿½',sub:'ï¿½ï¿½Ä³ Lv.9'},
+    {id:'talking_island_port',name:'ï¿½ï¿½ï¿½Ü¤ï¿½ï¿½qï¿½ï¿½f',sub:'ï¿½ï¿½Ä³ Lv.14'},
+    {id:'elf_forest',name:'ï¿½ï¿½ï¿½]ï¿½ËªL',sub:'ï¿½ï¿½Ä³ Lv.15'},
+    {id:'gludio',name:'ï¿½jï¿½|ï¿½B',sub:'ï¿½ï¿½Ä³ Lv.11'},
+    {id:'windwood',name:'ï¿½ï¿½ï¿½ï¿½',sub:'ï¿½ï¿½Ä³ Lv.10'},
+    {id:'desert',name:'ï¿½Fï¿½z',sub:'ï¿½ï¿½Ä³ Lv.20'},
+    {id:'kent',name:'ï¿½Ö¯S',sub:'ï¿½ï¿½Ä³ Lv.11'},
+    {id:'dragon_valley',name:'ï¿½sï¿½ï¿½ï¿½ï¿½',sub:'ï¿½ï¿½Ä³ Lv.20'},
+    {id:'fire_dragon',name:'ï¿½ï¿½ï¿½sï¿½]',sub:'ï¿½ï¿½Ä³ Lv.33'},
+    {id:'giran',name:'ï¿½_ï¿½ï¿½',sub:'ï¿½ï¿½Ä³ Lv.20'},
+    {id:'heine',name:'ï¿½ï¿½ï¿½ï¿½',sub:'ï¿½ï¿½Ä³ Lv.19'},
+    {id:'mirror_forest',name:'ï¿½ï¿½lï¿½ËªL',sub:'ï¿½ï¿½Ä³ Lv.22'},
+    {id:'zone_02',name:'ï¿½Ú·ï¿½',sub:'ï¿½ï¿½Ä³ Lv.18'},
+    {id:'zone_03',name:'ï¿½Ú·ç³·ï¿½ï¿½',sub:'ï¿½ï¿½Ä³ Lv.32'},
+    {id:'zone_04',name:'ï¿½ãº¸ï¿½ï¿½ï¿½Eï¿½Ô¦a',sub:'ï¿½ï¿½Ä³ Lv.24'},
+    {id:'zone_05',name:'ï¿½ï¿½Ò­nï¿½ï¿½',sub:'ï¿½ï¿½Ä³ Lv.29'},
+    {id:'dream_island',name:'ï¿½Ú¤Û¤ï¿½ï¿½q',sub:'ï¿½ï¿½Ä³ Lv.39'},
   ],
   dungeon:[
-    {id:'zone_06',name:'¥j¾|¤B¦aºÊ1¼Ó',sub:'Lv.9'},
-    {id:'zone_07',name:'¥j¾|¤B¦aºÊ2¼Ó',sub:'Lv.14'},
-    {id:'zone_08',name:'¥j¾|¤B¦aºÊ3¼Ó',sub:'Lv.14'},
-    {id:'zone_09',name:'¥j¾|¤B¦aºÊ4¼Ó',sub:'Lv.15'},
-    {id:'zone_10',name:'¥j¾|¤B¦aºÊ5¼Ó',sub:'Lv.16'},
-    {id:'zone_11',name:'¥j¾|¤B¦aºÊ6¼Ó',sub:'Lv.20'},
-    {id:'zone_12',name:'¥j¾|¤B¦aºÊ7¼Ó',sub:'Lv.18'},
-    {id:'zone_13',name:'»¡¸Ü¤§®q¦aºÊ1¼Ó',sub:'Lv.10'},
-    {id:'zone_14',name:'»¡¸Ü¤§®q¦aºÊ2¼Ó',sub:'Lv.11'},
-    {id:'zone_15',name:'¯vÀs¬}¥Þ1¼Ó',sub:'Lv.6'},
-    {id:'zone_16',name:'¯vÀs¬}¥Þ2¼Ó',sub:'Lv.9'},
-    {id:'zone_17',name:'¯vÀs¬}¥Þ3¼Ó',sub:'Lv.13'},
-    {id:'crystal_cave1',name:'¤ô´¹¬}¥Þ1¼Ó',sub:'Lv.28'},
-    {id:'crystal_cave2',name:'¤ô´¹¬}¥Þ2¼Ó',sub:'Lv.28'},
-    {id:'crystal_cave3',name:'¤ô´¹¬}¥Þ3¼Ó',sub:'Lv.28'},
-    {id:'zone_18',name:'©_©¥¦aºÊ1¼Ó',sub:'Lv.14'},
-    {id:'zone_19',name:'©_©¥¦aºÊ2¼Ó',sub:'Lv.15'},
-    {id:'zone_20',name:'©_©¥¦aºÊ3¼Ó',sub:'Lv.15'},
-    {id:'zone_21',name:'©_©¥¦aºÊ4¼Ó',sub:'Lv.22'},
-    {id:'zone_22',name:'¨Fºz¦aºÊ1¼Ó',sub:'Lv.9'},
-    {id:'zone_23',name:'¨Fºz¦aºÊ2¼Ó',sub:'Lv.15'},
-    {id:'zone_24',name:'¨Fºz¦aºÊ3¼Ó',sub:'Lv.15'},
-    {id:'zone_25',name:'¨Fºz¦aºÊ4¼Ó',sub:'Lv.25'},
-    {id:'zone_26',name:'Às¤§¨¦¦aºÊ1¼Ó',sub:'Lv.24'},
-    {id:'zone_27',name:'Às¤§¨¦¦aºÊ2¼Ó',sub:'Lv.28'},
-    {id:'zone_28',name:'Às¤§¨¦¦aºÊ3¼Ó',sub:'Lv.29'},
-    {id:'zone_29',name:'Às¤§¨¦¦aºÊ4¼Ó',sub:'Lv.30'},
-    {id:'zone_30',name:'Às¤§¨¦¦aºÊ5¼Ó',sub:'Lv.36'},
-    {id:'zone_31',name:'Às¤§¨¦¦aºÊ6¼Ó',sub:'Lv.38'},
-    {id:'zone_32',name:'¿ÂÃÆ¬}¸]1¼Ó',sub:'Lv.16'},
-    {id:'zone_33',name:'¿ÂÃÆ¬}¸]2¼Ó',sub:'Lv.16'},
-    {id:'zone_34',name:'¦a¤U³q¹D1¼Ó',sub:'Lv.16'},
-    {id:'zone_35',name:'¦a¤U³q¹D2¼Ó',sub:'Lv.19'},
-    {id:'zone_36',name:'¦a¤U³q¹D3¼Ó',sub:'Lv.21'},
-    {id:'eva_kingdom',name:'¥ì«½¤ý°ê',sub:'Lv.22'},
-    {id:'zone_37',name:'¶H¤ú¶ð4¼Ó',sub:'Lv.32'},
-    {id:'zone_38',name:'¶H¤ú¶ð5¼Ó',sub:'Lv.32'},
-    {id:'zone_39',name:'¶H¤ú¶ð6¼Ó',sub:'Lv.43'},
-    {id:'zone_40',name:'¶H¤ú¶ð7¼Ó',sub:'Lv.43'},
-    {id:'zone_41',name:'¶H¤ú¶ð8¼Ó',sub:'Lv.43'},
+    {id:'zone_06',name:'ï¿½jï¿½|ï¿½Bï¿½aï¿½ï¿½1ï¿½ï¿½',sub:'Lv.9'},
+    {id:'zone_07',name:'ï¿½jï¿½|ï¿½Bï¿½aï¿½ï¿½2ï¿½ï¿½',sub:'Lv.14'},
+    {id:'zone_08',name:'ï¿½jï¿½|ï¿½Bï¿½aï¿½ï¿½3ï¿½ï¿½',sub:'Lv.14'},
+    {id:'zone_09',name:'ï¿½jï¿½|ï¿½Bï¿½aï¿½ï¿½4ï¿½ï¿½',sub:'Lv.15'},
+    {id:'zone_10',name:'ï¿½jï¿½|ï¿½Bï¿½aï¿½ï¿½5ï¿½ï¿½',sub:'Lv.16'},
+    {id:'zone_11',name:'ï¿½jï¿½|ï¿½Bï¿½aï¿½ï¿½6ï¿½ï¿½',sub:'Lv.20'},
+    {id:'zone_12',name:'ï¿½jï¿½|ï¿½Bï¿½aï¿½ï¿½7ï¿½ï¿½',sub:'Lv.18'},
+    {id:'zone_13',name:'ï¿½ï¿½ï¿½Ü¤ï¿½ï¿½qï¿½aï¿½ï¿½1ï¿½ï¿½',sub:'Lv.10'},
+    {id:'zone_14',name:'ï¿½ï¿½ï¿½Ü¤ï¿½ï¿½qï¿½aï¿½ï¿½2ï¿½ï¿½',sub:'Lv.11'},
+    {id:'zone_15',name:'ï¿½vï¿½sï¿½}ï¿½ï¿½1ï¿½ï¿½',sub:'Lv.6'},
+    {id:'zone_16',name:'ï¿½vï¿½sï¿½}ï¿½ï¿½2ï¿½ï¿½',sub:'Lv.9'},
+    {id:'zone_17',name:'ï¿½vï¿½sï¿½}ï¿½ï¿½3ï¿½ï¿½',sub:'Lv.13'},
+    {id:'crystal_cave1',name:'ï¿½ï¿½ï¿½ï¿½}ï¿½ï¿½1ï¿½ï¿½',sub:'Lv.28'},
+    {id:'crystal_cave2',name:'ï¿½ï¿½ï¿½ï¿½}ï¿½ï¿½2ï¿½ï¿½',sub:'Lv.28'},
+    {id:'crystal_cave3',name:'ï¿½ï¿½ï¿½ï¿½}ï¿½ï¿½3ï¿½ï¿½',sub:'Lv.28'},
+    {id:'zone_18',name:'ï¿½_ï¿½ï¿½ï¿½aï¿½ï¿½1ï¿½ï¿½',sub:'Lv.14'},
+    {id:'zone_19',name:'ï¿½_ï¿½ï¿½ï¿½aï¿½ï¿½2ï¿½ï¿½',sub:'Lv.15'},
+    {id:'zone_20',name:'ï¿½_ï¿½ï¿½ï¿½aï¿½ï¿½3ï¿½ï¿½',sub:'Lv.15'},
+    {id:'zone_21',name:'ï¿½_ï¿½ï¿½ï¿½aï¿½ï¿½4ï¿½ï¿½',sub:'Lv.22'},
+    {id:'zone_22',name:'ï¿½Fï¿½zï¿½aï¿½ï¿½1ï¿½ï¿½',sub:'Lv.9'},
+    {id:'zone_23',name:'ï¿½Fï¿½zï¿½aï¿½ï¿½2ï¿½ï¿½',sub:'Lv.15'},
+    {id:'zone_24',name:'ï¿½Fï¿½zï¿½aï¿½ï¿½3ï¿½ï¿½',sub:'Lv.15'},
+    {id:'zone_25',name:'ï¿½Fï¿½zï¿½aï¿½ï¿½4ï¿½ï¿½',sub:'Lv.25'},
+    {id:'zone_26',name:'ï¿½sï¿½ï¿½ï¿½ï¿½ï¿½aï¿½ï¿½1ï¿½ï¿½',sub:'Lv.24'},
+    {id:'zone_27',name:'ï¿½sï¿½ï¿½ï¿½ï¿½ï¿½aï¿½ï¿½2ï¿½ï¿½',sub:'Lv.28'},
+    {id:'zone_28',name:'ï¿½sï¿½ï¿½ï¿½ï¿½ï¿½aï¿½ï¿½3ï¿½ï¿½',sub:'Lv.29'},
+    {id:'zone_29',name:'ï¿½sï¿½ï¿½ï¿½ï¿½ï¿½aï¿½ï¿½4ï¿½ï¿½',sub:'Lv.30'},
+    {id:'zone_30',name:'ï¿½sï¿½ï¿½ï¿½ï¿½ï¿½aï¿½ï¿½5ï¿½ï¿½',sub:'Lv.36'},
+    {id:'zone_31',name:'ï¿½sï¿½ï¿½ï¿½ï¿½ï¿½aï¿½ï¿½6ï¿½ï¿½',sub:'Lv.38'},
+    {id:'zone_32',name:'ï¿½ï¿½ï¿½Æ¬}ï¿½]1ï¿½ï¿½',sub:'Lv.16'},
+    {id:'zone_33',name:'ï¿½ï¿½ï¿½Æ¬}ï¿½]2ï¿½ï¿½',sub:'Lv.16'},
+    {id:'zone_34',name:'ï¿½aï¿½Uï¿½qï¿½D1ï¿½ï¿½',sub:'Lv.16'},
+    {id:'zone_35',name:'ï¿½aï¿½Uï¿½qï¿½D2ï¿½ï¿½',sub:'Lv.19'},
+    {id:'zone_36',name:'ï¿½aï¿½Uï¿½qï¿½D3ï¿½ï¿½',sub:'Lv.21'},
+    {id:'eva_kingdom',name:'ï¿½ì«½ï¿½ï¿½ï¿½ï¿½',sub:'Lv.22'},
+    {id:'zone_37',name:'ï¿½Hï¿½ï¿½ï¿½ï¿½4ï¿½ï¿½',sub:'Lv.32'},
+    {id:'zone_38',name:'ï¿½Hï¿½ï¿½ï¿½ï¿½5ï¿½ï¿½',sub:'Lv.32'},
+    {id:'zone_39',name:'ï¿½Hï¿½ï¿½ï¿½ï¿½6ï¿½ï¿½',sub:'Lv.43'},
+    {id:'zone_40',name:'ï¿½Hï¿½ï¿½ï¿½ï¿½7ï¿½ï¿½',sub:'Lv.43'},
+    {id:'zone_41',name:'ï¿½Hï¿½ï¿½ï¿½ï¿½8ï¿½ï¿½',sub:'Lv.43'},
   ],
   special:[
-    {id:'antaras_lair',name:'¦w¶ð·ç´µ´Ï®§¦a',sub:'Lv.93'},
-    {id:'fafurion_lair',name:'ªk§Q©ù¬}¥Þ',sub:'Lv.93'},
-    {id:'valakas_lair',name:'¤Ú©Ô¥d´µ±_¥Þ',sub:'Lv.95'},
+    {id:'antaras_lair',name:'ï¿½wï¿½ï¿½ç´µï¿½Ï®ï¿½ï¿½a',sub:'Lv.93'},
+    {id:'fafurion_lair',name:'ï¿½kï¿½Qï¿½ï¿½ï¿½}ï¿½ï¿½',sub:'Lv.93'},
+    {id:'valakas_lair',name:'ï¿½Ú©Ô¥dï¿½ï¿½ï¿½_ï¿½ï¿½',sub:'Lv.95'},
   ],
   WORLDBOSS:[
-    {id:'wb_sema',name:'¦èº¿',lv:42},{id:'wb_batus',name:'¤Ú¤g·æ',lv:43},
-    {id:'wb_casper',name:'¥d¤h¬f',lv:44},{id:'wb_marcus',name:'°¨®wº¸',lv:45},
-    {id:'wb_ifrit',name:'¥ì¥±§Q¯S',lv:45},{id:'wb_wyvern',name:'­¸Às',lv:48},
-    {id:'wb_blackelder',name:'¶ÂªøªÌ',lv:50},{id:'wb_doppel',name:'ÅÜ§Î©Ç­º»â',lv:50},
-    {id:'wb_baphomet',name:'¤Ú­·¯S',lv:50},{id:'wb_kurt',name:'§J¯S',lv:51},
-    {id:'wb_dk',name:'¦º¤`ÃM¤h',lv:52},{id:'wb_ice',name:'¦B¤§¤k¤ý',lv:56},
-    {id:'wb_antqueen',name:'¥¨ÃÆ¤k¬Ó',lv:57},{id:'wb_phoenix',name:'¤£¦º³¾',lv:59},
-    {id:'wb_demon',name:'´cÅ]',lv:61},
+    {id:'wb_sema',name:'ï¿½èº¿',lv:42},{id:'wb_batus',name:'ï¿½Ú¤gï¿½ï¿½',lv:43},
+    {id:'wb_casper',name:'ï¿½dï¿½hï¿½f',lv:44},{id:'wb_marcus',name:'ï¿½ï¿½ï¿½wï¿½ï¿½',lv:45},
+    {id:'wb_ifrit',name:'ï¿½ì¥±ï¿½Qï¿½S',lv:45},{id:'wb_wyvern',name:'ï¿½ï¿½ï¿½s',lv:48},
+    {id:'wb_blackelder',name:'ï¿½Âªï¿½ï¿½ï¿½',lv:50},{id:'wb_doppel',name:'ï¿½Ü§Î©Ç­ï¿½ï¿½ï¿½',lv:50},
+    {id:'wb_baphomet',name:'ï¿½Ú­ï¿½ï¿½S',lv:50},{id:'wb_kurt',name:'ï¿½Jï¿½S',lv:51},
+    {id:'wb_dk',name:'ï¿½ï¿½ï¿½`ï¿½Mï¿½h',lv:52},{id:'wb_ice',name:'ï¿½Bï¿½ï¿½ï¿½kï¿½ï¿½',lv:56},
+    {id:'wb_antqueen',name:'ï¿½ï¿½ï¿½Æ¤kï¿½ï¿½',lv:57},{id:'wb_phoenix',name:'ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½',lv:59},
+    {id:'wb_demon',name:'ï¿½cï¿½]',lv:61},
   ],
 };
 
@@ -677,7 +677,7 @@ function startFarming(){
   var atkCheck=document.getElementById('__gmp_farm_atk');
   var reconnectCheck=document.getElementById('__gmp_farm_reconnect');
   var charNameInput=document.getElementById('__gmp_farm_char_name');
-  // ­Y¨¤¦â¦WºÙ¬°ªÅ¡A¦Û°Ê±q¹CÀ¸ DOM Åª¨ú id="t-name" ¶ñ¤J
+  // ï¿½Yï¿½ï¿½ï¿½ï¿½Wï¿½Ù¬ï¿½ï¿½Å¡Aï¿½Û°Ê±qï¿½Cï¿½ï¿½ DOM Åªï¿½ï¿½ id="t-name" ï¿½ï¿½J
   if(!charNameInput.value.trim()){
     var tname=document.getElementById('t-name');
     if(tname){charNameInput.value=tname.textContent.trim();}
@@ -706,7 +706,7 @@ function startFarming(){
   var reconnectInterval=parseInt(reconnectIntervalInput.value)||60;
   var charSlot=parseInt(charSlotSelect.value)||0;
 
-  if(!farmZone){alert('½Ð¥ý¿ï¾Ü±¾¾÷¦a¹Ï¡I');return;}
+  if(!farmZone){alert('ï¿½Ð¥ï¿½ï¿½ï¿½Ü±ï¿½ï¿½ï¿½ï¿½aï¿½Ï¡I');return;}
 
   window.__gmFarming={running:true,timer:null,returning:false,inTown:false,reconnectTimer:null,logoutCount:0,lastLogoutTime:null,__firstAttackSent:false,__lastAttackTime:null};
   window.__gmFarming.reconnectEnabled=reconnectEnabled;
@@ -716,9 +716,9 @@ function startFarming(){
   window.__gmFarming.__lastLogoutFlag=false;
   window.__gmFarming.hpAction=hpAction;
   window.__gmFarming.mpAction=mpAction;
-  btn.textContent='¡½ °±¤î¸}¥»';
+  btn.textContent='ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½}ï¿½ï¿½';
   btn.style.background='#e94560';
-  status.textContent='¶Ç°e¦Ü±¾¾÷¦a¹Ï...';
+  status.textContent='ï¿½Ç°eï¿½Ü±ï¿½ï¿½ï¿½ï¿½aï¿½ï¿½...';
   status.style.color='#fbbf24';
 
   // Immediately teleport to farm zone
@@ -732,7 +732,7 @@ function startFarming(){
       window.__gmFarming.timer=setTimeout(loop,1000);
       return;
     }
-    // ¶i¶¥³W«hµû¦ô¡]¨C¦¸ loop ³£·|°õ¦æ¡A»Ý¦³§¹¾ã state¡^
+    // ï¿½iï¿½ï¿½ï¿½Wï¿½hï¿½ï¿½ï¿½ï¿½]ï¿½Cï¿½ï¿½ loop ï¿½ï¿½ï¿½|ï¿½ï¿½ï¿½ï¿½Aï¿½Ý¦ï¿½ï¿½ï¿½ï¿½ï¿½ stateï¿½^
     if(window.__gmAdvanced&&window.__gmAdvanced.tick){
       try{window.__gmAdvanced.tick(d)}catch(e){}
     }
@@ -745,8 +745,8 @@ function startFarming(){
       var zoneId=d.zoneId||ZONE_NAME_LOOKUP[zoneName]||zoneName||'';
       // Check if in town: by mode='lobby' or zone name contains town keywords
       var isInTown=mode==='lobby'||
-                   zoneName.indexOf('¤jÆU')>-1||zoneName.indexOf('¤j?')>-1||
-                   zoneName.indexOf('§ø')>-1||zoneName.indexOf('¦w¥þ')>-1;
+                   zoneName.indexOf('ï¿½jï¿½U')>-1||zoneName.indexOf('ï¿½j?')>-1||
+                   zoneName.indexOf('ï¿½ï¿½')>-1||zoneName.indexOf('ï¿½wï¿½ï¿½')>-1;
       
       console.log('[GM] mode:',mode,'zoneName:',zoneName,'isInTown:',isInTown,'HP:',Math.round(hp/maxHp*100)+'%','MP:',Math.round(mp/maxMp*100)+'%');
       
@@ -762,7 +762,7 @@ function startFarming(){
           sendCmd('attack');
           window.__gmFarming.__firstAttackSent=true;
           window.__gmFarming.__lastAttackTime=Date.now();
-          status.textContent='?? ­º¦¸§ðÀ»...';
+          status.textContent='?? ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½...';
           console.log('[GM] First attack sent');
         }
         // Periodic check: every 10s, check if monsters exist
@@ -774,7 +774,7 @@ function startFarming(){
             if(!hasActiveMonster){
               sendCmd('attack');
               window.__gmFarming.__lastAttackTime=Date.now();
-              status.textContent='?? µL©Çª«¡A­«·s§ðÀ»...';
+              status.textContent='?? ï¿½Lï¿½Çªï¿½ï¿½Aï¿½ï¿½ï¿½sï¿½ï¿½ï¿½ï¿½...';
               console.log('[GM] Re-attack: no active monsters after 10s');
             } else {
               console.log('[GM] Monsters active, skip attack');
@@ -783,21 +783,21 @@ function startFarming(){
         }
       }
 
-      // «ü©w¥Ø¼Ð + §ðÀ»¥þ³¡
+      // ï¿½ï¿½ï¿½wï¿½Ø¼ï¿½ + ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
       var elSpecify=document.getElementById('__gmp_farm_specify_target');
       var elTargetIdx=document.getElementById('__gmp_farm_target_index');
       var elAttackAll=document.getElementById('__gmp_farm_attack_all');
       var specify=elSpecify?elSpecify.checked:false;
       var tgtIdx=elTargetIdx?parseInt(elTargetIdx.value)||1:1;
       var atkAll=elAttackAll?elAttackAll.checked:false;
-      // «ü©w¥Ø¼Ð¡G¨C5¬í send setTarget
+      // ï¿½ï¿½ï¿½wï¿½Ø¼Ð¡Gï¿½C5ï¿½ï¿½ send setTarget
       if(specify&&window.__wbSocket&&window.__wbSocket.connected){
         if(!window.__gmFarming.__lastSetTarget||(Date.now()-window.__gmFarming.__lastSetTarget)>=5000){
           try{window.__wbSocket.emit('setTarget',tgtIdx);console.log('[GM] [WB-SEND] setTarget ['+tgtIdx+']')}catch(e){}
           window.__gmFarming.__lastSetTarget=Date.now();
         }
       }
-      // §ðÀ»¥þ³¡¡G¹ï©Ò¦³ HP>0 ªº©Çª« send setTarget¡]¨C5¬í¡^
+      // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Gï¿½ï¿½Ò¦ï¿½ HP>0 ï¿½ï¿½ï¿½Çªï¿½ send setTargetï¿½]ï¿½C5ï¿½ï¿½^
       if(atkAll&&d.monsters&&d.monsters.length>0&&
          (!window.__gmFarming.__lastAttackAll||(Date.now()-window.__gmFarming.__lastAttackAll)>=5000)){
         for(var ai=0;ai<d.monsters.length;ai++){
@@ -805,7 +805,7 @@ function startFarming(){
             try{window.__wbSocket.emit('setTarget',ai)}catch(e){}
           }
         }
-        console.log('[GM] [WB-SEND] setTarget (§ðÀ»¥þ³¡) ¡÷ '+d.monsters.length+' targets');
+        console.log('[GM] [WB-SEND] setTarget (ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½) ï¿½ï¿½ '+d.monsters.length+' targets');
         window.__gmFarming.__lastAttackAll=Date.now();
       }
 
@@ -826,13 +826,13 @@ function startFarming(){
         if(mpLow)needReturn=true;
       }
 
-      // Feature 1: HP low ¡÷ trigger action (selectChar or toLobby)
+      // Feature 1: HP low ï¿½ï¿½ trigger action (selectChar or toLobby)
       if(hpLow&&mode!=='boss'&&mode!=='bosscombat'){
         try{
           if(hpAction==='toLobby'){
             sendCmd('toLobby');
             console.log('[GM] HP low, sent toLobby');
-            status.textContent='HP¤£¨¬¡A¦^¤jÆU...';
+            status.textContent='HPï¿½ï¿½ï¿½ï¿½ï¿½Aï¿½^ï¿½jï¿½U...';
           } else {
             if(window.__wbSocket && window.__wbSocket.connected){
               window.__wbSocket.emit('selectChar', window.__gmFarming.charSlot||0);
@@ -840,19 +840,19 @@ function startFarming(){
               window.__ws.send('42["selectChar",'+(window.__gmFarming.charSlot||0)+']');
             }
             console.log('[GM] HP low, sent selectChar');
-            status.textContent='HP¤£¨¬¡A­«·s¸ü¤J¨¤¦â...';
+            status.textContent='HPï¿½ï¿½ï¿½ï¿½ï¿½Aï¿½ï¿½ï¿½sï¿½ï¿½ï¿½Jï¿½ï¿½ï¿½ï¿½...';
           }
         }catch(e){console.log('[GM] HP trigger error:', e.message);}
         status.style.color='#fbbf24';
       }
 
-      // Feature 1b: MP low ¡÷ trigger action (selectChar or toLobby)
+      // Feature 1b: MP low ï¿½ï¿½ trigger action (selectChar or toLobby)
       if(mpLow&&mode!=='boss'&&mode!=='bosscombat'){
         try{
           if(mpAction==='toLobby'){
             sendCmd('toLobby');
             console.log('[GM] MP low, sent toLobby');
-            status.textContent='MP¤£¨¬¡A¦^¤jÆU...';
+            status.textContent='MPï¿½ï¿½ï¿½ï¿½ï¿½Aï¿½^ï¿½jï¿½U...';
           } else {
             if(window.__wbSocket && window.__wbSocket.connected){
               window.__wbSocket.emit('selectChar', window.__gmFarming.charSlot||0);
@@ -860,7 +860,7 @@ function startFarming(){
               window.__ws.send('42["selectChar",'+(window.__gmFarming.charSlot||0)+']');
             }
             console.log('[GM] MP low, sent selectChar');
-            status.textContent='MP¤£¨¬¡A­«·s¸ü¤J¨¤¦â...';
+            status.textContent='MPï¿½ï¿½ï¿½ï¿½ï¿½Aï¿½ï¿½ï¿½sï¿½ï¿½ï¿½Jï¿½ï¿½ï¿½ï¿½...';
           }
         }catch(e){console.log('[GM] MP trigger error:', e.message);}
         status.style.color='#fbbf24';
@@ -875,7 +875,7 @@ function startFarming(){
         if(hpGtOk||mpGtOk){
           console.log('[GM] Teleporting to farm zone:',farmZone);
           sendZone(farmZone);
-          status.textContent='HP/MP¥R¨¬¡A¶Ç°e±¾¾÷...';
+          status.textContent='HP/MPï¿½Rï¿½ï¿½ï¿½Aï¿½Ç°eï¿½ï¿½ï¿½ï¿½...';
           status.style.color='#4ade80';
           window.__gmFarming.returning=false;
         }
@@ -895,7 +895,7 @@ function startFarming(){
   }
   loop();
 
-  // === Â_½u­«³sÀË´ú ===
+  // === ï¿½_ï¿½uï¿½ï¿½ï¿½sï¿½Ë´ï¿½ ===
   function checkReconnect(){
     if(!window.__gmFarming.running)return;
     if(!window.__gmFarming.reconnectEnabled||!window.__gmFarming.charName){
@@ -905,7 +905,7 @@ function startFarming(){
     
     var charName=window.__gmFarming.charName;
     
-    // ÀË´ú¬O§_¦b¨¤¦â¿ï¾Üµe­±¡]ÀË´ú #slots ©Î .char-slot ¬O§_¦s¦b¡^
+    // ï¿½Ë´ï¿½ï¿½Oï¿½_ï¿½bï¿½ï¿½ï¿½ï¿½ï¿½Üµeï¿½ï¿½ï¿½]ï¿½Ë´ï¿½ #slots ï¿½ï¿½ .char-slot ï¿½Oï¿½_ï¿½sï¿½bï¿½^
     var slotsDiv=document.getElementById('slots');
     var charSlots=document.querySelectorAll('.char-slot');
     var isOnCharSelect=slotsDiv!==null||charSlots.length>0;
@@ -916,60 +916,60 @@ function startFarming(){
         window.__gmFarming.lastLogoutTime=Date.now();
         window.__gmFarming.__lastLogoutFlag=true;
         updateLogoutUI();
-        // ¼g¤Jµn¥X°O¿ý (chrome.storage.local)
+        // ï¿½gï¿½Jï¿½nï¿½Xï¿½Oï¿½ï¿½ (chrome.storage.local)
         if(window.LogoutDB){
           LogoutDB.add(Date.now(),window.__gmFarming.charName||'').then(function(){
-            console.log('[GM] µn¥X¨Æ¥ó¤w°O¿ý');
+            console.log('[GM] ï¿½nï¿½Xï¿½Æ¥ï¿½wï¿½Oï¿½ï¿½');
           }).catch(function(e){
-            console.warn('[GM] µn¥X°O¿ý¼g¤J¥¢±Ñ:',e);
+            console.warn('[GM] ï¿½nï¿½Xï¿½Oï¿½ï¿½ï¿½gï¿½Jï¿½ï¿½ï¿½ï¿½:',e);
           });
         }
         var lastTime=new Date().toLocaleTimeString();
-        console.log('[GM] ³Qµn¥X #'+window.__gmFarming.logoutCount+' @ '+lastTime);
+        console.log('[GM] ï¿½Qï¿½nï¿½X #'+window.__gmFarming.logoutCount+' @ '+lastTime);
       }
-      status.textContent='?? Â_½uÀË´ú #'+window.__gmFarming.logoutCount+'¡A¹Á¸Õ­«³s...';
+      status.textContent='?? ï¿½_ï¿½uï¿½Ë´ï¿½ #'+window.__gmFarming.logoutCount+'ï¿½Aï¿½ï¿½ï¿½Õ­ï¿½ï¿½s...';
       status.style.color='#fbbf24';
-      console.log('[GM] Â_½uÀË´ú¡G¦b¨¤¦â¿ï¾Üµe­±¡A¹Á¸ÕÂIÀ»¨¤¦â¼Ñ...');
+      console.log('[GM] ï¿½_ï¿½uï¿½Ë´ï¿½ï¿½Gï¿½bï¿½ï¿½ï¿½ï¿½ï¿½Üµeï¿½ï¿½ï¿½Aï¿½ï¿½ï¿½ï¿½ï¿½Iï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½...');
       
-      // ¹Á¸Õ§ä¨ì¥]§t¨¤¦â¦WºÙªº .char-slot ¨ÃÂIÀ»
+      // ï¿½ï¿½ï¿½Õ§ï¿½ï¿½]ï¿½tï¿½ï¿½ï¿½ï¿½Wï¿½Ùªï¿½ .char-slot ï¿½ï¿½ï¿½Iï¿½ï¿½
       var clicked=false;
       charSlots.forEach(function(slot){
         if(slot.innerHTML.indexOf(charName)>-1){
           var emptyDiv=slot.querySelector('.empty');
           if(!emptyDiv){
-            console.log('[GM] §ä¨ì¨¤¦â¼Ñ¡AÂIÀ»¶i¤J...');
+            console.log('[GM] ï¿½ï¿½ì¨¤ï¿½ï¿½Ñ¡Aï¿½Iï¿½ï¿½ï¿½iï¿½J...');
             slot.click();
             clicked=true;
-            status.textContent='?? ÂIÀ»¨¤¦â¶i¤J¹CÀ¸...';
+            status.textContent='?? ï¿½Iï¿½ï¿½ï¿½ï¿½ï¿½ï¿½iï¿½Jï¿½Cï¿½ï¿½...';
             status.style.color='#4ade80';
           }
         }
       });
       
       if(!clicked){
-        console.log('[GM] ¥¼§ä¨ì¨¤¦â¼Ñ¡A¹Á¸ÕÂIÀ»¥ô¦ó¦³®Ä¨¤¦â...');
-        // ³Æ¥Î¡GÂIÀ»²Ä¤@­Ó¦³¨¤¦â¦Wªº¼Ñ
+        console.log('[GM] ï¿½ï¿½ï¿½ï¿½ì¨¤ï¿½ï¿½Ñ¡Aï¿½ï¿½ï¿½ï¿½ï¿½Iï¿½ï¿½ï¿½ï¿½ó¦³®Ä¨ï¿½ï¿½ï¿½...');
+        // ï¿½Æ¥Î¡Gï¿½Iï¿½ï¿½ï¿½Ä¤@ï¿½Ó¦ï¿½ï¿½ï¿½ï¿½ï¿½Wï¿½ï¿½ï¿½ï¿½
         var firstChar=document.querySelector('.char-slot:not(.empty)');
         if(firstChar){
           firstChar.click();
           clicked=true;
-          console.log('[GM] ÂIÀ»²Ä¤@­Ó¨¤¦â¼Ñ...');
+          console.log('[GM] ï¿½Iï¿½ï¿½ï¿½Ä¤@ï¿½Ó¨ï¿½ï¿½ï¿½ï¿½...');
         }
       }
     } else {
       if(window.__gmFarming.__lastLogoutFlag){
         window.__gmFarming.__lastLogoutFlag=false;
-        console.log('[GM] ¤wÂ÷¶}¨¤¦â¿ï¾Üµe­±');
+        console.log('[GM] ï¿½wï¿½ï¿½ï¿½}ï¿½ï¿½ï¿½ï¿½ï¿½Üµeï¿½ï¿½');
       }
     }
     
     window.__gmFarming.reconnectTimer=setTimeout(checkReconnect,window.__gmFarming.reconnectInterval);
   }
-  // ©µ¿ð±Ò°ÊÀË´ú
+  // ï¿½ï¿½ï¿½ï¿½Ò°ï¿½ï¿½Ë´ï¿½
   window.__gmFarming.reconnectTimer=setTimeout(checkReconnect,window.__gmFarming.reconnectInterval);
 }
 
-// §ó·s³Qµn¥X­p¼Æ¾¹ UI
+// ï¿½ï¿½sï¿½Qï¿½nï¿½Xï¿½pï¿½Æ¾ï¿½ UI
 function updateLogoutUI(){
   var el=document.getElementById('__gmp_farm_logout_count');
   if(!el)return;
@@ -981,13 +981,13 @@ function updateLogoutUI(){
   var elTime=document.getElementById('__gmp_farm_logout_time');
   if(elTime){
     if(window.__gmFarming&&window.__gmFarming.lastLogoutTime){
-      elTime.textContent='³Ì«á: '+new Date(window.__gmFarming.lastLogoutTime).toLocaleTimeString();
+      elTime.textContent='ï¿½Ì«ï¿½: '+new Date(window.__gmFarming.lastLogoutTime).toLocaleTimeString();
     } else {
-      elTime.textContent='©|¥¼³Qµn¥X';
+      elTime.textContent='ï¿½|ï¿½ï¿½ï¿½Qï¿½nï¿½X';
     }
   }
 }
-// ªì©l¤ÆÅã¥Ü
+// ï¿½ï¿½lï¿½ï¿½ï¿½ï¿½ï¿½
 setTimeout(updateLogoutUI,500);
   setTimeout(function(){
     if(window.LogoutDB){
@@ -1010,8 +1010,8 @@ function stopFarming(){
   window.__gmFarming.returning=false;
   var btn=document.getElementById('__gmp_farm_btn');
   var status=document.getElementById('__gmp_farm_status');
-  if(btn){btn.textContent='? ¶}±Ò¸}¥»';btn.style.background='#0f3460'}
-  if(status){status.textContent='¤w°±¤î';status.style.color='#888'}
+  if(btn){btn.textContent='? ï¿½}ï¿½Ò¸}ï¿½ï¿½';btn.style.background='#0f3460'}
+  if(status){status.textContent='ï¿½wï¿½ï¿½ï¿½ï¿½';status.style.color='#888'}
 }
 // Export to window for cross-IIFE access (cron mode in wb-boss.js)
 window.startFarming=startFarming;
@@ -1029,24 +1029,24 @@ function __gmBuildPanel(){
   p.innerHTML=
   '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #0f3460;">'+
   '<div style="display:flex;align-items:center;gap:6px;">'+
-    '<button id="__gmp_tab_game" style="padding:5px 9px;background:#0f3460;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">ª¬ºA</button>'+
-    '<button id="__gmp_tab_farm" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">±¾¾÷</button>'+
+    '<button id="__gmp_tab_game" style="padding:5px 9px;background:#0f3460;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">ï¿½ï¿½ï¿½A</button>'+
+    '<button id="__gmp_tab_farm" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">ï¿½ï¿½ï¿½ï¿½</button>'+
     '<button id="__gmp_tab_boss" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">??BOSS</button>'+
-    '<button id="__gmp_tab_friend" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">?? ¦n¤Í</button>'+
+    '<button id="__gmp_tab_friend" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">?? ï¿½nï¿½ï¿½</button>'+
     '<div style="position:relative;display:inline-block;">'+
-      '<button id="__gmp_tab_more_btn" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:14px;line-height:1;" title="§ó¦h">?</button>'+
+      '<button id="__gmp_tab_more_btn" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:14px;line-height:1;" title="ï¿½ï¿½h">?</button>'+
       '<div id="__gmp_tab_more_menu" style="display:none;position:absolute;top:100%;right:0;background:#1a1a2e;border:1px solid #0f3460;border-radius:6px;padding:4px 0;z-index:100;min-width:100px;box-shadow:0 4px 12px rgba(0,0,0,0.5);">'+
-        '<button id="__gmp_tab_zone" style="display:block;width:100%;padding:6px 12px;background:transparent;border:none;color:#aaa;cursor:pointer;font-size:11px;text-align:left;">??? ¦a¹Ï</button>'+
-        '<button id="__gmp_tab_monitor" style="display:block;width:100%;padding:6px 12px;background:transparent;border:none;color:#aaa;cursor:pointer;font-size:11px;text-align:left;">?? ºÊ±±</button>'+
-        '<button id="__gmp_tab_skill" style="display:block;width:100%;padding:6px 12px;background:transparent;border:none;color:#aaa;cursor:pointer;font-size:11px;text-align:left;">? §Þ¯à</button>'+
-        '<button id="__gmp_tab_status" style="display:block;width:100%;padding:6px 12px;background:transparent;border:none;color:#aaa;cursor:pointer;font-size:11px;text-align:left;">?? ª¬ºA</button>'+
-        '<button id="__gmp_tab_other" style="display:block;width:100%;padding:6px 12px;background:transparent;border:none;color:#aaa;cursor:pointer;font-size:11px;text-align:left;">?? ¨ä¥L</button>'+
+        '<button id="__gmp_tab_zone" style="display:block;width:100%;padding:6px 12px;background:transparent;border:none;color:#aaa;cursor:pointer;font-size:11px;text-align:left;">??? ï¿½aï¿½ï¿½</button>'+
+        '<button id="__gmp_tab_monitor" style="display:block;width:100%;padding:6px 12px;background:transparent;border:none;color:#aaa;cursor:pointer;font-size:11px;text-align:left;">?? ï¿½Ê±ï¿½</button>'+
+        '<button id="__gmp_tab_skill" style="display:block;width:100%;padding:6px 12px;background:transparent;border:none;color:#aaa;cursor:pointer;font-size:11px;text-align:left;">? ï¿½Þ¯ï¿½</button>'+
+        '<button id="__gmp_tab_status" style="display:block;width:100%;padding:6px 12px;background:transparent;border:none;color:#aaa;cursor:pointer;font-size:11px;text-align:left;">?? ï¿½ï¿½ï¿½A</button>'+
+        '<button id="__gmp_tab_other" style="display:block;width:100%;padding:6px 12px;background:transparent;border:none;color:#aaa;cursor:pointer;font-size:11px;text-align:left;">?? ï¿½ï¿½L</button>'+
       '</div>'+
     '</div>'+
     '<span id="__gmp_ver" style="font-size:10px;color:#4ade80;font-weight:bold;">'+ver+'</span>'+
   '</div>'+
   '<div style="display:flex;gap:3px;">'+
-    '<button id="__gmp_expand" style="background:#0f3460;border:none;color:#fff;width:22px;height:22px;border-radius:4px;cursor:pointer;font-size:12px;">¡¿</button>'+
+    '<button id="__gmp_expand" style="background:#0f3460;border:none;color:#fff;width:22px;height:22px;border-radius:4px;cursor:pointer;font-size:12px;">ï¿½ï¿½</button>'+
     '<button id="__gmp_zoom_in" style="background:#333;border:none;color:#fff;width:20px;height:20px;border-radius:4px;cursor:pointer;font-size:12px;">+</button>'+
     '<button id="__gmp_zoom_out" style="background:#333;border:none;color:#fff;width:20px;height:20px;border-radius:4px;cursor:pointer;font-size:12px;">-</button>'+
     '<button id="__gmp_close" style="background:#e94560;border:none;color:#fff;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:12px;">X</button>'+
@@ -1057,8 +1057,8 @@ function __gmBuildPanel(){
     // === GAME TAB ===
     '<div id="__gmp_tab_content_game" style="display:block;">'+
     '<div style="display:flex;gap:5px;margin-bottom:8px;">'+
-      '<button id="__gmp_lobby" style="flex:1;padding:6px 0;background:#e94560;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">?? ªð¦^¤jÆU</button>'+
-      '<button id="__gmp_zone_town" style="flex:1;padding:6px 0;background:#0f3460;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:11px;">?? »ÈÃM¤h§ø</button>'+
+      '<button id="__gmp_lobby" style="flex:1;padding:6px 0;background:#e94560;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">?? ï¿½ï¿½^ï¿½jï¿½U</button>'+
+      '<button id="__gmp_zone_town" style="flex:1;padding:6px 0;background:#0f3460;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:11px;">?? ï¿½ï¿½ï¿½Mï¿½hï¿½ï¿½</button>'+
     '</div>'+
     '<div style="background:rgba(255,255,255,0.05);padding:8px;border-radius:6px;margin-bottom:8px;">'+
       '<div id="__gmp_name" style="font-weight:bold;color:#ffd700;font-size:14px;">Loading...</div>'+
@@ -1091,33 +1091,33 @@ function __gmBuildPanel(){
     '</div>'+
     // === ZONE TAB ===
     '<div id="__gmp_tab_content_zone" style="display:none;">'+
-    '<input id="__gmp_search" placeholder="?? ·j´M..." style="width:100%;padding:6px 8px;background:rgba(255,255,255,0.08);border:1px solid #0f3460;border-radius:6px;color:#fff;font-size:11px;margin-bottom:6px;outline:none;box-sizing:border-box;">'+
+    '<input id="__gmp_search" placeholder="?? ï¿½jï¿½M..." style="width:100%;padding:6px 8px;background:rgba(255,255,255,0.08);border:1px solid #0f3460;border-radius:6px;color:#fff;font-size:11px;margin-bottom:6px;outline:none;box-sizing:border-box;">'+
     '<div style="display:flex;gap:3px;margin-bottom:6px;flex-wrap:wrap;">'+
-      '<button class="__gmp_st active" data-t="town" style="padding:4px 7px;background:#0f3460;border:none;color:#fff;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">§ø</button>'+
-      '<button class="__gmp_st" data-t="wild" style="padding:4px 7px;background:#333;border:none;color:#aaa;border-radius:5px;cursor:pointer;font-size:10px;">³¥¥~</button>'+
-      '<button class="__gmp_st" data-t="dungeon" style="padding:4px 7px;background:#333;border:none;color:#aaa;border-radius:5px;cursor:pointer;font-size:10px;">¦aºÊ</button>'+
-      '<button class="__gmp_st" data-t="special" style="padding:4px 7px;background:#333;border:none;color:#aaa;border-radius:5px;cursor:pointer;font-size:10px;">¤ý/¯S</button>'+
+      '<button class="__gmp_st active" data-t="town" style="padding:4px 7px;background:#0f3460;border:none;color:#fff;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">ï¿½ï¿½</button>'+
+      '<button class="__gmp_st" data-t="wild" style="padding:4px 7px;background:#333;border:none;color:#aaa;border-radius:5px;cursor:pointer;font-size:10px;">ï¿½ï¿½ï¿½~</button>'+
+      '<button class="__gmp_st" data-t="dungeon" style="padding:4px 7px;background:#333;border:none;color:#aaa;border-radius:5px;cursor:pointer;font-size:10px;">ï¿½aï¿½ï¿½</button>'+
+      '<button class="__gmp_st" data-t="special" style="padding:4px 7px;background:#333;border:none;color:#aaa;border-radius:5px;cursor:pointer;font-size:10px;">ï¿½ï¿½/ï¿½S</button>'+
     '</div>'+
     '<div id="__gmp_boss_list" style="max-height:180px;overflow-y:auto;margin-bottom:4px;display:none;"></div>'+
     '<div id="__gmp_zone_list" style="max-height:180px;overflow-y:auto;"></div>'+
     '</div>'+
     // === BOSS TAB ===
     '<div id="__gmp_tab_content_boss" style="display:none;">'+
-    // ¡¹ °O¿ý«ö¶s¦C¡]¸m³»¡^
+    // ï¿½ï¿½ ï¿½Oï¿½ï¿½ï¿½ï¿½ï¿½sï¿½Cï¿½]ï¿½mï¿½ï¿½ï¿½^
     '<div style="margin-bottom:8px;display:flex;align-items:center;gap:6px;">'+
     '<input type="checkbox" id="__gmp_boss_auto_loot" style="width:13px;height:13px;cursor:pointer;">'+
     '<label for="__gmp_boss_auto_loot" style="font-size:10px;color:#fbbf24;cursor:pointer;margin-right:4px;">\uD83D\uDCB0</label>'+
     '<button id="__gmp_boss_history_btn" style="flex:1;padding:5px;background:#1a1a3e;border:1px solid #0f3460;color:#86c5ff;border-radius:4px;cursor:pointer;font-size:10px;font-weight:bold;">\uD83D\uDCCB BOSS \u5386\u53f2\u8bb0\u5f55</button>'+
     '<button id="__gmp_boss_loot_btn" style="flex:1;padding:5px;background:#1a1a1a;border:1px solid #6b4226;color:#fbbf24;border-radius:4px;cursor:pointer;font-size:10px;font-weight:bold;">\uD83D\uDCB0 \u6389\u843d\u8A18\u9304</button>'+
     '</div>'+
-    // === ·í«e BOSS ¾Ô°« ===
-    // === BOSS ¦Û°Ê¶}Ãö ===
+    // === ï¿½ï¿½e BOSS ï¿½Ô°ï¿½ ===
+    // === BOSS ï¿½Û°Ê¶}ï¿½ï¿½ ===
 '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:8px;background:rgba(233,69,96,0.12);border-radius:6px;">'+
 '<input type="checkbox" id="__gmp_boss_auto_enable" style="width:16px;height:16px;cursor:pointer;">'+
-'<label for="__gmp_boss_auto_enable" style="font-size:12px;color:#e94560;font-weight:bold;cursor:pointer;">\u2694\uFE0F ¦Û°Ê¾Ô°«</label>'+
-'<span id="__gmp_boss_auto_status_short" style="font-size:10px;color:#888;">°±¤î¤¤</span>'+
+'<label for="__gmp_boss_auto_enable" style="font-size:12px;color:#e94560;font-weight:bold;cursor:pointer;">\u2694\uFE0F ï¿½Û°Ê¾Ô°ï¿½</label>'+
+'<span id="__gmp_boss_auto_status_short" style="font-size:10px;color:#888;">ï¿½ï¿½ï¿½î¤¤</span>'+
 '<div style="flex:1;"></div>'+
-'<button id="__gmp_boss_auto_config_btn" style="padding:4px 8px;background:#0f3460;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:10px;">\u2699 ¶i¶¥³]©w</button>'+
+'<button id="__gmp_boss_auto_config_btn" style="padding:4px 8px;background:#0f3460;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:10px;">\u2699 ï¿½iï¿½ï¿½ï¿½]ï¿½w</button>'+
 '</div>'+
 '<div style="background:rgba(255,255,255,0.06);padding:8px;border-radius:6px;margin-bottom:8px;">'+
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">'+
@@ -1130,15 +1130,15 @@ function __gmBuildPanel(){
         '</div>'+
 '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:6px 8px;background:rgba(76,175,80,0.10);border-radius:6px;">'+
 '<input type="checkbox" id="__gmp_boss_auto_script_enable" style="width:16px;height:16px;cursor:pointer;">'+
-'<label for="__gmp_boss_auto_script_enable" style="font-size:12px;color:#4caf50;font-weight:bold;cursor:pointer;">\uD83C\uDFAF ¦Û°Ê¶i¤J¥@¬É¤ý</label>'+
-'<span id="__gmp_boss_script_status" style="font-size:9px;color:#888;margin-left:4px;">\u00B7 ¶¢¸m¤¤</span>'+
-'<select id="__gmp_boss_script_mode" style="background:#1a3a1a;color:#fbbf24;border:1px solid #4ade80;border-radius:4px;padding:1px 3px;font-size:9px;margin-left:4px;cursor:pointer;"><option value="cron">©w®É¼Ò¦¡</option><option value="scheduled">´¼¯à¼Ò¦¡</option><option value="realtime">§Y®É¼Ò¦¡</option></select><button id="__gmp_debug_export_btn" style="margin-left:auto;padding:2px 8px;background:#1a1a3a;border:1px solid #ffd700;color:#ffd700;border-radius:3px;cursor:pointer;font-size:9px;" title="¶×¥X Debug Log ¨ì Console (F12)" data-wb-action="exportDebug">?? ¶×¥XLog</button>'+
+'<label for="__gmp_boss_auto_script_enable" style="font-size:12px;color:#4caf50;font-weight:bold;cursor:pointer;">\uD83C\uDFAF ï¿½Û°Ê¶iï¿½Jï¿½@ï¿½É¤ï¿½</label>'+
+'<span id="__gmp_boss_script_status" style="font-size:9px;color:#888;margin-left:4px;">\u00B7 ï¿½ï¿½ï¿½mï¿½ï¿½</span>'+
+'<select id="__gmp_boss_script_mode" style="background:#1a3a1a;color:#fbbf24;border:1px solid #4ade80;border-radius:4px;padding:1px 3px;font-size:9px;margin-left:4px;cursor:pointer;"><option value="cron">ï¿½wï¿½É¼Ò¦ï¿½</option><option value="scheduled">ï¿½ï¿½ï¿½ï¿½Ò¦ï¿½</option><option value="realtime">ï¿½Yï¿½É¼Ò¦ï¿½</option></select><button id="__gmp_debug_export_btn" style="margin-left:auto;padding:2px 8px;background:#1a1a3a;border:1px solid #ffd700;color:#ffd700;border-radius:3px;cursor:pointer;font-size:9px;" title="ï¿½×¥X Debug Log ï¿½ï¿½ Console (F12)" data-wb-action="exportDebug">?? ï¿½×¥XLog</button>'+
 '</div>'+
 '<div id="__gmp_cron_config" style="display:none;padding:4px 8px;background:rgba(255,215,0,0.06);border-radius:4px;margin-bottom:4px;font-size:10px;color:#ffd700;">'+
-  '<span>¨C¾ãÂI </span><input id="__gmp_cron_start_min" type="number" value="0" min="0" max="59" style="width:36px;padding:2px 4px;background:#2a2a4a;border:1px solid #0f3460;border-radius:3px;color:#fff;font-size:10px;outline:none;text-align:center;">'+
-  '<span> ¤À¶}©l°»´úBOSS & ¾Ô°«¡A </span><input id="__gmp_cron_stop_min" type="number" value="2" min="0" max="59" style="width:36px;padding:2px 4px;background:#2a2a4a;border:1px solid #0f3460;border-radius:3px;color:#fff;font-size:10px;outline:none;text-align:center;">'+
-  '<span> ¤À°±¤î¨Ã«ì´_±¾¾÷</span>'+
-  '<label style="margin-left:8px;cursor:pointer;font-size:10px;color:#ffd700;"><input type="checkbox" id="__gmp_cron_quick_enter" checked style="width:12px;height:12px;vertical-align:middle;margin-right:2px;">§Ö³t¶i¤J</label>'+
+  '<span>ï¿½Cï¿½ï¿½ï¿½I </span><input id="__gmp_cron_start_min" type="number" value="0" min="0" max="59" style="width:36px;padding:2px 4px;background:#2a2a4a;border:1px solid #0f3460;border-radius:3px;color:#fff;font-size:10px;outline:none;text-align:center;">'+
+  '<span> ï¿½ï¿½ï¿½}ï¿½lï¿½ï¿½ï¿½ï¿½BOSS & ï¿½Ô°ï¿½ï¿½A </span><input id="__gmp_cron_stop_min" type="number" value="2" min="0" max="59" style="width:36px;padding:2px 4px;background:#2a2a4a;border:1px solid #0f3460;border-radius:3px;color:#fff;font-size:10px;outline:none;text-align:center;">'+
+  '<span> ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã«ï¿½_ï¿½ï¿½ï¿½ï¿½</span>'+
+  '<label style="margin-left:8px;cursor:pointer;font-size:10px;color:#ffd700;"><input type="checkbox" id="__gmp_cron_quick_enter" checked style="width:12px;height:12px;vertical-align:middle;margin-right:2px;">ï¿½Ö³tï¿½iï¿½J</label>'+
 '</div>'+
 '<div style="display:flex;align-items:center;gap:2px;margin-top:4px;margin-bottom:4px;">'+
 '<input type="checkbox" id="__gmp_boss_auto_reenter" style="width:13px;height:13px;cursor:pointer;">'+
@@ -1151,66 +1151,66 @@ function __gmBuildPanel(){
       '</div>'+
       '<div id="__gmp_boss_buffs" style="font-size:10px;color:#86c5ff;margin-top:4px;"></div>'+
     '</div>'+
-    // === ¥@¬É¤ý¦Cªí¡]¥iÁY©ñ 300px¡^===
+    // === ï¿½@ï¿½É¤ï¿½ï¿½Cï¿½ï¿½]ï¿½iï¿½Yï¿½ï¿½ 300pxï¿½^===
     '<div style="background:rgba(233,69,96,0.06);padding:0;border-radius:6px;margin-bottom:8px;border:1px solid rgba(233,69,96,0.3);">'+
       '<div id="__gmp_wb_toggle" style="display:flex;justify-content:space-between;align-items:center;padding:8px;cursor:pointer;user-select:none;border-bottom:1px solid rgba(233,69,96,0.2);">'+
-        '<span style="font-size:11px;color:#e94560;font-weight:bold;">&#x1F3C5; ¥@¬É¤ý¦Cªí <span id="__gmp_wb_count" style="font-size:9px;color:#888;">--</span></span>'+
+        '<span style="font-size:11px;color:#e94560;font-weight:bold;">&#x1F3C5; ï¿½@ï¿½É¤ï¿½ï¿½Cï¿½ï¿½ <span id="__gmp_wb_count" style="font-size:9px;color:#888;">--</span></span>'+
         '<div style="display:flex;gap:4px;align-items:center;">'+
-          '<span id="__gmp_wb_timer" style="font-size:9px;color:#888;">¨C 60s</span>'+
-          '<button id="__gmp_wb_refresh" style="padding:2px 6px;background:#0f3460;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:9px;font-weight:bold;">&#x2699; ¨ê·s</button>'+
-          '<button id="__gmp_wb_show_detected" style="padding:2px 6px;background:#2a2a4a;border:1px solid #555;color:#aaa;border-radius:4px;cursor:pointer;font-size:9px;">? ¨Æ¥ó</button>'+
+          '<span id="__gmp_wb_timer" style="font-size:9px;color:#888;">ï¿½C 60s</span>'+
+          '<button id="__gmp_wb_refresh" style="padding:2px 6px;background:#0f3460;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:9px;font-weight:bold;">&#x2699; ï¿½ï¿½s</button>'+
+          '<button id="__gmp_wb_show_detected" style="padding:2px 6px;background:#2a2a4a;border:1px solid #555;color:#aaa;border-radius:4px;cursor:pointer;font-size:9px;">? ï¿½Æ¥ï¿½</button>'+
         '</div>'+
       '</div>'+
       '<div id="__gmp_wb_body" style="max-height:300px;overflow-y:auto;padding:6px;">'+
-        '<div id="__gmp_wb_list" style="font-size:10px;color:#555;padding:6px;text-align:center;">DOM Åª¨ú¤¤...</div>'+
+        '<div id="__gmp_wb_list" style="font-size:10px;color:#555;padding:6px;text-align:center;">DOM Åªï¿½ï¿½ï¿½ï¿½...</div>'+
       '</div>'+
     '</div>'+
-    // === Àu¥ý°Q¥ï²M³æ¡]¥iÁY©ñ 300px¡^===
+    // === ï¿½uï¿½ï¿½ï¿½Qï¿½ï¿½Mï¿½ï¿½]ï¿½iï¿½Yï¿½ï¿½ 300pxï¿½^===
     '<div style="background:rgba(76,175,80,0.06);padding:0;border-radius:6px;margin-bottom:8px;border:1px solid rgba(76,175,80,0.3);">'+
       '<div id="__gmp_hunt_toggle" style="display:flex;justify-content:space-between;align-items:center;padding:8px;cursor:pointer;user-select:none;border-bottom:1px solid rgba(76,175,80,0.2);">'+
-        '<span style="font-size:11px;color:#4caf50;font-weight:bold;">&#x1F3AF; Àu¥ý°Q¥ï²M³æ <span id="__gmp_hunt_count" style="font-size:9px;color:#888;"></span></span>'+
+        '<span style="font-size:11px;color:#4caf50;font-weight:bold;">&#x1F3AF; ï¿½uï¿½ï¿½ï¿½Qï¿½ï¿½Mï¿½ï¿½ <span id="__gmp_hunt_count" style="font-size:9px;color:#888;"></span></span>'+
         '<div style="display:flex;gap:4px;align-items:center;">'+
           '<span id="__gmp_hunt_timer" style="font-size:9px;color:#888;"></span>'+
         '</div>'+
       '</div>'+
-      '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 8px;background:rgba(0,0,0,0.1);border-bottom:1px solid rgba(76,175,80,0.15);"><span style="font-size:10px;color:#888;">&#x1F465; ³Ì¤p¦b³õ¤H¼Æ¤~¶i¤J:</span><span style="font-size:10px;color:#888;">¦UBOSS¥i¦Û³]³Ì§C¤H¼Æ</span></div>'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 8px;background:rgba(0,0,0,0.1);border-bottom:1px solid rgba(76,175,80,0.15);"><span style="font-size:10px;color:#888;">&#x1F465; ï¿½Ì¤pï¿½bï¿½ï¿½ï¿½Hï¿½Æ¤~ï¿½iï¿½J:</span><span style="font-size:10px;color:#888;">ï¿½UBOSSï¿½iï¿½Û³]ï¿½Ì§Cï¿½Hï¿½ï¿½</span></div>'+
           '<div id="__gmp_hunt_body" style="max-height:300px;overflow-y:auto;padding:6px;">'+
-        '<div id="__gmp_hunt_list" style="font-size:10px;color:#555;padding:6px;text-align:center;">ÂI¿ï¤W¤è¥@¬É¤ý [+] ¥[¤J</div>'+
+        '<div id="__gmp_hunt_list" style="font-size:10px;color:#555;padding:6px;text-align:center;">ï¿½Iï¿½ï¿½Wï¿½ï¿½@ï¿½É¤ï¿½ [+] ï¿½[ï¿½J</div>'+
       '</div>'+
     '</div>'+
-    // === §N«o­p®É ===
+    // === ï¿½Nï¿½oï¿½pï¿½ï¿½ ===
     '<div style="margin-bottom:8px;">'+
-      '<div style="font-size:10px;color:#888;margin-bottom:4px;">§N«o­p®É</div>'+
+      '<div style="font-size:10px;color:#888;margin-bottom:4px;">ï¿½Nï¿½oï¿½pï¿½ï¿½</div>'+
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">'+
-        '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">&#x1F48A;</span> ÃÄ¤ô <span id="__gmp_cd_pot" style="color:#4ade80;float:right;">´Nºü</span></div>'+
-        '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">&#x2694;&#xFE0F;</span> §ðÀ» <span id="__gmp_cd_atk" style="color:#4ade80;float:right;">´Nºü</span></div>'+
-        '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">&#x1F49A;</span> ªvÀø <span id="__gmp_cd_heal" style="color:#4ade80;float:right;">´Nºü</span></div>'+
-        '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">&#x1F504;</span> Âà´« <span id="__gmp_cd_convert" style="color:#4ade80;float:right;">´Nºü</span></div>'+
-        '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">&#x1F6E1;&#xFE0F;</span> «Ì»Ù <span id="__gmp_cd_barrier" style="color:#4ade80;float:right;">´Nºü</span></div>'+
+        '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">&#x1F48A;</span> ï¿½Ä¤ï¿½ <span id="__gmp_cd_pot" style="color:#4ade80;float:right;">ï¿½Nï¿½ï¿½</span></div>'+
+        '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">&#x2694;&#xFE0F;</span> ï¿½ï¿½ï¿½ï¿½ <span id="__gmp_cd_atk" style="color:#4ade80;float:right;">ï¿½Nï¿½ï¿½</span></div>'+
+        '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">&#x1F49A;</span> ï¿½vï¿½ï¿½ <span id="__gmp_cd_heal" style="color:#4ade80;float:right;">ï¿½Nï¿½ï¿½</span></div>'+
+        '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">&#x1F504;</span> ï¿½à´« <span id="__gmp_cd_convert" style="color:#4ade80;float:right;">ï¿½Nï¿½ï¿½</span></div>'+
+        '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">&#x1F6E1;&#xFE0F;</span> ï¿½Ì»ï¿½ <span id="__gmp_cd_barrier" style="color:#4ade80;float:right;">ï¿½Nï¿½ï¿½</span></div>'+
       '</div>'+
     '</div>'+
-    // === ¤â°Ê«ü¥O ===
+    // === ï¿½ï¿½Ê«ï¿½ï¿½O ===
     '<div style="margin-bottom:8px;">'+
-      '<div style="font-size:10px;color:#888;margin-bottom:4px;">¤â°Ê«ü¥O¡]ª½±µµo°e¡^</div>'+
+      '<div style="font-size:10px;color:#888;margin-bottom:4px;">ï¿½ï¿½Ê«ï¿½ï¿½Oï¿½]ï¿½ï¿½ï¿½ï¿½ï¿½oï¿½eï¿½^</div>'+
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">'+
-        '<button id="__gmp_boss_pot" style="padding:8px;background:#1a4a1a;border:1px solid #2a6a2a;color:#4ade80;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">&#x1F48A; ÃÄ¤ô</button>'+
-        '<button id="__gmp_boss_atk" style="padding:8px;background:#2a1a1a;border:1px solid #6a2a2a;color:#f87171;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">&#x2694;&#xFE0F; §ðÀ»</button>'+
-        '<button id="__gmp_boss_heal" style="padding:8px;background:#1a2a1a;border:1px solid #2a5a2a;color:#86efac;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">&#x1F49A; ªvÀø</button>'+
-        '<button id="__gmp_boss_convert" style="padding:8px;background:#1a1a4a;border:1px solid #2a2a7a;color:#a5b4fc;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">&#x1F504; Âà´«</button>'+
-        '<button id="__gmp_boss_barrier" style="padding:8px;background:#1a1a3a;border:1px solid #3a3a8a;color:#818cf8;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">&#x1F6E1;&#xFE0F; «Ì»Ù</button>'+
-        '<button id="__gmp_boss_holy" style="padding:8px;background:#2a1a2a;border:1px solid #6a2a6a;color:#d8b4fe;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">&#x2728; ¯«¸t</button>'+
+        '<button id="__gmp_boss_pot" style="padding:8px;background:#1a4a1a;border:1px solid #2a6a2a;color:#4ade80;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">&#x1F48A; ï¿½Ä¤ï¿½</button>'+
+        '<button id="__gmp_boss_atk" style="padding:8px;background:#2a1a1a;border:1px solid #6a2a2a;color:#f87171;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">&#x2694;&#xFE0F; ï¿½ï¿½ï¿½ï¿½</button>'+
+        '<button id="__gmp_boss_heal" style="padding:8px;background:#1a2a1a;border:1px solid #2a5a2a;color:#86efac;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">&#x1F49A; ï¿½vï¿½ï¿½</button>'+
+        '<button id="__gmp_boss_convert" style="padding:8px;background:#1a1a4a;border:1px solid #2a2a7a;color:#a5b4fc;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">&#x1F504; ï¿½à´«</button>'+
+        '<button id="__gmp_boss_barrier" style="padding:8px;background:#1a1a3a;border:1px solid #3a3a8a;color:#818cf8;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">&#x1F6E1;&#xFE0F; ï¿½Ì»ï¿½</button>'+
+        '<button id="__gmp_boss_holy" style="padding:8px;background:#2a1a2a;border:1px solid #6a2a6a;color:#d8b4fe;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">&#x2728; ï¿½ï¿½ï¿½t</button>'+
       '</div>'+
     '</div>'+
-    // === ¸Ñ°£§N«o­­¨î ===
+    // === ï¿½Ñ°ï¿½ï¿½Nï¿½oï¿½ï¿½ï¿½ï¿½ ===
     '<div style="margin-bottom:8px;">'+
       '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">'+
         '<input type="checkbox" id="__gmp_boss_bypass" style="width:14px;height:14px;cursor:pointer;">'+
-        '<label for="__gmp_boss_bypass" style="font-size:11px;color:#ffd700;cursor:pointer;">&#x1F513; ¸Ñ°£§N«o­­¨î</label>'+
+        '<label for="__gmp_boss_bypass" style="font-size:11px;color:#ffd700;cursor:pointer;">&#x1F513; ï¿½Ñ°ï¿½ï¿½Nï¿½oï¿½ï¿½ï¿½ï¿½</label>'+
       '</div>'+
-      '<div style="font-size:10px;color:#555;padding-left:22px;">&#x26A0;&#xFE0F; ¦øªA¾¹¤´·|ÅçÃÒ§N«o</div>'+
+      '<div style="font-size:10px;color:#555;padding-left:22px;">&#x26A0;&#xFE0F; ï¿½ï¿½ï¿½Aï¿½ï¿½ï¿½ï¿½ï¿½|ï¿½ï¿½ï¿½Ò§Nï¿½o</div>'+
     '</div>'+
-    // === ¦Û°Ê±¾¾÷ BOSS ===
-// === BOSS ¦Û°Ê³]©w Modal ===
+    // === ï¿½Û°Ê±ï¿½ï¿½ï¿½ BOSS ===
+// === BOSS ï¿½Û°Ê³]ï¿½w Modal ===
 '<div id="__gmp_boss_auto_modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9999;justify-content:center;align-items:center;">'+
 '<div style="background:#1a1a2e;border:2px solid #0f3460;border-radius:10px;padding:16px;width:350px;max-height:80vh;overflow-y:auto;">'+
 '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">'+
@@ -1221,7 +1221,7 @@ function __gmBuildPanel(){
 '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+
 '<input type="checkbox" id="__gmp_boss_auto_atk" style="width:13px;height:13px;cursor:pointer;" checked>'+
 '<label for="__gmp_boss_auto_atk" style="font-size:11px;color:#f87171;cursor:pointer;">\u2694\uFE0F \u958b\u59cb\u653b\u64caBOSS</label>'+
-'\n<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px;"><input type="checkbox" id="__gmp_boss_auto_pot_stop" style="width:13px;height:13px;cursor:pointer;"><label for="__gmp_boss_auto_pot_stop" style="font-size:10px;color:#f87171;">P¤Ö©ó°±¤î§ð\u5f31</label><input id="__gmp_boss_auto_pot_stop_hp" type="number" value="30" min="1" max="100" style="width:50px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;outline:none;text-align:center;"><span style="font-size:9px;color:#888;">%</span></div>\n</div>'+
+'\n<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px;"><input type="checkbox" id="__gmp_boss_auto_pot_stop" style="width:13px;height:13px;cursor:pointer;"><label for="__gmp_boss_auto_pot_stop" style="font-size:10px;color:#f87171;">Pï¿½Ö©ó°±¤ï¿½ï¿½\u5f31</label><input id="__gmp_boss_auto_pot_stop_hp" type="number" value="30" min="1" max="100" style="width:50px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;outline:none;text-align:center;"><span style="font-size:9px;color:#888;">%</span></div>\n</div>'+
 '<div style="display:flex;align-items:center;gap:4px;margin-bottom:8px;padding:6px 8px;background:rgba(248,113,113,0.08);border-radius:4px;">'+
 '<span style="font-size:10px;color:#f87171;">\u8a2d\u5b9aBOSS\u8840\u91cf\u5c11\u65bc</span>'+
 '<input id="__gmp_boss_auto_atk_hp_pct" type="number" value="100" min="0" max="100" style="width:45px;padding:2px 4px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;text-align:center;">'+
@@ -1305,84 +1305,84 @@ function __gmBuildPanel(){
 '</div>'+
 
 
-    // === Socket ª¬ºA + ¶×¤J¶×¥X ===
+    // === Socket ï¿½ï¿½ï¿½A + ï¿½×¤Jï¿½×¥X ===
     '<div style="margin-bottom:6px;">'+
-      '<div style="font-size:10px;color:#888;margin-bottom:4px;">&#x1F4E1; Socket.IO ª¬ºA</div>'+
+      '<div style="font-size:10px;color:#888;margin-bottom:4px;">&#x1F4E1; Socket.IO ï¿½ï¿½ï¿½A</div>'+
       '<div style="display:flex;gap:6px;margin-bottom:4px;">'+
-        '<span style="font-size:10px;color:#888;">³s±µ: </span><span id="__gmp_sock_status" style="font-size:10px;color:#ffd700;">ÀË´ú¤¤...</span>'+
+        '<span style="font-size:10px;color:#888;">ï¿½sï¿½ï¿½: </span><span id="__gmp_sock_status" style="font-size:10px;color:#ffd700;">ï¿½Ë´ï¿½ï¿½ï¿½...</span>'+
       '</div>'+
-      '<div style="font-size:10px;color:#888;">¤w®·Àò: <span id="__gmp_sock_sent" style="color:#4ade80;">0</span> µo°e / <span id="__gmp_sock_evts" style="color:#00d9ff;">0</span> ¨Æ¥ó</div>'+
+      '<div style="font-size:10px;color:#888;">ï¿½wï¿½ï¿½ï¿½ï¿½: <span id="__gmp_sock_sent" style="color:#4ade80;">0</span> ï¿½oï¿½e / <span id="__gmp_sock_evts" style="color:#00d9ff;">0</span> ï¿½Æ¥ï¿½</div>'+
       '<div style="margin:8px 0 4px;display:flex;gap:4px;">'+
-        '<button id="__gmp_export_all" style="flex:1;padding:5px 4px;background:#0f3460;border:1px solid #7bd14a;color:#7bd14a;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">&#x1F4E5; ¶×¥X³]©w</button>'+
-        '<button id="__gmp_import_all" style="flex:1;padding:5px 4px;background:#0f3460;border:1px solid #fbbf24;color:#fbbf24;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">&#x1F4E4; ¶×¤J³]©w</button>'+
+        '<button id="__gmp_export_all" style="flex:1;padding:5px 4px;background:#0f3460;border:1px solid #7bd14a;color:#7bd14a;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">&#x1F4E5; ï¿½×¥Xï¿½]ï¿½w</button>'+
+        '<button id="__gmp_import_all" style="flex:1;padding:5px 4px;background:#0f3460;border:1px solid #fbbf24;color:#fbbf24;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">&#x1F4E4; ï¿½×¤Jï¿½]ï¿½w</button>'+
         '<input type="file" id="__gmp_import_file" accept=".json" style="display:none;">'+
       '</div>'+
       '<div id="__gmp_idb_status" style="font-size:10px;color:#555;margin-top:3px;text-align:center;"></div>'+
     '</div>'+
-    // === ¨Æ¥ó¦C§t¦Û°Ê¨ê·s¶}Ãö ===
+    // === ï¿½Æ¥ï¿½Cï¿½tï¿½Û°Ê¨ï¿½sï¿½}ï¿½ï¿½ ===
     '<div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;padding:4px 6px;background:rgba(0,0,0,0.15);border-radius:4px;">'+
       '<label style="display:flex;align-items:center;gap:3px;cursor:pointer;margin-right:6px;">'+
         '<input type="checkbox" id="__gmp_wb_auto" checked style="width:11px;height:11px;cursor:pointer;">'+
-        '<span style="font-size:9px;color:#888;">¨C 60s</span>'+
+        '<span style="font-size:9px;color:#888;">ï¿½C 60s</span>'+
       '</label>'+
-      '<span style="font-size:9px;color:#555;">¨Æ¥ó:</span>'+
-      '<span id="__gmp_wb_evt_name" style="font-size:9px;color:#ffd700;">DOM §Y®ÉÅª¨ú</span>'+
+      '<span style="font-size:9px;color:#555;">ï¿½Æ¥ï¿½:</span>'+
+      '<span id="__gmp_wb_evt_name" style="font-size:9px;color:#ffd700;">DOM ï¿½Yï¿½ï¿½Åªï¿½ï¿½</span>'+
     '</div>'+
   '</div>'+  // closes __gmp_tab_content_boss
   '</div>'+// === MONITOR TAB ===
     '<div id="__gmp_tab_content_monitor" style="display:none;">'+
       '<div style="background:rgba(74,222,128,0.08);padding:8px;border-radius:6px;margin-bottom:8px;">'+
-        '<div style="font-size:11px;color:#4ade80;font-weight:bold;margin-bottom:6px;">?? «Ê¥]ºÊ±± (Packet Monitor)</div>'+
-        '<div style="font-size:10px;color:#aaa;margin-bottom:6px;">°O¿ý©Ò¦³ WebSocket »P Socket.IO «Ê¥]¡A¶×¥X¬° TXT ¨Ñ¤ÀªR</div>'+
+        '<div style="font-size:11px;color:#4ade80;font-weight:bold;margin-bottom:6px;">?? ï¿½Ê¥]ï¿½Ê±ï¿½ (Packet Monitor)</div>'+
+        '<div style="font-size:10px;color:#aaa;margin-bottom:6px;">ï¿½Oï¿½ï¿½ï¿½Ò¦ï¿½ WebSocket ï¿½P Socket.IO ï¿½Ê¥]ï¿½Aï¿½×¥Xï¿½ï¿½ TXT ï¿½Ñ¤ï¿½ï¿½R</div>'+
         '<div style="display:flex;gap:4px;margin-bottom:6px;">'+
-          '<button id="__gmp_monitor_start" style="flex:1;padding:8px;background:#1a4a1a;border:1px solid #4ade80;color:#4ade80;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">? ¶}©lºÊ±±</button>'+
-          '<button id="__gmp_monitor_stop" style="flex:1;padding:8px;background:#4a1a1a;border:1px solid #e94560;color:#e94560;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;" disabled>¡½ °±¤îºÊ±±</button>'+
+          '<button id="__gmp_monitor_start" style="flex:1;padding:8px;background:#1a4a1a;border:1px solid #4ade80;color:#4ade80;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">? ï¿½}ï¿½lï¿½Ê±ï¿½</button>'+
+          '<button id="__gmp_monitor_stop" style="flex:1;padding:8px;background:#4a1a1a;border:1px solid #e94560;color:#e94560;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;" disabled>ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ê±ï¿½</button>'+
         '</div>'+
-        '<button id="__gmp_monitor_export" style="width:100%;padding:8px;background:#0f3460;border:1px solid #00d9ff;color:#00d9ff;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;margin-bottom:4px;">?? ¶×¥X TXT</button>'+
-        '<button id="__gmp_monitor_clear" style="width:100%;padding:6px;background:#333;border:1px solid #666;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">??? ²MªÅ°O¿ý</button>'+
+        '<button id="__gmp_monitor_export" style="width:100%;padding:8px;background:#0f3460;border:1px solid #00d9ff;color:#00d9ff;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;margin-bottom:4px;">?? ï¿½×¥X TXT</button>'+
+        '<button id="__gmp_monitor_clear" style="width:100%;padding:6px;background:#333;border:1px solid #666;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">??? ï¿½Mï¿½Å°Oï¿½ï¿½</button>'+
       '</div>'+
       '<div style="background:rgba(255,255,255,0.04);padding:8px;border-radius:6px;margin-bottom:8px;">'+
-        '<div style="font-size:10px;color:#888;margin-bottom:4px;">ºÊ±±ª¬ºA</div>'+
+        '<div style="font-size:10px;color:#888;margin-bottom:4px;">ï¿½Ê±ï¿½ï¿½ï¿½ï¿½A</div>'+
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:10px;">'+
-          '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;"><span style="color:#888;">ª¬ºA:</span> <span id="__gmp_monitor_status" style="color:#e94560;font-weight:bold;">¥¼±Ò°Ê</span></div>'+
-          '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;"><span style="color:#888;">¤w°O¿ý:</span> <span id="__gmp_monitor_count" style="color:#4ade80;font-weight:bold;">0</span></div>'+
+          '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;"><span style="color:#888;">ï¿½ï¿½ï¿½A:</span> <span id="__gmp_monitor_status" style="color:#e94560;font-weight:bold;">ï¿½ï¿½ï¿½Ò°ï¿½</span></div>'+
+          '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;"><span style="color:#888;">ï¿½wï¿½Oï¿½ï¿½:</span> <span id="__gmp_monitor_count" style="color:#4ade80;font-weight:bold;">0</span></div>'+
           '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;"><span style="color:#888;">SEND:</span> <span id="__gmp_monitor_send" style="color:#fbbf24;">0</span></div>'+
           '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;"><span style="color:#888;">RECV:</span> <span id="__gmp_monitor_recv" style="color:#86c5ff;">0</span></div>'+
         '</div>'+
       '</div>'+
       '<div style="background:rgba(0,0,0,0.3);padding:6px;border-radius:6px;max-height:280px;overflow-y:auto;font-family:monospace;font-size:10px;">'+
-        '<div style="color:#888;margin-bottom:4px;border-bottom:1px solid #333;padding-bottom:4px;">³Ì·s«Ê¥] (³Ìªñ 50 µ§):</div>'+
+        '<div style="color:#888;margin-bottom:4px;border-bottom:1px solid #333;padding-bottom:4px;">ï¿½Ì·sï¿½Ê¥] (ï¿½Ìªï¿½ 50 ï¿½ï¿½):</div>'+
         '<div id="__gmp_monitor_log" style="color:#ccc;line-height:1.4;"></div>'+
       '</div>'+
     '</div>'+
     // === SKILL TAB ===
     '<div id="__gmp_tab_content_skill" style="display:none;">'+
       '<div style="background:rgba(245,158,11,0.08);padding:8px;border-radius:6px;margin-bottom:8px;">'+
-        '<div style="font-size:11px;color:#f59e0b;font-weight:bold;margin-bottom:6px;">? ¦Û°Ê¬Iªk³]©w</div>'+
-        '<div style="font-size:10px;color:#aaa;margin-bottom:6px;">Åª¨ú¹CÀ¸³]©w­±ªO¤º©Ò¦³±±¨î¶µ¡A§Y®É¦P¨B­×§ï</div>'+
+        '<div style="font-size:11px;color:#f59e0b;font-weight:bold;margin-bottom:6px;">? ï¿½Û°Ê¬Iï¿½kï¿½]ï¿½w</div>'+
+        '<div style="font-size:10px;color:#aaa;margin-bottom:6px;">Åªï¿½ï¿½ï¿½Cï¿½ï¿½ï¿½]ï¿½wï¿½ï¿½ï¿½Oï¿½ï¿½ï¿½Ò¦ï¿½ï¿½ï¿½ï¿½î¶µï¿½Aï¿½Yï¿½É¦Pï¿½Bï¿½×§ï¿½</div>'+
         '<div style="display:flex;gap:4px;margin-bottom:4px;">'+
-          '<button id="__gmp_skill_read" style="flex:1;padding:8px;background:#1a3a1a;border:1px solid #4ade80;color:#4ade80;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">?? Åª¨ú³]©w</button>'+
-          '<button id="__gmp_skill_open_panel" style="flex:1;padding:8px;background:#0f3460;border:1px solid #00d9ff;color:#00d9ff;border-radius:6px;cursor:pointer;font-size:12px;">?? ¶}±Ò­±ªO</button>'+
+          '<button id="__gmp_skill_read" style="flex:1;padding:8px;background:#1a3a1a;border:1px solid #4ade80;color:#4ade80;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">?? Åªï¿½ï¿½ï¿½]ï¿½w</button>'+
+          '<button id="__gmp_skill_open_panel" style="flex:1;padding:8px;background:#0f3460;border:1px solid #00d9ff;color:#00d9ff;border-radius:6px;cursor:pointer;font-size:12px;">?? ï¿½}ï¿½Ò­ï¿½ï¿½O</button>'+
         '</div>'+
-        '<button id="__gmp_skill_clear" style="width:100%;padding:5px;background:#333;border:1px solid #666;color:#aaa;border-radius:6px;cursor:pointer;font-size:10px;">??? ²MªÅ</button>'+
+        '<button id="__gmp_skill_clear" style="width:100%;padding:5px;background:#333;border:1px solid #666;color:#aaa;border-radius:6px;cursor:pointer;font-size:10px;">??? ï¿½Mï¿½ï¿½</button>'+
       '</div>'+
       '<div style="background:rgba(0,0,0,0.2);padding:6px 8px;border-radius:6px;margin-bottom:6px;font-size:10px;">'+
-        '<span style="color:#888;">ª¬ºA:</span> <span id="__gmp_skill_status" style="color:#fbbf24;">¥¼Åª¨ú</span>'+
-        ' | <span style="color:#888;">¶µ¥Ø:</span> <span id="__gmp_skill_count" style="color:#4ade80;">0</span>'+
-        ' | <span style="color:#888;">¨¤¦â:</span> <span id="__gmp_skill_char" style="color:#f59e0b;">--</span>'+
+        '<span style="color:#888;">ï¿½ï¿½ï¿½A:</span> <span id="__gmp_skill_status" style="color:#fbbf24;">ï¿½ï¿½Åªï¿½ï¿½</span>'+
+        ' | <span style="color:#888;">ï¿½ï¿½ï¿½ï¿½:</span> <span id="__gmp_skill_count" style="color:#4ade80;">0</span>'+
+        ' | <span style="color:#888;">ï¿½ï¿½ï¿½ï¿½:</span> <span id="__gmp_skill_char" style="color:#f59e0b;">--</span>'+
       '</div>'+
       '<div id="__gmp_skill_list" style="background:rgba(0,0,0,0.25);padding:6px 8px;border-radius:6px;max-height:360px;overflow-y:auto;font-size:11px;">'+
-        '<div id="__gmp_skill_empty" style="color:#555;text-align:center;padding:24px 0;">©|µL¸ê®Æ<br><span style="font-size:9px;color:#444;">ÂI¡uÅª¨ú³]©w¡v±q¹CÀ¸­±ªO§ì¨ú</span></div>'+
+        '<div id="__gmp_skill_empty" style="color:#555;text-align:center;padding:24px 0;">ï¿½|ï¿½Lï¿½ï¿½ï¿½<br><span style="font-size:9px;color:#444;">ï¿½Iï¿½uÅªï¿½ï¿½ï¿½]ï¿½wï¿½vï¿½qï¿½Cï¿½ï¿½ï¿½ï¿½ï¿½Oï¿½ï¿½ï¿½</span></div>'+
       '</div>'+
     '</div>'+
 
     // === STATUS TAB ===
     '<div id="__gmp_tab_content_status" style="display:none;">'+
       '<div style="background:rgba(100,149,237,0.08);padding:8px;border-radius:6px;margin-bottom:8px;">'+
-        '<div style="font-size:11px;color:cornflowerblue;font-weight:bold;margin-bottom:6px;">?? ¥þ³¡³]©wª¬ºA (chrome.storage.local)</div>'+
+        '<div style="font-size:11px;color:cornflowerblue;font-weight:bold;margin-bottom:6px;">?? ï¿½ï¿½ï¿½ï¿½ï¿½]ï¿½wï¿½ï¿½ï¿½A (chrome.storage.local)</div>'+
         '<div style="margin:8px 0 4px;display:flex;gap:4px;">'+
-          '<button id="__gmp_status_export" style="flex:1;padding:5px 4px;background:#0f3460;border:1px solid #7bd14a;color:#7bd14a;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">?? ¶×¥X¥þ³¡³]©w</button>'+
-          '<button id="__gmp_status_import" style="flex:1;padding:5px 4px;background:#0f3460;border:1px solid #fbbf24;color:#fbbf24;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">?? ¶×¤J¥þ³¡³]©w</button>'+
+          '<button id="__gmp_status_export" style="flex:1;padding:5px 4px;background:#0f3460;border:1px solid #7bd14a;color:#7bd14a;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">?? ï¿½×¥Xï¿½ï¿½ï¿½ï¿½ï¿½]ï¿½w</button>'+
+          '<button id="__gmp_status_import" style="flex:1;padding:5px 4px;background:#0f3460;border:1px solid #fbbf24;color:#fbbf24;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">?? ï¿½×¤Jï¿½ï¿½ï¿½ï¿½ï¿½]ï¿½w</button>'+
           '<input type="file" id="__gmp_status_import_file" accept=".json" style="display:none;">'+
         '</div>'+
         '<div id="__gmp_status_summary" style="font-size:10px;color:#aaa;margin-top:4px;padding:6px;background:rgba(0,0,0,0.2);border-radius:4px;max-height:200px;overflow-y:auto;"></div>'+
@@ -1392,20 +1392,20 @@ function __gmBuildPanel(){
     // === FRIEND TAB ===
     '<div id="__gmp_tab_content_friend" style="display:none;">'+
       '<div style="background:rgba(34,211,238,0.06);padding:8px;border-radius:6px;margin-bottom:8px;">'+
-        '<div style="font-size:11px;color:#22d3ee;font-weight:bold;margin-bottom:6px;">?? ¦n¤Í¬d¸ß</div>'+
+        '<div style="font-size:11px;color:#22d3ee;font-weight:bold;margin-bottom:6px;">?? ï¿½nï¿½Í¬dï¿½ï¿½</div>'+
         '<div style="display:flex;gap:4px;margin-bottom:4px;">'+
-          '<input id="__gmp_player_name" placeholder="¿é¤J¨¤¦â¦WºÙ..." style="flex:1;padding:5px 8px;background:#2a2a4a;border:1px solid #0f3460;border-radius:6px;color:#fff;font-size:11px;outline:none;">'+
-          '<button id="__gmp_player_lookup" style="padding:5px 10px;background:#0f3460;border:1px solid #22d3ee;color:#22d3ee;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">°e¥X</button>'+
+          '<input id="__gmp_player_name" placeholder="ï¿½ï¿½Jï¿½ï¿½ï¿½ï¿½Wï¿½ï¿½..." style="flex:1;padding:5px 8px;background:#2a2a4a;border:1px solid #0f3460;border-radius:6px;color:#fff;font-size:11px;outline:none;">'+
+          '<button id="__gmp_player_lookup" style="padding:5px 10px;background:#0f3460;border:1px solid #22d3ee;color:#22d3ee;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">ï¿½eï¿½X</button>'+
         '</div>'+
         '<div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">'+
           '<input type="checkbox" id="__gmp_player_auto_refresh" style="width:12px;height:12px;cursor:pointer;">'+
-          '<span style="font-size:9px;color:#888;">¨C60¬í¦Û°Ê§ó·s</span>'+
+          '<span style="font-size:9px;color:#888;">ï¿½C60ï¿½ï¿½Û°Ê§ï¿½s</span>'+
           '<span style="flex:1;"></span>'+
-          '<input id="__gmp_player_filter" placeholder="?? ÀË¯Á..." style="padding:5px 8px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;">'+
-          '<button id="__gmp_player_sel_all" style="padding:3px 6px;background:#1a3a1a;border:1px solid #22d3ee;color:#22d3ee;border-radius:4px;cursor:pointer;font-size:9px;">? ¥þ¿ï</button>'+
-          '<button id="__gmp_player_sel_none" style="padding:3px 6px;background:#1a3a1a;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:9px;">? ¨ú®ø</button>'+
-          '<button id="__gmp_player_export_sel" style="padding:3px 6px;background:#1a3a1a;border:1px solid #7bd14a;color:#7bd14a;border-radius:4px;cursor:pointer;font-size:9px;">?? ¶×¥X¤Ä¿ï</button>'+
-          '<button id="__gmp_player_import" style="padding:3px 6px;background:#1a3a1a;border:1px solid #fbbf24;color:#fbbf24;border-radius:4px;cursor:pointer;font-size:9px;">?? ¶×¤J</button>'+
+          '<input id="__gmp_player_filter" placeholder="?? ï¿½Ë¯ï¿½..." style="padding:5px 8px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;">'+
+          '<button id="__gmp_player_sel_all" style="padding:3px 6px;background:#1a3a1a;border:1px solid #22d3ee;color:#22d3ee;border-radius:4px;cursor:pointer;font-size:9px;">? ï¿½ï¿½ï¿½ï¿½</button>'+
+          '<button id="__gmp_player_sel_none" style="padding:3px 6px;background:#1a3a1a;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:9px;">? ï¿½ï¿½ï¿½ï¿½</button>'+
+          '<button id="__gmp_player_export_sel" style="padding:3px 6px;background:#1a3a1a;border:1px solid #7bd14a;color:#7bd14a;border-radius:4px;cursor:pointer;font-size:9px;">?? ï¿½×¥Xï¿½Ä¿ï¿½</button>'+
+          '<button id="__gmp_player_import" style="padding:3px 6px;background:#1a3a1a;border:1px solid #fbbf24;color:#fbbf24;border-radius:4px;cursor:pointer;font-size:9px;">?? ï¿½×¤J</button>'+
           '<input type="file" id="__gmp_player_import_file" accept=".json" style="display:none;">'+
         '</div>'+
         '<div id="__gmp_player_history" style="font-size:10px;color:#aaa;max-height:500px;overflow-y:auto;"></div>'+
@@ -1414,11 +1414,11 @@ function __gmBuildPanel(){
 
 // === FARM TAB ===
     '<div id="__gmp_tab_content_farm" style="display:none;">'+
-    // Start/Stop button ¡X moved to TOP
-    '<button id="__gmp_farm_btn" style="width:100%;padding:9px;background:#0f3460;border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:12px;font-weight:bold;margin-bottom:8px;">? ¶}±Ò¸}¥»</button>'+
+    // Start/Stop button ï¿½X moved to TOP
+    '<button id="__gmp_farm_btn" style="width:100%;padding:9px;background:#0f3460;border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:12px;font-weight:bold;margin-bottom:8px;">? ï¿½}ï¿½Ò¸}ï¿½ï¿½</button>'+
     '<div style="margin-bottom:8px;">'+
-      '<div style="font-size:10px;color:#888;margin-bottom:3px;">±¾¾÷¦a¹Ï</div>'+
-      '<input id="__gmp_farm_search" placeholder="·j´M³¥¥~/¦aºÊ¦WºÙ..." '+
+      '<div style="font-size:10px;color:#888;margin-bottom:3px;">ï¿½ï¿½ï¿½ï¿½ï¿½aï¿½ï¿½</div>'+
+      '<input id="__gmp_farm_search" placeholder="ï¿½jï¿½Mï¿½ï¿½ï¿½~/ï¿½aï¿½Ê¦Wï¿½ï¿½..." '+
         'style="width:100%;padding:5px 8px;background:#2a2a4a;border:1px solid #0f3460;border-radius:6px;'+
         'color:#aaa;font-size:11px;outline:none;box-sizing:border-box;margin-bottom:4px;display:block;">'+
       '<select id="__gmp_farm_zone" size="6" '+
@@ -1429,150 +1429,150 @@ function __gmBuildPanel(){
     // HP row
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+
       '<input type="checkbox" id="__gmp_farm_hp_chk" checked style="width:14px;height:14px;cursor:pointer;">'+
-      '<span style="font-size:10px;color:#e94560;width:50px;">HP§C©ó</span>'+
+      '<span style="font-size:10px;color:#e94560;width:50px;">HPï¿½Cï¿½ï¿½</span>'+
       '<input id="__gmp_farm_hp" type="number" value="20" min="1" max="100" style="width:50px;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;text-align:center;">'+
       '<span style="font-size:10px;color:#888;width:20px;">%</span>'+
       '<select id="__gmp_farm_hp_action" style="flex:1;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#e94560;font-size:10px;outline:none;">'+
-        '<option value="selectChar">¿ï¾Ü¨¤¦â</option>'+
-        '<option value="toLobby">¦^¤jÆU</option>'+
+        '<option value="selectChar">ï¿½ï¿½Ü¨ï¿½ï¿½ï¿½</option>'+
+        '<option value="toLobby">ï¿½^ï¿½jï¿½U</option>'+
       '</select>'+
     '</div>'+
     // HP trigger note
-    '<div style="font-size:9px;color:#666;margin-bottom:6px;padding-left:62px;">HP Ä²µo®É°õ¦æ°Ê§@</div>'+
+    '<div style="font-size:9px;color:#666;margin-bottom:6px;padding-left:62px;">HP Ä²ï¿½oï¿½É°ï¿½ï¿½ï¿½Ê§@</div>'+
     // MP row
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+
       '<input type="checkbox" id="__gmp_farm_mp_chk" checked style="width:14px;height:14px;cursor:pointer;">'+
-      '<span style="font-size:10px;color:#00d9ff;width:50px;">MP§C©ó</span>'+
+      '<span style="font-size:10px;color:#00d9ff;width:50px;">MPï¿½Cï¿½ï¿½</span>'+
       '<input id="__gmp_farm_mp" type="number" value="10" min="1" max="100" style="width:50px;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;text-align:center;">'+
       '<span style="font-size:10px;color:#888;width:20px;">%</span>'+
       '<select id="__gmp_farm_mp_action" style="flex:1;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#00d9ff;font-size:10px;outline:none;">'+
-        '<option value="selectChar">¿ï¾Ü¨¤¦â</option>'+
-        '<option value="toLobby">¦^¤jÆU</option>'+
+        '<option value="selectChar">ï¿½ï¿½Ü¨ï¿½ï¿½ï¿½</option>'+
+        '<option value="toLobby">ï¿½^ï¿½jï¿½U</option>'+
       '</select>'+
     '</div>'+
     // MP trigger note
-    '<div style="font-size:9px;color:#666;margin-bottom:6px;padding-left:62px;">MP Ä²µo®É°õ¦æ°Ê§@</div>'+
+    '<div style="font-size:9px;color:#666;margin-bottom:6px;padding-left:62px;">MP Ä²ï¿½oï¿½É°ï¿½ï¿½ï¿½Ê§@</div>'+
     // Logic operator AND/OR
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
       '<input type="checkbox" id="__gmp_farm_logic_chk" checked style="width:14px;height:14px;cursor:pointer;">'+
-      '<span style="font-size:10px;color:#ffd700;width:50px;">±ø¥ó</span>'+
+      '<span style="font-size:10px;color:#ffd700;width:50px;">ï¿½ï¿½ï¿½ï¿½</span>'+
       '<select id="__gmp_farm_logic" style="padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;">'+
-        '<option value="AND">AND (¥B)</option>'+
-        '<option value="OR" selected>OR (©Î)</option>'+
+        '<option value="AND">AND (ï¿½B)</option>'+
+        '<option value="OR" selected>OR (ï¿½ï¿½)</option>'+
       '</select>'+
-      '<span style="font-size:10px;color:#888;">²Õ¦X§PÂ_</span>'+
+      '<span style="font-size:10px;color:#888;">ï¿½Õ¦Xï¿½Pï¿½_</span>'+
     '</div>'+
     // HP > condition
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
       '<input type="checkbox" id="__gmp_farm_hp_gt_chk" checked style="width:14px;height:14px;cursor:pointer;">'+
-      '<span style="font-size:10px;color:#4ade80;width:50px;">HP¤j©ó</span>'+
+      '<span style="font-size:10px;color:#4ade80;width:50px;">HPï¿½jï¿½ï¿½</span>'+
       '<input id="__gmp_farm_hp_gt" type="number" value="90" min="1" max="100" style="width:55px;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;text-align:center;">'+
-      '<span style="font-size:10px;color:#888;">% ¶Ç°e±¾¾÷</span>'+
+      '<span style="font-size:10px;color:#888;">% ï¿½Ç°eï¿½ï¿½ï¿½ï¿½</span>'+
     '</div>'+
     // MP > condition
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
       '<input type="checkbox" id="__gmp_farm_mp_gt_chk" checked style="width:14px;height:14px;cursor:pointer;">'+
-      '<span style="font-size:10px;color:#7bd14a;width:50px;">MP¤j©ó</span>'+
+      '<span style="font-size:10px;color:#7bd14a;width:50px;">MPï¿½jï¿½ï¿½</span>'+
       '<input id="__gmp_farm_mp_gt" type="number" value="90" min="1" max="100" style="width:55px;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;text-align:center;">'+
-      '<span style="font-size:10px;color:#888;">% ¶Ç°e±¾¾÷</span>'+
+      '<span style="font-size:10px;color:#888;">% ï¿½Ç°eï¿½ï¿½ï¿½ï¿½</span>'+
     '</div>'+
-    // ³Qµn¥X¦¸¼Æ­p¼Æ¾¹
+    // ï¿½Qï¿½nï¿½Xï¿½ï¿½ï¿½Æ­pï¿½Æ¾ï¿½
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding:6px 8px;background:#1a1a2e;border-radius:6px;">'+
-      '<span style="font-size:11px;color:#e94560;font-weight:bold;">?? ³Qµn¥X¦¸¼Æ</span>'+
+      '<span style="font-size:11px;color:#e94560;font-weight:bold;">?? ï¿½Qï¿½nï¿½Xï¿½ï¿½ï¿½ï¿½</span>'+
       '<b id="__gmp_farm_logout_count" style="font-size:18px;color:#4ade80;min-width:24px;text-align:center;">0</b>'+
-      '<span id="__gmp_farm_logout_time" style="font-size:9px;color:#888;flex:1;">©|¥¼³Qµn¥X</span>'+
+      '<span id="__gmp_farm_logout_time" style="font-size:9px;color:#888;flex:1;">ï¿½|ï¿½ï¿½ï¿½Qï¿½nï¿½X</span>'+
     '</div>'+
-    // Auto reconnect (Â_½u­«³s)
+    // Auto reconnect (ï¿½_ï¿½uï¿½ï¿½ï¿½s)
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
       '<input type="checkbox" id="__gmp_farm_reconnect" checked style="width:14px;height:14px;cursor:pointer;">'+
-      '<span style="font-size:10px;color:#ffd700;">?? Â_½u­«³s</span>'+
-      '<input id="__gmp_farm_char_name" type="text" placeholder="¨¤¦â¦WºÙ" style="flex:1;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;">'+
+      '<span style="font-size:10px;color:#ffd700;">?? ï¿½_ï¿½uï¿½ï¿½ï¿½s</span>'+
+      '<input id="__gmp_farm_char_name" type="text" placeholder="ï¿½ï¿½ï¿½ï¿½Wï¿½ï¿½" style="flex:1;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;">'+
     '</div>'+
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:10px;color:#888;">'+
-      'ÀË´ú¶¡¹j <input id="__gmp_farm_reconnect_interval" type="number" value="600" min="10" max="900" style="width:50px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;outline:none;text-align:center;"> ¬í'+
+      'ï¿½Ë´ï¿½ï¿½ï¿½ï¿½j <input id="__gmp_farm_reconnect_interval" type="number" value="600" min="10" max="900" style="width:50px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;outline:none;text-align:center;"> ï¿½ï¿½'+
     '</div>'+
-    // Character slot ¡X right below reconnect settings
+    // Character slot ï¿½X right below reconnect settings
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding:6px;background:#1a1a2e;border:1px solid #0f3460;border-radius:6px;">'+
-      '<span style="font-size:10px;color:#ffd700;width:70px;">¨¤¦â¼Ñ¦ì</span>'+
+      '<span style="font-size:10px;color:#ffd700;width:70px;">ï¿½ï¿½ï¿½ï¿½Ñ¦ï¿½</span>'+
       '<select id="__gmp_farm_char_slot" style="flex:1;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;">'+
-        '<option value="0">¼Ñ 0</option>'+
-        '<option value="1">¼Ñ 1</option>'+
-        '<option value="2">¼Ñ 2</option>'+
+        '<option value="0">ï¿½ï¿½ 0</option>'+
+        '<option value="1">ï¿½ï¿½ 1</option>'+
+        '<option value="2">ï¿½ï¿½ 2</option>'+
       '</select>'+
     '</div>'+
     // Auto attack
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
       '<input type="checkbox" id="__gmp_farm_atk" checked style="width:14px;height:14px;cursor:pointer;">'+
-      '<span style="font-size:11px;color:#7bd14a;font-weight:bold;">?? ¦Û°Ê§ðÀ»</span>'+
+      '<span style="font-size:11px;color:#7bd14a;font-weight:bold;">?? ï¿½Û°Ê§ï¿½ï¿½ï¿½</span>'+
     '</div>'+
-    // «ü©w¥Ø¼Ð
+    // ï¿½ï¿½ï¿½wï¿½Ø¼ï¿½
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+
       '<input type="checkbox" id="__gmp_farm_specify_target" style="width:14px;height:14px;cursor:pointer;">'+
-      '<span style="font-size:10px;color:#ffa500;">?? «ü©w¥Ø¼Ð</span>'+
+      '<span style="font-size:10px;color:#ffa500;">?? ï¿½ï¿½ï¿½wï¿½Ø¼ï¿½</span>'+
       '<select id="__gmp_farm_target_index" style="padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;">'+
-        '<option value="0">¥Ø¼Ð 0</option><option value="1" selected>¥Ø¼Ð 1</option><option value="2">¥Ø¼Ð 2</option>'+
-        '<option value="3">¥Ø¼Ð 3</option><option value="4">¥Ø¼Ð 4</option><option value="5">¥Ø¼Ð 5</option>'+
-        '<option value="6">¥Ø¼Ð 6</option><option value="7">¥Ø¼Ð 7</option><option value="8">¥Ø¼Ð 8</option>'+
-        '<option value="9">¥Ø¼Ð 9</option><option value="10">¥Ø¼Ð 10</option>'+
+        '<option value="0">ï¿½Ø¼ï¿½ 0</option><option value="1" selected>ï¿½Ø¼ï¿½ 1</option><option value="2">ï¿½Ø¼ï¿½ 2</option>'+
+        '<option value="3">ï¿½Ø¼ï¿½ 3</option><option value="4">ï¿½Ø¼ï¿½ 4</option><option value="5">ï¿½Ø¼ï¿½ 5</option>'+
+        '<option value="6">ï¿½Ø¼ï¿½ 6</option><option value="7">ï¿½Ø¼ï¿½ 7</option><option value="8">ï¿½Ø¼ï¿½ 8</option>'+
+        '<option value="9">ï¿½Ø¼ï¿½ 9</option><option value="10">ï¿½Ø¼ï¿½ 10</option>'+
       '</select>'+
     '</div>'+
-    // §ðÀ»¥þ³¡
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">'+
       '<input type="checkbox" id="__gmp_farm_attack_all" style="width:14px;height:14px;cursor:pointer;">'+
-      '<span style="font-size:10px;color:#ff6347;">?? §ðÀ»¥þ³¡ (¤@¦¸°e¥X 0,1,2)</span>'+
+      '<span style="font-size:10px;color:#ff6347;">?? ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ (ï¿½@ï¿½ï¿½ï¿½eï¿½X 0,1,2)</span>'+
     '</div>'+
     // Status
-    '<div id="__gmp_farm_status" style="font-size:10px;color:#888;margin-bottom:6px;text-align:center;">¤w°±¤î</div>'+
+    '<div id="__gmp_farm_status" style="font-size:10px;color:#888;margin-bottom:6px;text-align:center;">ï¿½wï¿½ï¿½ï¿½ï¿½</div>'+
     // Advanced settings button
     '<div style="display:flex;gap:4px;margin-bottom:4px;">'+
-      '<button id="__gmp_farm_advanced_settings" style="flex:1;padding:5px;background:#0f3460;border:1px solid #ffd700;border-radius:6px;color:#ffd700;font-size:11px;font-weight:bold;cursor:pointer;">?? ¶i¶¥³]©w (Advanced Rules)</button>'+
+      '<button id="__gmp_farm_advanced_settings" style="flex:1;padding:5px;background:#0f3460;border:1px solid #ffd700;border-radius:6px;color:#ffd700;font-size:11px;font-weight:bold;cursor:pointer;">?? ï¿½iï¿½ï¿½ï¿½]ï¿½w (Advanced Rules)</button>'+
     '</div>'+
     // Logout history shortcut box
     '<div id="__gmp_farm_logout_box" style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding:6px 8px;background:#1a1a2e;border:1px solid #0f3460;border-radius:6px;">'+
-      '<span style="font-size:10px;color:#aaa;">?? ³Qµn¥X</span>'+
+      '<span style="font-size:10px;color:#aaa;">?? ï¿½Qï¿½nï¿½X</span>'+
       '<span id="__gmp_farm_logout_count" style="font-size:14px;font-weight:bold;color:#4ade80;">0</span>'+
-      '<span style="font-size:10px;color:#888;">¦¸</span>'+
+      '<span style="font-size:10px;color:#888;">ï¿½ï¿½</span>'+
       '<span id="__gmp_farm_logout_time" style="font-size:10px;color:#666;flex:1;text-align:right;">--</span>'+
-      '<button id="__gmp_farm_logout_history" style="padding:3px 8px;background:#0f3460;border:1px solid #4ade80;border-radius:4px;color:#4ade80;font-size:10px;font-weight:bold;cursor:pointer;">?? ¾ú¥v</button>'+
+      '<button id="__gmp_farm_logout_history" style="padding:3px 8px;background:#0f3460;border:1px solid #4ade80;border-radius:4px;color:#4ade80;font-size:10px;font-weight:bold;cursor:pointer;">?? ï¿½ï¿½ï¿½v</button>'+
     '</div>'+
 
     // Test Reconnect button
 
-    '<button id="__gmp_farm_test_reconnect" style="width:100%;padding:6px;background:#2a2a4a;border:1px solid #ffd700;color:#ffd700;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;margin-bottom:4px;">?? ´ú¸ÕÂ_½u­«³s</button>'+ 
+    '<button id="__gmp_farm_test_reconnect" style="width:100%;padding:6px;background:#2a2a4a;border:1px solid #ffd700;color:#ffd700;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;margin-bottom:4px;">?? ï¿½ï¿½ï¿½ï¿½ï¿½_ï¿½uï¿½ï¿½ï¿½s</button>'+ 
     '</div>'+  // closes inner farm content div
     '</div>'+ // closes farm tab content div
     '<div id="__gmp_tab_content_other" style="display:none;">'+
     '  <div style="background:rgba(255,255,255,0.04);padding:10px;border-radius:6px;margin-bottom:8px;">'+
-    '    <div style="font-size:11px;color:#ffd700;font-weight:bold;margin-bottom:6px;">?? ¥@¬É¤ý©â¼ú</div>'+
+    '    <div style="font-size:11px;color:#ffd700;font-weight:bold;margin-bottom:6px;">?? ï¿½@ï¿½É¤ï¿½ï¿½ï¿½ï¿½</div>'+
     '    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;">'+
-    '      <span style="font-size:10px;color:#aaa;">¦¸¼Æ:</span>'+
+    '      <span style="font-size:10px;color:#aaa;">ï¿½ï¿½ï¿½ï¿½:</span>'+
     '      <input id="__gmp_gacha_count" type="number" value="30" min="1" max="999" style="width:55px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;outline:none;text-align:center;">'+
     '      <label style="display:flex;align-items:center;gap:3px;cursor:pointer;font-size:10px;color:#aaa;">'+
     '        <input type="checkbox" id="__gmp_gacha_enable" style="width:14px;height:14px;cursor:pointer;">'+
-    '        <span>¨C 2 ¬í¦Û°Ê©â</span>'+
+    '        <span>ï¿½C 2 ï¿½ï¿½Û°Ê©ï¿½</span>'+
     '      </label>'+
     '      <span id="__gmp_gacha_status" style="font-size:10px;color:#888;">--</span>'+
-    '      <button id="__gmp_gacha_hist_btn" style="margin-left:auto;padding:2px 8px;background:#2a2a4a;border:1px solid #22d3ee;color:#22d3ee;border-radius:4px;cursor:pointer;font-size:10px;">?? ¾ú¥v</button>'+
+    '      <button id="__gmp_gacha_hist_btn" style="margin-left:auto;padding:2px 8px;background:#2a2a4a;border:1px solid #22d3ee;color:#22d3ee;border-radius:4px;cursor:pointer;font-size:10px;">?? ï¿½ï¿½ï¿½v</button>'+
     '    </div>'+
     '    <div id="__gmp_gacha_hist_summary" style="font-size:9px;color:#666;margin-top:2px;"></div>'+
     '  </div>'+
     '  <div style="background:rgba(255,255,255,0.04);padding:10px;border-radius:6px;margin-bottom:8px;">'+
-    '    <div style="font-size:11px;color:#ffd700;font-weight:bold;margin-bottom:6px;">?? ¦Û°Ê¸m³»´ú¸Õ</div>'+
+    '    <div style="font-size:11px;color:#ffd700;font-weight:bold;margin-bottom:6px;">?? ï¿½Û°Ê¸mï¿½ï¿½ï¿½ï¿½ï¿½ï¿½</div>'+
     '    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'+
     '      <label style="display:flex;align-items:center;gap:3px;cursor:pointer;font-size:10px;color:#aaa;">'+
     '        <input type="checkbox" id="__gmp_focus_test" style="width:14px;height:14px;cursor:pointer;">'+
-    '        <span>¨C 10 ¬í¸m³»¡A5 ¬í«áÁY¤p</span>'+
+    '        <span>ï¿½C 10 ï¿½ï¿½mï¿½ï¿½ï¿½A5 ï¿½ï¿½ï¿½ï¿½Yï¿½p</span>'+
     '      </label>'+
-    '      <span id="__gmp_focus_test_status" style="font-size:10px;color:#888;">¤w°±¤î</span>'+
+    '      <span id="__gmp_focus_test_status" style="font-size:10px;color:#888;">ï¿½wï¿½ï¿½ï¿½ï¿½</span>'+
     '    </div>'+
     '    <div id="__gmp_focus_test_log" style="margin-top:6px;max-height:120px;overflow-y:auto;font-size:9px;color:#aaa;font-family:Consolas,monospace;line-height:1.4;"></div>'+
     '  </div>'+
     '  <div style="background:rgba(255,255,255,0.04);padding:10px;border-radius:6px;margin-bottom:8px;">'+
-    '    <div style="font-size:11px;color:#ffd700;font-weight:bold;margin-bottom:6px;">?? Socket «Ê¥]´ú¸Õ</div>'+
+    '    <div style="font-size:11px;color:#ffd700;font-weight:bold;margin-bottom:6px;">?? Socket ï¿½Ê¥]ï¿½ï¿½ï¿½ï¿½</div>'+
     '    <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">'+
     '      <span style="font-size:10px;color:#aaa;">joinBoss</span>'+
     '      <input id="__gmp_socket_boss_id" type="text" value="wb_casper" style="width:100px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;outline:none;">'+
-    '      <button id="__gmp_socket_send" style="padding:3px 10px;background:#e94560;border:none;color:#fff;border-radius:4px;cursor:pointer;font-size:10px;font-weight:bold;">µo°e</button>'+
+    '      <button id="__gmp_socket_send" style="padding:3px 10px;background:#e94560;border:none;color:#fff;border-radius:4px;cursor:pointer;font-size:10px;font-weight:bold;">ï¿½oï¿½e</button>'+
     '      <span id="__gmp_socket_result" style="font-size:10px;color:#888;"></span>'+
     '    </div>'+
     '  </div>'+
@@ -1594,8 +1594,8 @@ function __gmBuildPanel(){
     var f=(filter||'').toLowerCase();
     farmSel.innerHTML='';
     var allZones=[
-      {list:ZONES.wild,label:'-- ³¥¥~ --'},
-      {list:ZONES.dungeon,label:'-- ¦aºÊ --'}
+      {list:ZONES.wild,label:'-- ï¿½ï¿½ï¿½~ --'},
+      {list:ZONES.dungeon,label:'-- ï¿½aï¿½ï¿½ --'}
     ];
     allZones.forEach(function(g){
       var opts=g.list.filter(function(z){
@@ -1672,8 +1672,8 @@ function __gmBuildPanel(){
   document.querySelectorAll('.__gmp_st').forEach(function(b){b.onclick=function(){renderZones(this.dataset.t)}});
 
   // === Tab switching ===
-  // ¤Á´«¹CÀ¸¤º Tab¡]¥]§t¦Û°Ê¶i¤J¥@¬É¤ýªº­¶ÅÒ¾É¯è¡^
-  // @param {string} tab - Tab ¦WºÙ ('zone','game','skill','status','farm','boss','monitor')
+  // ï¿½ï¿½ï¿½ï¿½ï¿½Cï¿½ï¿½ï¿½ï¿½ Tabï¿½]ï¿½]ï¿½tï¿½Û°Ê¶iï¿½Jï¿½@ï¿½É¤ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò¾É¯ï¿½^
+  // @param {string} tab - Tab ï¿½Wï¿½ï¿½ ('zone','game','skill','status','farm','boss','monitor')
   function switchTab(tab){
     activeTab=tab;
     var mainBtns=['game','farm','boss','friend'];
@@ -1758,10 +1758,10 @@ function __gmBuildPanel(){
 
   // ========== Monitor Tab Logic ==========
   window.__pmLog=[];
-  window.__pmMaxLog=1000;  // ³Ì¦h«O¦s 1000 µ§
+  window.__pmMaxLog=1000;  // ï¿½Ì¦hï¿½Oï¿½s 1000 ï¿½ï¿½
   window.__pmMonitoring=false;
 
-  // ¥]¸Ë __battleStatus.packets.push ¨Ó§Y®É°O¿ý
+  // ï¿½]ï¿½ï¿½ __battleStatus.packets.push ï¿½Ó§Yï¿½É°Oï¿½ï¿½
   // ===== Socket.IO / Engine.IO binary decoder =====
   function __pmDecodeSocketIO(buf){
     try{
@@ -1842,7 +1842,7 @@ function __gmBuildPanel(){
     var startBtn=document.getElementById('__gmp_monitor_start');
     var stopBtn=document.getElementById('__gmp_monitor_stop');
 
-    if(status)status.textContent=window.__pmMonitoring?'ºÊ±±¤¤':'¥¼±Ò°Ê';
+    if(status)status.textContent=window.__pmMonitoring?'ï¿½Ê±ï¿½ï¿½ï¿½':'ï¿½ï¿½ï¿½Ò°ï¿½';
     if(status)status.style.color=window.__pmMonitoring?'#4ade80':'#e94560';
     if(count)count.textContent=window.__pmLog.length;
     if(send)send.textContent=window.__pmLog.filter(function(p){return p.dir==='SEND'}).length;
@@ -1862,19 +1862,19 @@ function __gmBuildPanel(){
         '</div>';
       }).join('');
     } else if(logEl){
-      logEl.innerHTML='<div style="color:#666;text-align:center;padding:20px;">©|µL«Ê¥]°O¿ý<br><span style="font-size:9px;">ÂIÀ»¡u¶}©lºÊ±±¡v«á°õ¦æ¾Þ§@</span></div>';
+      logEl.innerHTML='<div style="color:#666;text-align:center;padding:20px;">ï¿½|ï¿½Lï¿½Ê¥]ï¿½Oï¿½ï¿½<br><span style="font-size:9px;">ï¿½Iï¿½ï¿½ï¿½uï¿½}ï¿½lï¿½Ê±ï¿½ï¿½vï¿½ï¿½ï¿½ï¿½ï¿½Þ§@</span></div>';
     }
   }
 
-  // ¨C 500ms §ó·s UI
+  // ï¿½C 500ms ï¿½ï¿½s UI
   setInterval(__pmUpdateUI,500);
 
-  // ¶}©lºÊ±±
+  // ï¿½}ï¿½lï¿½Ê±ï¿½
   document.getElementById('__gmp_monitor_start').onclick=function(){
     __pmInitHook();
     window.__pmMonitoring=true;
     console.log('[Monitor] Started, current packets:',(window.__battleStatus.packets||[]).length);
-    // ¤]°O¿ý²{¦³ªº¾ú¥v«Ê¥]
+    // ï¿½]ï¿½Oï¿½ï¿½ï¿½{ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½vï¿½Ê¥]
     if(window.__battleStatus&&window.__battleStatus.packets){
       window.__battleStatus.packets.forEach(function(pkt){
         try{
@@ -1890,22 +1890,22 @@ function __gmBuildPanel(){
     __pmUpdateUI();
   };
 
-  // °±¤îºÊ±±
+  // ï¿½ï¿½ï¿½ï¿½Ê±ï¿½
   document.getElementById('__gmp_monitor_stop').onclick=function(){
     window.__pmMonitoring=false;
     console.log('[Monitor] Stopped, captured:',window.__pmLog.length);
     __pmUpdateUI();
   };
 
-  // ¶×¥X TXT
+  // ï¿½×¥X TXT
   document.getElementById('__gmp_monitor_export').onclick=function(){
-    if(!window.__pmLog.length){alert('µL°O¿ý¥i¶×¥X');return;}
+    if(!window.__pmLog.length){alert('ï¿½Lï¿½Oï¿½ï¿½ï¿½iï¿½×¥X');return;}
     var lines=[];
     lines.push('# ============================================');
-    lines.push('# «Ê¥]ºÊ±±°O¿ý (Packet Monitor Log)');
-    lines.push('# ¨¤¦â: '+(window.lastState&&window.lastState.char?window.lastState.char.name:'?'));
-    lines.push('# ¶×¥X®É¶¡: '+new Date().toLocaleString('zh-TW'));
-    lines.push('# Á`µ§¼Æ: '+window.__pmLog.length);
+    lines.push('# ï¿½Ê¥]ï¿½Ê±ï¿½ï¿½Oï¿½ï¿½ (Packet Monitor Log)');
+    lines.push('# ï¿½ï¿½ï¿½ï¿½: '+(window.lastState&&window.lastState.char?window.lastState.char.name:'?'));
+    lines.push('# ï¿½×¥Xï¿½É¶ï¿½: '+new Date().toLocaleString('zh-TW'));
+    lines.push('# ï¿½`ï¿½ï¿½ï¿½ï¿½: '+window.__pmLog.length);
     lines.push('# SEND: '+window.__pmLog.filter(function(p){return p.dir==='SEND'}).length);
     lines.push('# RECV: '+window.__pmLog.filter(function(p){return p.dir==='RECV'}).length);
     lines.push('# ============================================');
@@ -1932,36 +1932,36 @@ function __gmBuildPanel(){
     console.log('[Monitor] Exported:',window.__pmLog.length,'packets');
   };
 
-  // ²MªÅ°O¿ý
+  // ï¿½Mï¿½Å°Oï¿½ï¿½
   document.getElementById('__gmp_monitor_clear').onclick=function(){
-    if(!confirm('½T©w­n²MªÅ©Ò¦³ '+window.__pmLog.length+' µ§°O¿ý¡H'))return;
+    if(!confirm('ï¿½Tï¿½wï¿½nï¿½Mï¿½Å©Ò¦ï¿½ '+window.__pmLog.length+' ï¿½ï¿½ï¿½Oï¿½ï¿½ï¿½H'))return;
     window.__pmLog=[];
     __pmUpdateUI();
     console.log('[Monitor] Cleared');
   };
 
-  // ªì©l¤Æ UI
+  // ï¿½ï¿½lï¿½ï¿½ UI
   __pmUpdateUI();
 
   // ========== Skill Tab Logic ==========
-  // ±q #panel-scroll .auto-box Åª¨ú©Ò¦³ data-k / data-skill ³]©w¡A¤¤¤å¦WºÙ + §Y®É¦P¨B
+  // ï¿½q #panel-scroll .auto-box Åªï¿½ï¿½ï¿½Ò¦ï¿½ data-k / data-skill ï¿½]ï¿½wï¿½Aï¿½ï¿½ï¿½ï¿½Wï¿½ï¿½ + ï¿½Yï¿½É¦Pï¿½B
   window.__pmAuto = {boxes: [], all: {}, gameEls: {}};
 
-  // ¹Á¸Õ¨ú±o¬Y¤¸¯Àªº¤¤¤å¼ÐÅÒ
+  // ï¿½ï¿½ï¿½Õ¨ï¿½ï¿½oï¿½Yï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
   function __pmGetLabel(el) {
-    // 1. §ä¦P¤@¤÷®e¾¹¤ºªº«e¤@­Ó¦³¤å¦rªº¥S§Ì¤¸¯À
+    // 1. ï¿½ï¿½Pï¿½@ï¿½ï¿½ï¿½eï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½eï¿½@ï¿½Ó¦ï¿½ï¿½ï¿½rï¿½ï¿½ï¿½Sï¿½Ì¤ï¿½ï¿½ï¿½
     var prev = el.previousElementSibling;
     if (prev && prev.textContent.trim()) return prev.textContent.trim();
-    // 2. §ä¤÷¼hªº¤W¤@­Ó¥S§Ì
+    // 2. ï¿½ï¿½ï¿½ï¿½hï¿½ï¿½ï¿½Wï¿½@ï¿½Ó¥Sï¿½ï¿½
     var parent = el.parentElement;
     if (parent) {
       var pp = parent.previousElementSibling;
       if (pp && pp.textContent.trim()) return pp.textContent.trim();
     }
-    // 3. data-label ÄÝ©Ê
+    // 3. data-label ï¿½Ý©ï¿½
     var dl = el.getAttribute('data-label');
     if (dl) return dl;
-    // 4. §ä¤÷®e¾¹¤º²Ä¤@­Ó .lb ©Î label ¤å¦r
+    // 4. ï¿½ï¿½ï¿½ï¿½eï¿½ï¿½ï¿½ï¿½ï¿½Ä¤@ï¿½ï¿½ .lb ï¿½ï¿½ label ï¿½ï¿½r
     var container = el.closest('.auto-box') || parent;
     if (container) {
       var lb = container.querySelector('.lb');
@@ -1969,12 +1969,12 @@ function __gmBuildPanel(){
       var label = container.querySelector('label');
       if (label && label.textContent.trim()) return label.textContent.trim();
     }
-    return null; // §ä¤£¨ì®É¦^¶Ç null¡A¥Ñ caller ³B²z
+    return null; // ï¿½ä¤£ï¿½ï¿½É¦^ï¿½ï¿½ nullï¿½Aï¿½ï¿½ caller ï¿½Bï¿½z
   }
 
-  // Åª¨ú¹CÀ¸­±ªO
+  // Åªï¿½ï¿½ï¿½Cï¿½ï¿½ï¿½ï¿½ï¿½O
   function __pmReadFromGame() {
-    // ¥ýÂIÀ»¹CÀ¸ªº¡u³]©w¡vTab¡A½T«O­±ªO´Nºü
+    // ï¿½ï¿½ï¿½Iï¿½ï¿½ï¿½Cï¿½ï¿½ï¿½ï¿½ï¿½uï¿½]ï¿½wï¿½vTabï¿½Aï¿½Tï¿½Oï¿½ï¿½ï¿½Oï¿½Nï¿½ï¿½
     var gameSetTab = document.querySelector('.tab[data-tab="set"]');
     if (gameSetTab) {
       gameSetTab.click();
@@ -1986,7 +1986,7 @@ function __gmBuildPanel(){
         if (retryPanel) {
           __pmReadFromGameContinue(retryPanel);
         } else {
-          alert('§ä¤£¨ì¹CÀ¸³]©w­±ªO (#panel-scroll)¡C\n½Ð¥ý¦b¹CÀ¸¤º¥´¶}¦Û°Ê¬Iªk³]©w¤¶­±¡C');
+          alert('ï¿½ä¤£ï¿½ï¿½Cï¿½ï¿½ï¿½]ï¿½wï¿½ï¿½ï¿½O (#panel-scroll)ï¿½C\nï¿½Ð¥ï¿½ï¿½bï¿½Cï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½}ï¿½Û°Ê¬Iï¿½kï¿½]ï¿½wï¿½ï¿½ï¿½ï¿½ï¿½C');
         }
       }, 200);
       return;
@@ -1995,9 +1995,9 @@ function __gmBuildPanel(){
   }
   function __pmReadFromGameContinue(panel) {
     var status = document.getElementById('__gmp_skill_status');
-    if (status) { status.textContent = 'Åª¨ú¤¤...'; status.style.color = '#fbbf24'; }
+    if (status) { status.textContent = 'Åªï¿½ï¿½ï¿½ï¿½...'; status.style.color = '#fbbf24'; }
 
-    // Åª¨ú¨¤¦â¦WºÙ
+    // Åªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Wï¿½ï¿½
     var charNameEl = document.getElementById('__gmp_name');
     var charName = charNameEl ? charNameEl.textContent.replace('Loading...','').trim() : '?';
     var charEl = document.getElementById('__gmp_skill_char');
@@ -2009,10 +2009,10 @@ function __gmBuildPanel(){
 
     boxes.forEach(function(box, bi) {
       var hdEl = box.querySelector('.hd');
-      var sectionName = hdEl ? hdEl.textContent.trim() : ('°Ï¶ô ' + (bi + 1));
+      var sectionName = hdEl ? hdEl.textContent.trim() : ('ï¿½Ï¶ï¿½ ' + (bi + 1));
       var sectionData = {name: sectionName, items: []};
 
-      // data-k ¤¸¯À¡]select / input¡^
+      // data-k ï¿½ï¿½ï¿½ï¿½ï¿½]select / inputï¿½^
       box.querySelectorAll('[data-k]').forEach(function(el) {
         var k = el.getAttribute('data-k');
         var label = __pmGetLabel(el) || k;
@@ -2055,7 +2055,7 @@ function __gmBuildPanel(){
         total++;
       });
 
-      // data-skill ¤¸¯À¡]§Þ¯à checkbox¡^
+      // data-skill ï¿½ï¿½ï¿½ï¿½ï¿½]ï¿½Þ¯ï¿½ checkboxï¿½^
       box.querySelectorAll('[data-skill]').forEach(function(el) {
         var k = el.getAttribute('data-skill');
         var label = __pmGetLabel(el) || k;
@@ -2069,35 +2069,35 @@ function __gmBuildPanel(){
       if (sectionData.items.length > 0) window.__pmAuto.boxes.push(sectionData);
     });
 
-    // «Ø¥ß§Þ¯à ID ¡÷ ¤¤¤å¦WºÙ¬M®g¡]ÂùºÞ»ô¤U¡^
+    // ï¿½Ø¥ß§Þ¯ï¿½ ID ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Wï¿½Ù¬Mï¿½gï¿½]ï¿½ï¿½ï¿½Þ»ï¿½Uï¿½^
     window.__pmSkillNames={};
-    // ²Ä¤@ªi¡G¹M¾ú __pmAuto.boxes ©Ò¦³ items
-    //   - checkbox¡]data-skill¡^¡Gkey=§Þ¯àID¡Alabel=¤¤¤å¦W ¡÷ ª½±µ«Ø¥ß skillNames[key]=label
-    //   - select¡]data-k¡^¡Gvalue=·í«e§Þ¯àID¡Alabel=³]©w¦W ¡÷ «Ø¥ß skillNames[value]=label
+    // ï¿½Ä¤@ï¿½iï¿½Gï¿½Mï¿½ï¿½ __pmAuto.boxes ï¿½Ò¦ï¿½ items
+    //   - checkboxï¿½]data-skillï¿½^ï¿½Gkey=ï¿½Þ¯ï¿½IDï¿½Alabel=ï¿½ï¿½ï¿½ï¿½W ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ø¥ï¿½ skillNames[key]=label
+    //   - selectï¿½]data-kï¿½^ï¿½Gvalue=ï¿½ï¿½eï¿½Þ¯ï¿½IDï¿½Alabel=ï¿½]ï¿½wï¿½W ï¿½ï¿½ ï¿½Ø¥ï¿½ skillNames[value]=label
     window.__pmAuto.boxes.forEach(function(sec){
       sec.items.forEach(function(item){
         if(!item.key)return;
-        // checkbox §Þ¯à¡Gkey ¬O§Þ¯à ID¡]¦p sk_fireball¡^¡Alabel ¬O¤¤¤å¦W
+        // checkbox ï¿½Þ¯ï¿½Gkey ï¿½Oï¿½Þ¯ï¿½ IDï¿½]ï¿½p sk_fireballï¿½^ï¿½Alabel ï¿½Oï¿½ï¿½ï¿½ï¿½W
         if(item.type==='checkbox'&&item.label){
           if(!/^(true|false|on|off|\d+)$/i.test(item.key)){
             window.__pmSkillNames[item.key]=item.label;
           }
           return;
         }
-        // select §Þ¯à¡Gvalue=·í«e§Þ¯àID¡Alabel=³]©w¦W¡]¿ù¡I§ï¥Î·í«e¿ï¤¤ option text¡^
+        // select ï¿½Þ¯ï¿½Gvalue=ï¿½ï¿½eï¿½Þ¯ï¿½IDï¿½Alabel=ï¿½]ï¿½wï¿½Wï¿½]ï¿½ï¿½ï¿½Iï¿½ï¿½Î·ï¿½eï¿½ï¤¤ option textï¿½^
         if(item.type==='select'&&item.value&&item.label){
           if(!/^(true|false|on|off|\d+)$/i.test(item.value)){
-            // ±q item.options §ä·í«e¿ï¤¤¶µªº text¡]§Þ¯à¤¤¤å¦W¡^
+            // ï¿½q item.options ï¿½ï¿½ï¿½eï¿½ï¤¤ï¿½ï¿½ï¿½ï¿½ textï¿½]ï¿½Þ¯à¤¤ï¿½ï¿½Wï¿½^
             var selOpt=(item.options||[]).find(function(o){return o.value===item.value});
             var skillName=selOpt?selOpt.text:item.label;
-            // ¥h°£ MP µù°O¡G¡u¿U¿Nªº¤õ²y¡]MP14¡^¡v¡÷ ¡u¿U¿Nªº¤õ²y¡v
-            skillName=skillName.replace(/¡][^¡^]+¡^$/,'').replace(/\([^)]+\)$/,'').trim();
+            // ï¿½hï¿½ï¿½ MP ï¿½ï¿½ï¿½Oï¿½Gï¿½uï¿½Uï¿½Nï¿½ï¿½ï¿½ï¿½ï¿½yï¿½]MP14ï¿½^ï¿½vï¿½ï¿½ ï¿½uï¿½Uï¿½Nï¿½ï¿½ï¿½ï¿½ï¿½yï¿½v
+            skillName=skillName.replace(/ï¿½][^ï¿½^]+ï¿½^$/,'').replace(/\([^)]+\)$/,'').trim();
             window.__pmSkillNames[item.value]=skillName;
           }
         }
       });
     });
-    // ²Ä¤Gªi¡Gselect option text¡A¸É¥R¤U©Ô¤º¨ä¥L­Ô¿ï§Þ¯àªº¤¤¤å¦W¡]¨Ã¥h°£ MP µù°O¡^
+    // ï¿½Ä¤Gï¿½iï¿½Gselect option textï¿½Aï¿½É¥Rï¿½Uï¿½Ô¤ï¿½ï¿½ï¿½Lï¿½Ô¿ï¿½Þ¯àªºï¿½ï¿½ï¿½ï¿½Wï¿½]ï¿½Ã¥hï¿½ï¿½ MP ï¿½ï¿½ï¿½Oï¿½^
     boxes.forEach(function(box){
       [].forEach.call(box.querySelectorAll('[data-k]'),function(el){
         if(el.tagName==='SELECT'){
@@ -2106,7 +2106,7 @@ function __gmBuildPanel(){
             if(!v||/^(true|false|on|off|\d+)$/i.test(v))return;
             if(!/^(sk_|_)/.test(v))return;
             if(!window.__pmSkillNames[v]){
-              var txt=o.textContent.trim().replace(/¡][^¡^]+¡^$/,'').replace(/\([^)]+\)$/,'').trim();
+              var txt=o.textContent.trim().replace(/ï¿½][^ï¿½^]+ï¿½^$/,'').replace(/\([^)]+\)$/,'').trim();
               window.__pmSkillNames[v]=txt||v;
             }
           });
@@ -2116,8 +2116,8 @@ function __gmBuildPanel(){
 
     var cnt = document.getElementById('__gmp_skill_count');
     if (cnt) cnt.textContent = total;
-    if (status) { status.textContent = '¤wÅª¨ú ' + total + ' ¶µ'; status.style.color = '#4ade80'; }
-    // ¦P®É¼g¤J chrome.storage.local¡]¨Ñ¶i¶¥¼Ò²Õ¤U©Ô¨Ï¥Î¡^
+    if (status) { status.textContent = 'ï¿½wÅªï¿½ï¿½ ' + total + ' ï¿½ï¿½'; status.style.color = '#4ade80'; }
+    // ï¿½Pï¿½É¼gï¿½J chrome.storage.localï¿½]ï¿½Ñ¶iï¿½ï¿½ï¿½Ò²Õ¤Uï¿½Ô¨Ï¥Î¡^
     var skillData=JSON.parse(JSON.stringify(window.__pmAuto.all||{}));
     var skillNames=JSON.parse(JSON.stringify(window.__pmSkillNames||{}));
     if(charName&&Object.keys(skillData).length){
@@ -2136,15 +2136,15 @@ function __gmBuildPanel(){
         console.warn('[Skill Sync] storage save error:',e);
       });
     }
-    // ­Y advanced-farming.js ¤w¸ü¤J¡A¦P¨B§ó·s¨ä§Ö¨ú
+    // ï¿½Y advanced-farming.js ï¿½wï¿½ï¿½ï¿½Jï¿½Aï¿½Pï¿½Bï¿½ï¿½sï¿½ï¿½Ö¨ï¿½
     if(typeof window.__gmAdvanced!=='undefined'&&window.__gmAdvanced.SkillDB){
       window.__gmAdvanced.SkillDB.save(charName,skillData,skillNames);
     }
     __pmRenderSkillList();
-    console.log('[Skill Sync] Read', total, 'items ¡X char:', charName, window.__pmAuto);
+    console.log('[Skill Sync] Read', total, 'items ï¿½X char:', charName, window.__pmAuto);
   }
 
-  // §Y®É¼g¦^¹CÀ¸ DOM¡]³æ¤@¶µ¥Ø¡^
+  // ï¿½Yï¿½É¼gï¿½^ï¿½Cï¿½ï¿½ DOMï¿½]ï¿½ï¿½@ï¿½ï¿½ï¿½Ø¡^
   function __pmSyncToGame(key, newValue) {
     var el = window.__pmAuto.gameEls[key];
     if (!el) return;
@@ -2168,17 +2168,17 @@ function __gmBuildPanel(){
         }
       }
     }
-    // §ó·sª¬ºA
+    // ï¿½ï¿½sï¿½ï¿½ï¿½A
     var status = document.getElementById('__gmp_skill_status');
-    if (status) { status.textContent = '¤w¦P¨B ?'; status.style.color = '#4ade80'; }
+    if (status) { status.textContent = 'ï¿½wï¿½Pï¿½B ?'; status.style.color = '#4ade80'; }
     clearTimeout(window.__pmSyncTimer);
     window.__pmSyncTimer = setTimeout(function(){
       var s2 = document.getElementById('__gmp_skill_status');
-      if (s2) { s2.textContent = '¤wÅª¨ú ' + Object.keys(window.__pmAuto.all).length + ' ¶µ'; s2.style.color = '#4ade80'; }
+      if (s2) { s2.textContent = 'ï¿½wÅªï¿½ï¿½ ' + Object.keys(window.__pmAuto.all).length + ' ï¿½ï¿½'; s2.style.color = '#4ade80'; }
     }, 1500);
   }
 
-  // ´è¬V§Þ¯à²M³æ¡]¤¤¤å¦WºÙ + ¤U©Ô/¼Æ­È/®Ö¨ú¤è¶ô¡^
+  // ï¿½ï¿½Vï¿½Þ¯ï¿½Mï¿½ï¿½]ï¿½ï¿½ï¿½ï¿½Wï¿½ï¿½ + ï¿½Uï¿½ï¿½/ï¿½Æ­ï¿½/ï¿½Ö¨ï¿½ï¿½ï¿½ï¿½^
   function __pmRenderSkillList() {
     var list = document.getElementById('__gmp_skill_list');
     var empty = document.getElementById('__gmp_skill_empty');
@@ -2201,7 +2201,7 @@ function __gmBuildPanel(){
         var v = item.value;
 
         if (item.type === 'select') {
-          // ¤U©Ô¿ï³æ
+          // ï¿½Uï¿½Ô¿ï¿½ï¿½
           var selOpts = item.options.map(function(o) {
             var sel = (o.value === v) ? 'selected' : '';
             return '<option value="' + escAttr(o.value) + '" ' + sel + '>' + escHtml(o.text) + '</option>';
@@ -2213,7 +2213,7 @@ function __gmBuildPanel(){
             '</div>';
 
         } else if (item.type === 'number') {
-          // ¼Æ­È¿é¤J
+          // ï¿½Æ­È¿ï¿½J
           html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 2px;border-radius:4px;transition:background 0.1s;" onmouseover="this.style.background=\'rgba(255,255,255,0.05)\'" onmouseout="this.style.background=\'\'" data-key="' + escAttr(k) + '">' +
             '<span style="color:#ccc;font-size:11px;flex-shrink:0;margin-right:6px;">' + escHtml(item.label) + '</span>' +
             '<input type="number" class="__gmp_sk_num" data-key="' + escAttr(k) + '" ' +
@@ -2222,7 +2222,7 @@ function __gmBuildPanel(){
             '</div>';
 
         } else if (item.type === 'checkbox') {
-          // ®Ö¨ú¤è¶ô¡]§Þ¯à¶}Ãö¡^
+          // ï¿½Ö¨ï¿½ï¿½ï¿½ï¿½]ï¿½Þ¯ï¿½}ï¿½ï¿½ï¿½^
           var chk = v ? 'checked' : '';
           var chkClr = v ? '#4ade80' : '#555';
           html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 2px;border-radius:4px;transition:background 0.1s;" onmouseover="this.style.background=\'rgba(255,255,255,0.05)\'" onmouseout="this.style.background=\'\'" data-key="' + escAttr(k) + '">' +
@@ -2232,7 +2232,7 @@ function __gmBuildPanel(){
             '</div>';
 
         } else {
-          // ¤å¦r¿é¤J
+          // ï¿½ï¿½rï¿½ï¿½J
           html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 2px;" data-key="' + escAttr(k) + '">' +
             '<span style="color:#aaa;font-size:11px;flex-shrink:0;margin-right:6px;">' + escHtml(item.label) + '</span>' +
             '<input type="text" class="__gmp_sk_txt" data-key="' + escAttr(k) + '" ' +
@@ -2246,7 +2246,7 @@ function __gmBuildPanel(){
 
     list.innerHTML = html;
 
-    // ?©w§Y?¦P¨B¨Æ¥ó
+    // ?ï¿½wï¿½Y?ï¿½Pï¿½Bï¿½Æ¥ï¿½
     list.querySelectorAll('.__gmp_sk_sel').forEach(function(sel) {
       sel.addEventListener('change', function() { __pmSyncToGame(this.getAttribute('data-key'), this.value); });
     });
@@ -2262,7 +2262,7 @@ function __gmBuildPanel(){
     });
   }
 
-  // HTML ¸õ²æ
+  // HTML ï¿½ï¿½ï¿½ï¿½
   function escHtml(s) {
     if (!s) return '';
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -2272,7 +2272,7 @@ function __gmBuildPanel(){
     return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
 
-  // «ö¶s¨Æ¥ó
+  // ï¿½ï¿½ï¿½sï¿½Æ¥ï¿½
   document.getElementById('__gmp_tab_skill').onclick = function() { switchTab('skill'); };
   document.getElementById('__gmp_tab_status').onclick=function(){ switchTab('status'); };
   document.getElementById('__gmp_tab_friend').onclick=function(){ switchTab('friend'); };
@@ -2280,7 +2280,7 @@ function __gmBuildPanel(){
 
   // === Status tab handlers ===
   function __gmExportAllSettings(){
-    __gmShowIdbStatus('\u{1F4E4} ¾É¥X©Ò¦³³]©w¤¤...','#fbbf24');
+    __gmShowIdbStatus('\u{1F4E4} ï¿½É¥Xï¿½Ò¦ï¿½ï¿½]ï¿½wï¿½ï¿½...','#fbbf24');
     chrome.storage.local.get(null,function(all){
       var exportData={export_version:'3.18',export_date:new Date().toISOString(),settings:{}};
       ['gmSkillSettings','wb_boss_config','wb_priority_list','wb_boss_entry_settings','wb_boss_history','wb_boss_loot','wb_auto_script_state','wb_boss_auto_loot','wb_min_players'].forEach(function(k){if(all[k]!==undefined)exportData.settings[k]=all[k];});
@@ -2293,34 +2293,34 @@ function __gmBuildPanel(){
     var a=document.createElement('a');a.href=url;a.download='gm-panel-settings-'+(new Date().toISOString().slice(0,10))+'.json';
     document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
     var cnt=Object.keys(data.settings||{}).length;
-    __gmShowIdbStatus('? ¾É¥X¦¨¥\: '+cnt+' ¶µ³]©w','#4ade80');
+    __gmShowIdbStatus('? ï¿½É¥Xï¿½ï¿½ï¿½\: '+cnt+' ï¿½ï¿½ï¿½]ï¿½w','#4ade80');
   }
   function __gmImportAllSettings(jsonStr){
     try{
       var data=JSON.parse(jsonStr);
-      if(!data.settings||typeof data.settings!=='object'){__gmShowIdbStatus('? JSON ®æ¦¡¿ù»~: ¯Ê¤Ö settings °Ï¶ô','#e94560');return;}
-      __gmShowIdbStatus('\u{1F4E5} ¾É¤J³]©w¤¤...','#fbbf24');
+      if(!data.settings||typeof data.settings!=='object'){__gmShowIdbStatus('? JSON ï¿½æ¦¡ï¿½ï¿½ï¿½~: ï¿½Ê¤ï¿½ settings ï¿½Ï¶ï¿½','#e94560');return;}
+      __gmShowIdbStatus('\u{1F4E5} ï¿½É¤Jï¿½]ï¿½wï¿½ï¿½...','#fbbf24');
       chrome.storage.local.set(data.settings,function(){
-        __gmShowIdbStatus('? ¾É¤J¦¨¥\: '+(Object.keys(data.settings).length)+' ¶µ³]©w¤w¼g¤J','#4ade80');
+        __gmShowIdbStatus('? ï¿½É¤Jï¿½ï¿½ï¿½\: '+(Object.keys(data.settings).length)+' ï¿½ï¿½ï¿½]ï¿½wï¿½wï¿½gï¿½J','#4ade80');
         if(window.__wbLoadBossConfig)window.__wbLoadBossConfig();
         if(window.__wbLoadPriorityList)window.__wbLoadPriorityList();
         if(window.__wbLoadEntrySkills)window.__wbLoadEntrySkills();
       });
-    }catch(ex){__gmShowIdbStatus('? JSON ¸ÑªR¿ù»~','#e94560');}
+    }catch(ex){__gmShowIdbStatus('? JSON ï¿½ÑªRï¿½ï¿½ï¿½~','#e94560');}
   }
   function __gmRefreshStatusView(){
     var el=document.getElementById('__gmp_status_summary');if(!el)return;
     chrome.storage.local.get(null,function(all){
-      var html='<div style="margin-bottom:4px;color:#888;font-size:10px;">¤wÀx¦sªº³]©w¶µ(¦@'+Object.keys(all).length+' ¶µ):</div>';
+      var html='<div style="margin-bottom:4px;color:#888;font-size:10px;">ï¿½wï¿½xï¿½sï¿½ï¿½ï¿½]ï¿½wï¿½ï¿½(ï¿½@'+Object.keys(all).length+' ï¿½ï¿½):</div>';
       ['gmSkillSettings','wb_boss_config','wb_priority_list','wb_boss_entry_settings','wb_boss_history','wb_boss_loot','wb_auto_script_state','wb_boss_auto_loot','wb_min_players'].forEach(function(k){
         var v=all[k];
-        var labels={gmSkillSettings:'?§Þ¯à³]©w',wb_boss_config:'\u{1F451}BOSS',wb_priority_list:'\u{1F3AF}Àu¥ý?¥ï',wb_boss_entry_settings:'\u{1F3E0}BOSS¶i¤J',wb_boss_history:'\u{1F4DC}¾ú¥v',wb_boss_loot:'\u{1F4B0}±¼¸¨',wb_auto_script_state:'?¦Û°Ê¶i¤J',wb_boss_auto_loot:'\u{1F4E6}±¼¸¨°O¿ý',wb_min_players:'\u{1F465}³Ì¤Ö¤H'};
+        var labels={gmSkillSettings:'?ï¿½Þ¯ï¿½]ï¿½w',wb_boss_config:'\u{1F451}BOSS',wb_priority_list:'\u{1F3AF}ï¿½uï¿½ï¿½?ï¿½ï¿½',wb_boss_entry_settings:'\u{1F3E0}BOSSï¿½iï¿½J',wb_boss_history:'\u{1F4DC}ï¿½ï¿½ï¿½v',wb_boss_loot:'\u{1F4B0}ï¿½ï¿½ï¿½ï¿½',wb_auto_script_state:'?ï¿½Û°Ê¶iï¿½J',wb_boss_auto_loot:'\u{1F4E6}ï¿½ï¿½ï¿½ï¿½ï¿½Oï¿½ï¿½',wb_min_players:'\u{1F465}ï¿½Ì¤Ö¤H'};
         var label=labels[k]||k;
         if(v!==undefined){
           var size=JSON.stringify(v).length+'B';
           html+='<div style="padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;"><span style="color:#4ade80;">'+label+'</span><span style="color:#888;font-size:9px;">'+size+'</span></div>';
         }else{
-          html+='<div style="padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;"><span style="color:#888;">'+label+'</span><span style="color:#555;">¥¼³]©w</span></div>';
+          html+='<div style="padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;"><span style="color:#888;">'+label+'</span><span style="color:#555;">ï¿½ï¿½ï¿½]ï¿½w</span></div>';
         }
       });
       el.innerHTML=html;
@@ -2396,7 +2396,7 @@ function __gmBuildPanel(){
         var row=equipRows[k];
         var txt2=(row.textContent||'').trim();
         if(!txt2)continue;
-        var em=txt2.match(/^(.+?)\s*[+¡G:]\s*(.+)$|^(.+?)\s+(\d+)\s*$/);
+        var em=txt2.match(/^(.+?)\s*[+ï¿½G:]\s*(.+)$|^(.+?)\s+(\d+)\s*$/);
         if(em){
           var key=(em[1]||em[3]||'').trim();
           var val=(em[2]||em[4]||'').trim();
@@ -2411,10 +2411,10 @@ function __gmBuildPanel(){
       var body=document.getElementById('pp-body');
       if(body){
         var statText=body.textContent||'';
-        var hpM=statText.match(/HP[¡G:]\s*(\d+)\s*\/\s*(\d+)/);
-        var mpM=statText.match(/MP[¡G:]\s*(\d+)\s*\/\s*(\d+)/);
-        var atkM=statText.match(/(?:§ðÀ»|ATK)[¡G:]\s*(\d+)/);
-        var defM=statText.match(/(?:¨¾¿m|DEF)[¡G:]\s*(\d+)/);
+        var hpM=statText.match(/HP[ï¿½G:]\s*(\d+)\s*\/\s*(\d+)/);
+        var mpM=statText.match(/MP[ï¿½G:]\s*(\d+)\s*\/\s*(\d+)/);
+        var atkM=statText.match(/(?:ï¿½ï¿½ï¿½ï¿½|ATK)[ï¿½G:]\s*(\d+)/);
+        var defM=statText.match(/(?:ï¿½ï¿½ï¿½m|DEF)[ï¿½G:]\s*(\d+)/);
         if(hpM)stats.hp=hpM[1]+'/'+hpM[2];
         if(mpM)stats.mp=mpM[1]+'/'+mpM[2];
         if(atkM)stats.atk=atkM[1];
@@ -2705,7 +2705,7 @@ function __gmBuildPanel(){
     var cnt = document.getElementById('__gmp_skill_count');
     if (cnt) cnt.textContent = '0';
     var status = document.getElementById('__gmp_skill_status');
-    if (status) { status.textContent = '¤w²MªÅ'; status.style.color = '#888'; }
+    if (status) { status.textContent = 'ï¿½wï¿½Mï¿½ï¿½'; status.style.color = '#888'; }
     var charEl = document.getElementById('__gmp_skill_char');
     if (charEl) charEl.textContent = '--';
   };
@@ -2713,12 +2713,12 @@ function __gmBuildPanel(){
     var btns = document.querySelectorAll('button, .btn, [class*="setting"], [class*="auto"]');
     var found = false;
     btns.forEach(function(b) {
-      if (b.textContent && /³]©w|setting|auto|¦Û°Ê|¬Iªk/i.test(b.textContent)) {
+      if (b.textContent && /ï¿½]ï¿½w|setting|auto|ï¿½Û°ï¿½|ï¿½Iï¿½k/i.test(b.textContent)) {
         console.log('[Skill] Opening panel:', b.textContent.trim().substring(0, 30));
         b.click(); found = true;
       }
     });
-    if (!found) alert('½Ð¤â°Ê¥´¶}¹CÀ¸¤ºªº¦Û°Ê¬Iªk³]©w­±ªO');
+    if (!found) alert('ï¿½Ð¤ï¿½Ê¥ï¿½ï¿½}ï¿½Cï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Û°Ê¬Iï¿½kï¿½]ï¿½wï¿½ï¿½ï¿½O');
   };
 
 
@@ -2766,7 +2766,7 @@ function __gmBuildPanel(){
       this.style.display='';
       this.style.alignItems='';
       this.style.justifyContent='';
-      this.textContent='¡¿';
+      this.textContent='ï¿½ï¿½';
     } else {
       content.style.display='none';
       panel.style.width='24px';
@@ -2822,7 +2822,7 @@ function __gmBuildPanel(){
     // Boss name
     var nameEl=document.getElementById('__gmp_boss_name');
     var lvEl=document.getElementById('__gmp_boss_lv');
-    if(nameEl)nameEl.textContent=boss.name?(boss.name+' (Lv.'+boss.lv+')'):'-- µL¥@¬É¤ý --';
+    if(nameEl)nameEl.textContent=boss.name?(boss.name+' (Lv.'+boss.lv+')'):'-- ï¿½Lï¿½@ï¿½É¤ï¿½ --';
     if(lvEl)lvEl.textContent='mode: '+mode;
     // Boss HP bar
     var hpEl=document.getElementById('__gmp_boss_hp_text');
@@ -2837,8 +2837,8 @@ function __gmBuildPanel(){
     var bufEl=document.getElementById('__gmp_boss_buffs');
     if(bufEl){
       var parts=[];
-      if(boss.barrierOn)parts.push('??? «Ì»Ù ON');
-      if(boss.barrierHas)parts.push('?? ¦³«Ì»Ù');
+      if(boss.barrierOn)parts.push('??? ï¿½Ì»ï¿½ ON');
+      if(boss.barrierHas)parts.push('?? ï¿½ï¿½ï¿½Ì»ï¿½');
       bufEl.textContent=parts.length?parts.join(' | '):'';
     }
     // Cooldown timers
@@ -2851,13 +2851,13 @@ function __gmBuildPanel(){
         el.textContent=v.toFixed(1)+'s';
         el.style.color='#e94560';
       } else {
-        el.textContent='´Nºü';
+        el.textContent='ï¿½Nï¿½ï¿½';
         el.style.color='#4ade80';
       }
     });
     // Socket status
     var sockEl=document.getElementById('__gmp_sock_status');
-    if(sockEl)sockEl.textContent=window.__wbSocket?'? ¤w³s±µ':'? ¥¼³s±µ';
+    if(sockEl)sockEl.textContent=window.__wbSocket?'? ï¿½wï¿½sï¿½ï¿½':'? ï¿½ï¿½ï¿½sï¿½ï¿½';
     if(sockEl)sockEl.style.color=window.__wbSocket?'#4ade80':'#e94560';
     var sentEl=document.getElementById('__gmp_sock_sent');
     if(sentEl)sentEl.textContent=(window.__wbBossEmitLog||[]).length;
@@ -2883,14 +2883,14 @@ function __gmBuildPanel(){
     }
   };
 
-  // === ¥@¬É¤ý¦Cªí - «ö¶sºÊÅ¥ ===
+  // === ï¿½@ï¿½É¤ï¿½ï¿½Cï¿½ï¿½ - ï¿½ï¿½ï¿½sï¿½ï¿½Å¥ ===
   document.getElementById('__gmp_wb_refresh').onclick=function(){
     __wbUpdateWorldBossUI();
     var evtEl=document.getElementById('__gmp_wb_evt_name');
-    if(evtEl){evtEl.textContent='DOM §Y®ÉÅª¨ú';evtEl.style.color='#4ade80';}
-    this.textContent='¤w¨ê·s!';
+    if(evtEl){evtEl.textContent='DOM ï¿½Yï¿½ï¿½Åªï¿½ï¿½';evtEl.style.color='#4ade80';}
+    this.textContent='ï¿½wï¿½ï¿½s!';
     var _t=this;
-    setTimeout(function(){var b=document.getElementById('__gmp_wb_refresh');if(b)b.textContent='\u2699 ¨ê·s';},1500);
+    setTimeout(function(){var b=document.getElementById('__gmp_wb_refresh');if(b)b.textContent='\u2699 ï¿½ï¿½s';},1500);
   };
   document.getElementById('__gmp_wb_auto').onchange=function(){
     if(this.checked){
@@ -2914,17 +2914,17 @@ function __gmBuildPanel(){
     console.log('[WB] All event names:',allSorted.slice(0,20));
     var lines=[];
     if(bossSorted.length){
-      lines.push('=== ¥@¬É¤ý­Ô¿ï¨Æ¥ó ===');
+      lines.push('=== ï¿½@ï¿½É¤ï¿½ï¿½Ô¿ï¿½Æ¥ï¿½ ===');
       bossSorted.slice(0,10).forEach(function(k,i){lines.push((i+1)+'. '+k+' (x'+bossCandidates[k]+')');});
       lines.push('');
     }
-    lines.push('=== ©Ò¦³¨Æ¥ó («e20) ===');
+    lines.push('=== ï¿½Ò¦ï¿½ï¿½Æ¥ï¿½ (ï¿½e20) ===');
     allSorted.slice(0,20).forEach(function(k,i){lines.push((i+1)+'. '+k+' (x'+allNames[k]+')');});
     var msg=lines.join('\n');
     console.log('[WB] Events:\n'+msg);
-    alert(msg.length>600?msg.substring(0,600)+'\n...(console ¦³§¹¾ã¦Cªí)':msg);
+    alert(msg.length>600?msg.substring(0,600)+'\n...(console ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Cï¿½ï¿½)':msg);
   };
-  // ¥@¬É¤ý UI §ó·s­q¾\¡]cache §ó·s®É§Y®É¨ê·s¡^
+  // ï¿½@ï¿½É¤ï¿½ UI ï¿½ï¿½sï¿½qï¿½\ï¿½]cache ï¿½ï¿½sï¿½É§Yï¿½É¨ï¿½sï¿½^
   __wbSubscribeWorldBoss(function(evtName,data){
     __wbUpdateWorldBossUI();
     var evtEl=document.getElementById('__gmp_wb_evt_name');
@@ -2961,19 +2961,19 @@ function __gmBuildPanel(){
       __wbSyncAutoConfig();
       __wbBossAutoStart();
       var btn=document.getElementById('__gmp_boss_auto_btn');
-      if(btn){btn.textContent='\u25A0 °±¤î¦Û°Ê¾Ô°«';btn.style.background='#e94560';}
+      if(btn){btn.textContent='\u25A0 ï¿½ï¿½ï¿½ï¿½Û°Ê¾Ô°ï¿½';btn.style.background='#e94560';}
       var s=document.getElementById('__gmp_boss_auto_status');
-      if(s){s.textContent='\u26A1 ¦Û°Ê¾Ô°«¹B¦æ¤¤...';s.style.color='#4ade80';}
+      if(s){s.textContent='\u26A1 ï¿½Û°Ê¾Ô°ï¿½ï¿½Bï¿½æ¤¤...';s.style.color='#4ade80';}
       var ss=document.getElementById('__gmp_boss_auto_status_short');
-      if(ss){ss.textContent='\u26A1 ¦Û°Ê¾Ô°«¹B¦æ¤¤...';ss.style.color='#4ade80';}
+      if(ss){ss.textContent='\u26A1 ï¿½Û°Ê¾Ô°ï¿½ï¿½Bï¿½æ¤¤...';ss.style.color='#4ade80';}
     } else {
       __wbBossAutoStop();
       var btn=document.getElementById('__gmp_boss_auto_btn');
-      if(btn){btn.textContent='\u25B6 ±Ò°Ê¦Û°Ê¾Ô°«';btn.style.background='#0f3460';}
+      if(btn){btn.textContent='\u25B6 ï¿½Ò°Ê¦Û°Ê¾Ô°ï¿½';btn.style.background='#0f3460';}
       var s=document.getElementById('__gmp_boss_auto_status');
-      if(s){s.textContent='°±¤î¤¤';s.style.color='#888';}
+      if(s){s.textContent='ï¿½ï¿½ï¿½î¤¤';s.style.color='#888';}
       var ss=document.getElementById('__gmp_boss_auto_status_short');
-      if(ss){ss.textContent='°±¤î¤¤';ss.style.color='#888';}
+      if(ss){ss.textContent='ï¿½ï¿½ï¿½î¤¤';ss.style.color='#888';}
     }
   };
   document.getElementById('__gmp_boss_auto_config_btn').onclick=function(){
@@ -3053,7 +3053,7 @@ function __gmBuildPanel(){
       'attack':'\u2694 \u653b\u51fb'
     };
 
-  // === BOSS ±¼¸¨°O¿ý Modal ===
+  // === BOSS ï¿½ï¿½ï¿½ï¿½ï¿½Oï¿½ï¿½ Modal ===
   var __gmp_boss_loot_modal = null;
 
   function __wbOpenLootModal(){
@@ -3197,7 +3197,7 @@ function __gmBuildPanel(){
     if(__gmp_boss_loot_modal) __gmp_boss_loot_modal.style.display='none';
   }
 
-  // === BOSS ±¼¸¨°O¿ý¶}Ãö ===
+  // === BOSS ï¿½ï¿½ï¿½ï¿½ï¿½Oï¿½ï¿½ï¿½}ï¿½ï¿½ ===
   function __wbSaveLootSetting(){
     var chk=document.getElementById('__gmp_boss_auto_loot');
     if(chk) chrome.storage.local.set({ wb_boss_auto_loot: chk.checked });
@@ -3254,7 +3254,7 @@ function __gmBuildPanel(){
     }
   };
   
-  // === BOSS ¾ú¥v°O¿ý Modal ===
+  // === BOSS ï¿½ï¿½ï¿½vï¿½Oï¿½ï¿½ Modal ===
   var historyModal=document.createElement('div');
   historyModal.id='__gmp_boss_history_modal';
   historyModal.style.cssText='display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9999;justify-content:center;align-items:center;';
@@ -3300,7 +3300,7 @@ function __gmBuildPanel(){
   // === BOSS config save/load ===
 
 
-  // === BOSS ¶i¤J³]©w handler ===
+  // === BOSS ï¿½iï¿½Jï¿½]ï¿½w handler ===
   function checkEntryField(field){
     var el=document.getElementById('__gmp_boss_entry_'+field);
     var chk=document.getElementById('__gmp_boss_entry_'+field+'_chk');
@@ -3331,7 +3331,7 @@ function __gmBuildPanel(){
       checkEntryField('potType');
       checkEntryField('healSkill');
       var btn=document.getElementById('__gmp_boss_entry_save');
-      if(btn){btn.textContent='\u2714\uFE0F ¤wÀx¦s!';btn.style.border='none';btn.style.background='#0a3a0a';setTimeout(function(){btn.textContent='Àx¦s³]©w';btn.style.border='1px solid #4ade80';btn.style.background='#1a4a1a';},2000);}
+      if(btn){btn.textContent='\u2714\uFE0F ï¿½wï¿½xï¿½s!';btn.style.border='none';btn.style.background='#0a3a0a';setTimeout(function(){btn.textContent='ï¿½xï¿½sï¿½]ï¿½w';btn.style.border='1px solid #4ade80';btn.style.background='#1a4a1a';},2000);}
     }).catch(function(){});
   }
 
@@ -3358,17 +3358,17 @@ function __gmBuildPanel(){
       var healSel=document.getElementById('__gmp_boss_entry_healSkill');
       if(!atkSel&&!healSel)return;
 
-      // Àu¥ý¨Ï¥Î runtime ªº __gmSkillMap¡]¥Ñ refreshSkillDatalist ±q DOM ±½´y¡^
+      // ï¿½uï¿½ï¿½ï¿½Ï¥ï¿½ runtime ï¿½ï¿½ __gmSkillMapï¿½]ï¿½ï¿½ refreshSkillDatalist ï¿½q DOM ï¿½ï¿½ï¿½yï¿½^
       var skillMap=window.__gmSkillMap||{};
       var skillKeys=Object.keys(skillMap);
 
       if(skillKeys.length>0){
-        // ª½±µ¨Ï¥Î __gmSkillMap¡]³Ì§Y®É¡A¦³¤¤¤å¦W¡^
+        // ï¿½ï¿½ï¿½ï¿½ï¿½Ï¥ï¿½ __gmSkillMapï¿½]ï¿½Ì§Yï¿½É¡Aï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Wï¿½^
         buildDropdowns(skillKeys, function(id){ return skillMap[id] || id; });
         return;
       }
 
-      // Fallback 1: ±q __pmSkillNames runtime ª«¥ó
+      // Fallback 1: ï¿½q __pmSkillNames runtime ï¿½ï¿½ï¿½ï¿½
       if(window.__pmSkillNames && typeof window.__pmSkillNames === 'object'){
         var names=window.__pmSkillNames;
         var keys=Object.keys(names);
@@ -3378,7 +3378,7 @@ function __gmBuildPanel(){
         }
       }
 
-      // Fallback 2: ±q gmSkillSettings (chrome.storage)
+      // Fallback 2: ï¿½q gmSkillSettings (chrome.storage)
       var charName=window.__gmCharName||(window.lastState&&window.lastState.charName)||'';
       __gmStorageGet(['gmSkillSettings']).then(function(result){
         var arr=result&&result.gmSkillSettings||[];
@@ -3399,20 +3399,20 @@ function __gmBuildPanel(){
         var healSel=document.getElementById('__gmp_boss_entry_healSkill');
         if(!atkSel||!healSel)return;
 
-        // ¹LÂo±¼¼Æ­ÈÃþ key¡A¥u¯d§Þ¯à
+        // ï¿½Lï¿½oï¿½ï¿½ï¿½Æ­ï¿½ï¿½ï¿½ keyï¿½Aï¿½uï¿½dï¿½Þ¯ï¿½
         var valid=ids.filter(function(id){
           return id.indexOf('sk_')===0;
         });
-        if(valid.length<3)valid=ids; // ¹LÂo¤Ó¤Ö´N¥Î¥þ³¡
+        if(valid.length<3)valid=ids; // ï¿½Lï¿½oï¿½Ó¤Ö´Nï¿½Î¥ï¿½ï¿½ï¿½
 
-        // ±Æ°£«D§Þ¯à key (¦p hpThreshold, mpThreshold µ¥)
+        // ï¿½Æ°ï¿½ï¿½Dï¿½Þ¯ï¿½ key (ï¿½p hpThreshold, mpThreshold ï¿½ï¿½)
         var skip=/^(hpThreshold|mpThreshold|hp_|mp_|target_|monster_|delay_|auto_|farm_|timeout_|scroll_)/;
         valid=valid.filter(function(id){ return !skip.test(id); });
 
         if(valid.length<3)valid=ids;
 
-        var atkOpts='<option value="">-- ½Ð¿ï¾Ü --</option>';
-        var healOpts='<option value="">-- ½Ð¿ï¾Ü --</option>';
+        var atkOpts='<option value="">-- ï¿½Ð¿ï¿½ï¿½ --</option>';
+        var healOpts='<option value="">-- ï¿½Ð¿ï¿½ï¿½ --</option>';
         for(var i=0;i<valid.length;i++){
           var id=valid[i];
           var label=labelFn(id);
@@ -3423,7 +3423,7 @@ function __gmBuildPanel(){
         atkSel.innerHTML=atkOpts;
         healSel.innerHTML=healOpts;
 
-        // ¸ü¤J¤wÀx¦sªº³]©w
+        // ï¿½ï¿½ï¿½Jï¿½wï¿½xï¿½sï¿½ï¿½ï¿½]ï¿½w
         __gmStorageGet(['wb_boss_entry_settings']).then(function(r2){
           if(r2&&r2.wb_boss_entry_settings){
             var s=r2.wb_boss_entry_settings;
@@ -3438,7 +3438,7 @@ function __gmBuildPanel(){
     }
   }
 
-  // ºÊÅ¥«ö¶s»P¤U©ÔÅÜ§ó
+  // ï¿½ï¿½Å¥ï¿½ï¿½ï¿½sï¿½Pï¿½Uï¿½ï¿½ï¿½Ü§ï¿½
   setTimeout(function(){
     var atkS=document.getElementById('__gmp_boss_entry_atkSkill');
     var potS=document.getElementById('__gmp_boss_entry_potType');
@@ -3533,16 +3533,16 @@ function __gmBuildPanel(){
   document.getElementById('__gmp_boss_auto_btn').onclick=function(){
     if(window.__wbBossAuto.running){
       __wbBossAutoStop();
-      this.textContent='? ±Ò°Ê¦Û°Ê¾Ô°«';
+      this.textContent='? ï¿½Ò°Ê¦Û°Ê¾Ô°ï¿½';
       this.style.background='#0f3460';
       var s=document.getElementById('__gmp_boss_auto_status');
-      if(s){s.textContent='°±¤î¤¤';s.style.color='#888';}var ce=document.getElementById('__gmp_boss_auto_enable');if(ce)ce.checked=false;var ss=document.getElementById('__gmp_boss_auto_status_short');if(ss){ss.textContent='°±¤î¤¤';ss.style.color='#888';}
+      if(s){s.textContent='ï¿½ï¿½ï¿½î¤¤';s.style.color='#888';}var ce=document.getElementById('__gmp_boss_auto_enable');if(ce)ce.checked=false;var ss=document.getElementById('__gmp_boss_auto_status_short');if(ss){ss.textContent='ï¿½ï¿½ï¿½î¤¤';ss.style.color='#888';}
     } else {
       __wbSyncAutoConfig();
       __wbSaveBossConfig();
       __wbBossAutoStart();
-      this.textContent='¡½ °±¤î¦Û°Ê¾Ô°«';
-      this.style.background='#e94560';var ce=document.getElementById('__gmp_boss_auto_enable');if(ce)ce.checked=true;var ss=document.getElementById('__gmp_boss_auto_status_short');if(ss){ss.textContent='? ¦Û°Ê¾Ô°«¹B¦æ¤¤...';ss.style.color='#4ade80';}
+      this.textContent='ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Û°Ê¾Ô°ï¿½';
+      this.style.background='#e94560';var ce=document.getElementById('__gmp_boss_auto_enable');if(ce)ce.checked=true;var ss=document.getElementById('__gmp_boss_auto_status_short');if(ss){ss.textContent='? ï¿½Û°Ê¾Ô°ï¿½ï¿½Bï¿½æ¤¤...';ss.style.color='#4ade80';}
     }
   };
 
@@ -3556,7 +3556,7 @@ function __gmBuildPanel(){
           window.__wbUpdateHuntListUI();
     },500);
   }
-  // ¨C60¬í¨ê·s DOM ¥@¬É¤ý¯«¹³¸ê°T¡]¤H¼ÆÅÜ¤Æ¡B­«¥Íª¬ºA¡^
+  // ï¿½C60ï¿½ï¿½ï¿½s DOM ï¿½@ï¿½É¤ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Tï¿½]ï¿½Hï¿½ï¿½ï¿½Ü¤Æ¡Bï¿½ï¿½ï¿½Íªï¿½ï¿½Aï¿½^
   function __wbBossStartRefresher(){
     var _refInt=setInterval(function(){
       if(activeTab=='boss'){
@@ -3571,7 +3571,7 @@ function __gmBuildPanel(){
   __wbBossStartRefresher();
   __wbBossStartUpdater();
 
-  // === IDB ¥þ°ì¶×¥X/¶×¤J ===
+  // === IDB ï¿½ï¿½ï¿½ï¿½×¥X/ï¿½×¤J ===
   function __gmShowIdbStatus(msg,color){
     var el=document.getElementById('__gmp_idb_status');
     if(!el)return;
@@ -3587,10 +3587,10 @@ function __gmBuildPanel(){
 
   document.getElementById('__gmp_import_all').onclick=function(){
     if(!window.__gmAdvanced){
-      __gmShowIdbStatus('?? ¶i¶¥¼Ò²Õ©|¥¼¸ü¤J¡A½Ðµy­Ô¦A¸Õ','#fbbf24');
+      __gmShowIdbStatus('?? ï¿½iï¿½ï¿½ï¿½Ò²Õ©|ï¿½ï¿½ï¿½ï¿½ï¿½Jï¿½Aï¿½Ðµyï¿½Ô¦Aï¿½ï¿½','#fbbf24');
       return;
     }
-    // ¦P®É¶×¥X¶i¶¥¸ê®Æ + µn¥X¾ú¥v
+    // ï¿½Pï¿½É¶×¥Xï¿½iï¿½ï¿½ï¿½ï¿½ï¿½ + ï¿½nï¿½Xï¿½ï¿½ï¿½v
     Promise.all([
       window.__gmAdvanced.exportAll(),
       LogoutDB.exportCache()
@@ -3604,9 +3604,9 @@ function __gmBuildPanel(){
       document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
       var ruleCount=data.advanced_rules?data.advanced_rules.length:0;
       var monsterCount=data.monsters?data.monsters.length:0;
-      __gmShowIdbStatus('? ¶×¥X¦¨¥\¡G'+ruleCount+' ³W«h / '+monsterCount+' ©Çª« / §Þ¯à³]©w / '+data.logout_history.length+' µn¤J¬ö¿ý','#4ade80');
+      __gmShowIdbStatus('? ï¿½×¥Xï¿½ï¿½ï¿½\ï¿½G'+ruleCount+' ï¿½Wï¿½h / '+monsterCount+' ï¿½Çªï¿½ / ï¿½Þ¯ï¿½]ï¿½w / '+data.logout_history.length+' ï¿½nï¿½Jï¿½ï¿½ï¿½ï¿½','#4ade80');
     }).catch(function(e){
-      __gmShowIdbStatus('? ¶×¥X¥¢±Ñ¡G'+e.message,'#e94560');
+      __gmShowIdbStatus('? ï¿½×¥Xï¿½ï¿½ï¿½Ñ¡G'+e.message,'#e94560');
     });
   };
 
@@ -3623,22 +3623,22 @@ function __gmBuildPanel(){
       try{
         var data=JSON.parse(ev.target.result);
         if(!window.__gmAdvanced){
-          __gmShowIdbStatus('?? ¶i¶¥¼Ò²Õ©|¥¼¸ü¤J¡A½Ðµy­Ô¦A¸Õ','#fbbf24');
+          __gmShowIdbStatus('?? ï¿½iï¿½ï¿½ï¿½Ò²Õ©|ï¿½ï¿½ï¿½ï¿½ï¿½Jï¿½Aï¿½Ðµyï¿½Ô¦Aï¿½ï¿½','#fbbf24');
           return;
         }
         window.__gmAdvanced.importAll(data).then(function(){
-          __gmShowIdbStatus('? ¶×¤J¦¨¥\¡A½Ð­«·s¶}±Ò¶i¶¥³]©w¬d¬Ý','#4ade80');
+          __gmShowIdbStatus('? ï¿½×¤Jï¿½ï¿½ï¿½\ï¿½Aï¿½Ð­ï¿½ï¿½sï¿½}ï¿½Ò¶iï¿½ï¿½ï¿½]ï¿½wï¿½dï¿½ï¿½','#4ade80');
           if(window.__gmAdvanced.refreshMonsterDatalist)window.__gmAdvanced.refreshMonsterDatalist();
           if(window.__gmAdvanced.refreshSkillDatalist)window.__gmAdvanced.refreshSkillDatalist();
-          // ¶×¤Jµn¥X¾ú¥v
+          // ï¿½×¤Jï¿½nï¿½Xï¿½ï¿½ï¿½v
           if(data.logout_history&&Array.isArray(data.logout_history)){
             LogoutDB.importCache(data.logout_history);
           }
         }).catch(function(err){
-          __gmShowIdbStatus('? ¶×¤J¥¢±Ñ¡G'+err.message,'#e94560');
+          __gmShowIdbStatus('? ï¿½×¤Jï¿½ï¿½ï¿½Ñ¡G'+err.message,'#e94560');
         });
       }catch(ex){
-        __gmShowIdbStatus('? JSON ®æ¦¡¿ù»~','#e94560');
+        __gmShowIdbStatus('? JSON ï¿½æ¦¡ï¿½ï¿½ï¿½~','#e94560');
       }
     };
     reader.readAsText(file);
@@ -3654,19 +3654,19 @@ function __gmBuildPanel(){
         window.__gmAdvanced.openModal();
       }catch(e){
         console.warn('[GM] openModal error:',e);
-        alert('? ¶i¶¥¼Ò²Õµo¥Í¿ù»~:\n'+e.message+'\n\n½Ð­«·s¾ã²z­¶­±­«¸Õ¡C');
+        alert('? ï¿½iï¿½ï¿½ï¿½Ò²Õµoï¿½Í¿ï¿½ï¿½~:\n'+e.message+'\n\nï¿½Ð­ï¿½ï¿½sï¿½ï¿½zï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Õ¡C');
       }
     } else if(window.__gmAdvanced){
-      // window.__gmAdvanced ¤w¸ü¤J¦ý¨S¦³ openModal
+      // window.__gmAdvanced ï¿½wï¿½ï¿½ï¿½Jï¿½ï¿½ï¿½Sï¿½ï¿½ openModal
       console.warn('[GM] openModal not available, __gmAdvanced keys:',Object.keys(window.__gmAdvanced));
-      alert('?? ¶i¶¥¼Ò²Õ¸ü¤J¤£§¹¥þ¡]openModal ¤èªk¿ò¥¢¡^\n\n½Ð­«·s¾ã²z­¶­±­«¸Õ¡C');
+      alert('?? ï¿½iï¿½ï¿½ï¿½Ò²Õ¸ï¿½ï¿½Jï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½]openModal ï¿½ï¿½kï¿½ò¥¢¡^\n\nï¿½Ð­ï¿½ï¿½sï¿½ï¿½zï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Õ¡C');
     } else {
-      // ÀË¬d¶i¶¥¼Ò²Õ¬O§_¥¿¦b¸ü¤J¤¤
+      // ï¿½Ë¬dï¿½iï¿½ï¿½ï¿½Ò²Õ¬Oï¿½_ï¿½ï¿½ï¿½bï¿½ï¿½ï¿½Jï¿½ï¿½
       var waitDialog=document.getElementById('__gmAdvModal');
       if(!waitDialog){
-        // Åã¥Ü¸ü¤J¤¤´£¥Ü¡A¦Aµ¥ 5 ¬í­«¸Õ
-        alert('?? ¶i¶¥¼Ò²Õ¸ü¤J¤¤...\n\n½Ðµy­Ô¦AÂI¤@¦¸¡C\n­Y«ùÄòµLªk¸ü¤J¡A½Ð­«·s¾ã²z­¶­±¡C');
-        // ©µ®É­«¸Õ¤@¦¸
+        // ï¿½ï¿½Ü¸ï¿½ï¿½Jï¿½ï¿½ï¿½ï¿½ï¿½Ü¡Aï¿½Aï¿½ï¿½ 5 ï¿½ï¿½ï¿½ï¿½ï¿½
+        alert('?? ï¿½iï¿½ï¿½ï¿½Ò²Õ¸ï¿½ï¿½Jï¿½ï¿½...\n\nï¿½Ðµyï¿½Ô¦Aï¿½Iï¿½@ï¿½ï¿½ï¿½C\nï¿½Yï¿½ï¿½ï¿½ï¿½Lï¿½kï¿½ï¿½ï¿½Jï¿½Aï¿½Ð­ï¿½ï¿½sï¿½ï¿½zï¿½ï¿½ï¿½ï¿½ï¿½C');
+        // ï¿½ï¿½ï¿½É­ï¿½ï¿½Õ¤@ï¿½ï¿½
         setTimeout(function(){
           if(window.__gmAdvanced&&typeof window.__gmAdvanced.openModal==='function'){
             try{window.__gmAdvanced.openModal();}catch(e){}
@@ -3681,52 +3681,52 @@ function __gmBuildPanel(){
     var charName=charNameInput.value.trim()||'';
     
     if(!charName){
-      status.textContent='? ½Ð¥ý¿é¤J¨¤¦â¦WºÙ';
+      status.textContent='? ï¿½Ð¥ï¿½ï¿½ï¿½Jï¿½ï¿½ï¿½ï¿½Wï¿½ï¿½';
       status.style.color='#e94560';
       return;
     }
     
-    status.textContent='?? ´ú¸Õ¤¤...';
+    status.textContent='?? ï¿½ï¿½ï¿½Õ¤ï¿½...';
     status.style.color='#ffd700';
     
-    // ÀË´ú¬O§_¦b¨¤¦â¿ï¾Üµe­±¡]ÀË´ú #slots ©Î .char-slot ¬O§_¦s¦b¡^
+    // ï¿½Ë´ï¿½ï¿½Oï¿½_ï¿½bï¿½ï¿½ï¿½ï¿½ï¿½Üµeï¿½ï¿½ï¿½]ï¿½Ë´ï¿½ #slots ï¿½ï¿½ .char-slot ï¿½Oï¿½_ï¿½sï¿½bï¿½^
     var slotsDiv=document.getElementById('slots');
     var charSlots=document.querySelectorAll('.char-slot');
     var isOnCharSelect=slotsDiv!==null||charSlots.length>0;
     
-    console.log('[GM] ´ú¸ÕÂ_½u­«³s¡G¨¤¦â¦WºÙ "'+charName+'"');
-    console.log('[GM] ¬O§_¦b¨¤¦â¿ï¾Üµe­±¡G', isOnCharSelect);
-    console.log('[GM] §ä¨ì', charSlots.length, '­Ó¨¤¦â¼Ñ');
+    console.log('[GM] ï¿½ï¿½ï¿½ï¿½ï¿½_ï¿½uï¿½ï¿½ï¿½sï¿½Gï¿½ï¿½ï¿½ï¿½Wï¿½ï¿½ "'+charName+'"');
+    console.log('[GM] ï¿½Oï¿½_ï¿½bï¿½ï¿½ï¿½ï¿½ï¿½Üµeï¿½ï¿½ï¿½G', isOnCharSelect);
+    console.log('[GM] ï¿½ï¿½ï¿½', charSlots.length, 'ï¿½Ó¨ï¿½ï¿½ï¿½ï¿½');
     
     if(isOnCharSelect){
-      status.textContent='?? ÀË´ú¨ì¨¤¦â¿ï¾Üµe­±¡A¹Á¸ÕÂIÀ»...';
+      status.textContent='?? ï¿½Ë´ï¿½ï¿½ì¨¤ï¿½ï¿½ï¿½Üµeï¿½ï¿½ï¿½Aï¿½ï¿½ï¿½ï¿½ï¿½Iï¿½ï¿½...';
       status.style.color='#fbbf24';
       
-      // ¹Á¸Õ§ä¨ì¥]§t¨¤¦â¦WºÙªº .char-slot ¨ÃÂIÀ»
+      // ï¿½ï¿½ï¿½Õ§ï¿½ï¿½]ï¿½tï¿½ï¿½ï¿½ï¿½Wï¿½Ùªï¿½ .char-slot ï¿½ï¿½ï¿½Iï¿½ï¿½
       var clicked=false;
       charSlots.forEach(function(slot, index){
-        console.log('[GM] ¨¤¦â¼Ñ', index, 'HTML:', slot.innerHTML.substring(0, 200));
+        console.log('[GM] ï¿½ï¿½ï¿½ï¿½ï¿½', index, 'HTML:', slot.innerHTML.substring(0, 200));
         if(slot.innerHTML.indexOf(charName)>-1){
           var emptyDiv=slot.querySelector('.empty');
           if(!emptyDiv){
-            console.log('[GM] §ä¨ì¨¤¦â¼Ñ', index, '¡AÂIÀ»¶i¤J...');
+            console.log('[GM] ï¿½ï¿½ì¨¤ï¿½ï¿½ï¿½', index, 'ï¿½Aï¿½Iï¿½ï¿½ï¿½iï¿½J...');
             slot.click();
             clicked=true;
-            status.textContent='? ¤wÂIÀ»¨¤¦â¼Ñ '+index+'¡I';
+            status.textContent='? ï¿½wï¿½Iï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ '+index+'ï¿½I';
             status.style.color='#4ade80';
           }
         }
       });
       
       if(!clicked){
-        status.textContent='? ¥¼§ä¨ì¨¤¦â "'+charName+'" ªº¼Ñ¦ì';
+        status.textContent='? ï¿½ï¿½ï¿½ï¿½ì¨¤ï¿½ï¿½ "'+charName+'" ï¿½ï¿½ï¿½Ñ¦ï¿½';
         status.style.color='#e94560';
-        console.log('[GM] ¥¼§ä¨ì¨¤¦â¼Ñ');
+        console.log('[GM] ï¿½ï¿½ï¿½ï¿½ì¨¤ï¿½ï¿½ï¿½');
       }
     } else {
-      status.textContent='? ¤£¦b¨¤¦â¿ï¾Üµe­±¡A´åÀ¸¥¿±`¤¤';
+      status.textContent='? ï¿½ï¿½ï¿½bï¿½ï¿½ï¿½ï¿½ï¿½Üµeï¿½ï¿½ï¿½Aï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½`ï¿½ï¿½';
       status.style.color='#4ade80';
-      console.log('[GM] ¤£¦b¨¤¦â¿ï¾Üµe­±¡A´åÀ¸¥¿±`');
+      console.log('[GM] ï¿½ï¿½ï¿½bï¿½ï¿½ï¿½ï¿½ï¿½Üµeï¿½ï¿½ï¿½Aï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½`');
     }
   };
 
@@ -3757,7 +3757,7 @@ function __gmBuildPanel(){
         document.getElementById('__gmp_exp_text').textContent=Math.round((c.exp||0)/(c.expToNext||1)*100)+'%';
         document.getElementById('__gmp_exp_bar').style.width=Math.round((c.exp||0)/(c.expToNext||1)*100)+'%';
         document.getElementById('__gmp_gold').textContent=(c.gold||0).toLocaleString();
-        document.getElementById('__gmp_online').textContent=window.__gmOnlineCount?(window.__gmOnlineCount+'¤H'):'--';
+        document.getElementById('__gmp_online').textContent=window.__gmOnlineCount?(window.__gmOnlineCount+'ï¿½H'):'--';
         var h='';
         if(d.monsters)d.monsters.forEach(function(m,i){if(m){var pct=Math.round(m.hp/m.maxHp*100);var col=pct>50?'#4ade80':pct>25?'#fbbf24':'#e94560';h+='<div>['+i+'] '+(m.n||'?')+' <span style="color:'+col+';">'+(m.hp||0)+'/'+(m.maxHp||0)+'</span></div>'}});
         document.getElementById('__gmp_mobs').innerHTML=h||'<span style="color:#888;">none</span>';
@@ -3785,14 +3785,14 @@ function __gmBuildPanel(){
     if(data.logicOp)document.getElementById('__gmp_farm_logic').value=data.logicOp;
     document.getElementById('__gmp_farm_logic_chk').checked=data.logicEnabled!==false;
     document.getElementById('__gmp_farm_atk').checked=data.autoAtk!==false;
-    // ·s¼W¡G«ü©w¥Ø¼Ð + §ðÀ»¥þ³¡
+    // ï¿½sï¿½Wï¿½Gï¿½ï¿½ï¿½wï¿½Ø¼ï¿½ + ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     var elSpecify=document.getElementById('__gmp_farm_specify_target');
     var elTargetIdx=document.getElementById('__gmp_farm_target_index');
     var elAttackAll=document.getElementById('__gmp_farm_attack_all');
     if(elSpecify)elSpecify.checked=data.specifyTarget||false;
     if(elTargetIdx)elTargetIdx.value=data.targetIndex||1;
     if(elAttackAll)elAttackAll.checked=data.attackAll||false;
-    // ·s¼W¡G¸ü¤JÂ_½u­«³s³]©w
+    // ï¿½sï¿½Wï¿½Gï¿½ï¿½ï¿½Jï¿½_ï¿½uï¿½ï¿½ï¿½sï¿½]ï¿½w
     if(data.charName)document.getElementById('__gmp_farm_char_name').value=data.charName;
     document.getElementById('__gmp_farm_reconnect').checked=data.reconnectEnabled!==false;
     if(data.reconnectInterval)document.getElementById('__gmp_farm_reconnect_interval').value=data.reconnectInterval;
@@ -3800,7 +3800,7 @@ function __gmBuildPanel(){
     if(data.charSlot!==undefined)document.getElementById('__gmp_farm_char_slot').value=data.charSlot;
     if(data.charSlot!==undefined)document.getElementById('__gmp_farm_char_slot').value=data.charSlot;
     if(data.charSlot!==undefined)document.getElementById('__gmp_farm_char_slot').value=data.charSlot;
-    // ·s¼W¡GMP reconnect
+    // ï¿½sï¿½Wï¿½GMP reconnect
     if(data.mpReconnectEnabled!==undefined)document.getElementById('__gmp_farm_mp_reconnect').checked=data.mpReconnectEnabled;
     if(data.mpReconnectThresh)document.getElementById('__gmp_farm_mp_reconnect_thresh').value=data.mpReconnectThresh;
   });
@@ -3843,14 +3843,14 @@ debugChk.onchange = function() {
 var debugLabel = document.createElement('label');
 debugLabel.htmlFor = '__gmp_debug_log';
 debugLabel.style.cssText = 'font-size:10px;color:#aaa;cursor:pointer;';
-debugLabel.textContent = 'Åã¥Ü¥D±±¥x°»´ú¤é»x';
+debugLabel.textContent = 'ï¿½ï¿½Ü¥Dï¿½ï¿½ï¿½xï¿½ï¿½ï¿½ï¿½ï¿½ï¿½x';
 debugContainer.appendChild(debugChk);
 debugContainer.appendChild(debugLabel);
 
 // Add export button to game tab
 var exportBtn = document.createElement('button');
 exportBtn.id = '__gmp_export_log';
-exportBtn.textContent = '?? ¶×¥X«Ê¥]ºÊ±±.log';
+exportBtn.textContent = '?? ï¿½×¥Xï¿½Ê¥]ï¿½Ê±ï¿½.log';
 exportBtn.style.cssText = 'width:100%;padding:6px;background:#0f3460;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;margin-bottom:8px;';
 exportBtn.onclick = function() {
   // Export packet logs
@@ -3865,12 +3865,12 @@ exportBtn.onclick = function() {
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a');
   a.href = url;
-  a.download = '«Ê¥]ºÊ±±_' + new Date().toISOString().slice(0,10) + '.log';
+  a.download = 'ï¿½Ê¥]ï¿½Ê±ï¿½_' + new Date().toISOString().slice(0,10) + '.log';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  alert('¤w¶×¥X ' + logs.length + ' µ§«Ê¥]°O¿ý');
+  alert('ï¿½wï¿½×¥X ' + logs.length + ' ï¿½ï¿½ï¿½Ê¥]ï¿½Oï¿½ï¿½');
 };
 
 // Append to game tab
@@ -3893,16 +3893,16 @@ document.addEventListener('__gm_show_panel',function(){__gmBuildPanel()});
   modal.id='__gmp_autostart_modal';
   modal.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.82);z-index:10000000;display:flex;align-items:center;justify-content:center;';
   modal.innerHTML='<div style="background:#1a1a2e;border:1px solid #0f3460;border-radius:14px;padding:28px 36px;text-align:center;max-width:400px;box-shadow:0 4px 30px rgba(0,0,0,0.7);">'+
-    '<div style="font-size:18px;color:#4ade80;font-weight:bold;margin-bottom:18px;">? ¦Û°Ê±Ò°Ê­Ë¼Æ</div>'+
+    '<div style="font-size:18px;color:#4ade80;font-weight:bold;margin-bottom:18px;">? ï¿½Û°Ê±Ò°Ê­Ë¼ï¿½</div>'+
     '<div id="__gmp_autostart_countdown" style="font-size:52px;color:#ffd700;font-weight:bold;margin-bottom:14px;">'+sec+'</div>'+
     '<div style="font-size:11px;color:#aaa;margin-bottom:18px;line-height:2;">'+
-      '? ±¾¾÷¸}¥»<br>'+
-      '? BOSS ¦Û°Ê¶i¤J<br>'+
-      '? BOSS ¦Û°Ê°»´ú¾Ô°«'+
+      '? ï¿½ï¿½ï¿½ï¿½ï¿½}ï¿½ï¿½<br>'+
+      '? BOSS ï¿½Û°Ê¶iï¿½J<br>'+
+      '? BOSS ï¿½Û°Ê°ï¿½ï¿½ï¿½ï¿½Ô°ï¿½'+
     '</div>'+
     '<div style="display:flex;gap:10px;justify-content:center;">'+
-      '<button id="__gmp_autostart_cancel" style="padding:10px 28px;background:#e94560;border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:14px;font-weight:bold;">¨ú®ø</button>'+
-      '<button id="__gmp_autostart_now" style="padding:10px 28px;background:#4ade80;border:none;color:#000;border-radius:8px;cursor:pointer;font-size:14px;font-weight:bold;">¥ß§Y±Ò°Ê</button>'+
+      '<button id="__gmp_autostart_cancel" style="padding:10px 28px;background:#e94560;border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:14px;font-weight:bold;">ï¿½ï¿½ï¿½ï¿½</button>'+
+      '<button id="__gmp_autostart_now" style="padding:10px 28px;background:#4ade80;border:none;color:#000;border-radius:8px;cursor:pointer;font-size:14px;font-weight:bold;">ï¿½ß§Yï¿½Ò°ï¿½</button>'+
     '</div>'+
   '</div>';
   document.body.appendChild(modal);
@@ -3937,17 +3937,17 @@ document.addEventListener('__gm_show_panel',function(){__gmBuildPanel()});
   },1000);
 })();
 
-  // ¦Û°Ê¶i¤J¼Ò¦¡¤U©Ô¡GºÊÅ¥ÅÜ§ó¨ÃÀx¦s/¼s¼½
+  // ï¿½Û°Ê¶iï¿½Jï¿½Ò¦ï¿½ï¿½Uï¿½Ô¡Gï¿½ï¿½Å¥ï¿½Ü§ï¿½ï¿½ï¿½xï¿½s/ï¿½sï¿½ï¿½
 document.addEventListener('change',function(e){
     var t=e.target;
     if(t && t.id==='__gmp_boss_script_mode'){
   var _mode=t.value;console.log('[BossScript] Mode changed to:'+_mode);
-      // ¼g¤J runtime state
+      // ï¿½gï¿½J runtime state
       if(window.__wbBossAutoScript)window.__wbBossAutoScript.mode=_mode;
-      // Åã¥Ü/ÁôÂÃ©w®É³]©w
+      // ï¿½ï¿½ï¿½/ï¿½ï¿½ï¿½Ã©wï¿½É³]ï¿½w
       var cronDiv=document.getElementById('__gmp_cron_config');
       if(cronDiv)cronDiv.style.display=(_mode==='cron')?'block':'none';
-      // Àx¦s¨ì chrome.storage
+      // ï¿½xï¿½sï¿½ï¿½ chrome.storage
       if(typeof __wbSaveBossScriptMode==='function')__wbSaveBossScriptMode(_mode);
     }
   });
@@ -3967,7 +3967,7 @@ console.log('[GM] Monitor injected '+ver);
 
     function updateHistSummary(){
       var el = document.getElementById('__gmp_gacha_hist_summary');
-      if (el) { el.textContent = gachaHistory.length ? '?? '+gachaHistory.length+' µ§¾ú¥v°O¿ý' : ''; }
+      if (el) { el.textContent = gachaHistory.length ? '?? '+gachaHistory.length+' ï¿½ï¿½ï¿½ï¿½ï¿½vï¿½Oï¿½ï¿½' : ''; }
     }
 
     function gachaHistSave(){
@@ -4023,8 +4023,8 @@ console.log('[GM] Monitor injected '+ver);
         var span = msgEl.querySelector('span');
         if (!span) {
           var text = msgEl.textContent.trim();
-          if (text && text.indexOf('®¥³ßÀò±o') > -1) {
-            var m = text.match(/®¥³ßÀò±o\s*(.+?)\s*[¡I!]?\s*$/);
+          if (text && text.indexOf('ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½o') > -1) {
+            var m = text.match(/ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½o\s*(.+?)\s*[ï¿½I!]?\s*$/);
             if (m && m[1]) addGachaItem(m[1].trim());
           }
           return;
@@ -4049,13 +4049,13 @@ console.log('[GM] Monitor injected '+ver);
       }).join('');
       m.innerHTML = '<div style="pointer-events:auto;background:#0f0f23;border:2px solid #22d3ee;border-radius:10px;width:380px;max-height:85vh;display:flex;flex-direction:column;color:#fff;font-family:sans-serif;">'+
         '<div style="display:flex;align-items:center;padding:8px 12px;border-bottom:1px solid #22d3ee;background:rgba(34,211,238,0.1);border-radius:8px 8px 0 0;">'+
-          '<span style="flex:1;font-size:14px;font-weight:bold;color:#22d3ee;">?? ©â¼ú¾ú¥v</span>'+
-          '<button id="__gmp_gacha_export" style="padding:2px 8px;background:#2a2a4a;border:1px solid #fbbf24;color:#fbbf24;border-radius:4px;cursor:pointer;font-size:10px;margin-right:6px;">?? ¶×¥X</button>'+
-          '<button id="__gmp_gacha_clear" style="padding:2px 8px;background:#2a2a4a;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:10px;margin-right:6px;">?? ²MªÅ</button>'+
+          '<span style="flex:1;font-size:14px;font-weight:bold;color:#22d3ee;">?? ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½v</span>'+
+          '<button id="__gmp_gacha_export" style="padding:2px 8px;background:#2a2a4a;border:1px solid #fbbf24;color:#fbbf24;border-radius:4px;cursor:pointer;font-size:10px;margin-right:6px;">?? ï¿½×¥X</button>'+
+          '<button id="__gmp_gacha_clear" style="padding:2px 8px;background:#2a2a4a;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:10px;margin-right:6px;">?? ï¿½Mï¿½ï¿½</button>'+
           '<span id="__gmp_gacha_modal_close" style="cursor:pointer;font-size:20px;color:#e94560;font-weight:bold;line-height:1;">?</span>'+
         '</div>'+
-        '<div id="__gmp_gacha_list" style="padding:8px 12px;overflow-y:auto;flex:1;max-height:500px;">'+(items||'<div style="color:#666;text-align:center;padding:20px;">©|µL°O¿ý</div>')+'</div>'+
-        '<div style="padding:4px 12px;border-top:1px solid rgba(34,211,238,0.1);font-size:9px;color:#666;text-align:right;">¦@ '+gachaHistory.length+' µ§</div>'+
+        '<div id="__gmp_gacha_list" style="padding:8px 12px;overflow-y:auto;flex:1;max-height:500px;">'+(items||'<div style="color:#666;text-align:center;padding:20px;">ï¿½|ï¿½Lï¿½Oï¿½ï¿½</div>')+'</div>'+
+        '<div style="padding:4px 12px;border-top:1px solid rgba(34,211,238,0.1);font-size:9px;color:#666;text-align:right;">ï¿½@ '+gachaHistory.length+' ï¿½ï¿½</div>'+
       '</div>';
       document.body.appendChild(m);
       var closeFn = function(){ m.remove(); };
@@ -4067,7 +4067,7 @@ console.log('[GM] Monitor injected '+ver);
         var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'gacha_history.csv'; a.click();
       };
       document.getElementById('__gmp_gacha_clear').onclick = function(){
-        if (!confirm('½T©w­n²MªÅ©Ò¦³©â¼ú¾ú¥v°O¿ý¡H')) return;
+        if (!confirm('ï¿½Tï¿½wï¿½nï¿½Mï¿½Å©Ò¦ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½vï¿½Oï¿½ï¿½ï¿½H')) return;
         gachaHistory = [];
         updateHistSummary();
         gachaHistSave();
@@ -4077,7 +4077,7 @@ console.log('[GM] Monitor injected '+ver);
 
     function sendGacha(){
       if (!gachaEnabled) { stopGacha(); return; }
-      if (gachaCount >= gachaMax) { stopGacha(); updateStatus('¤w§¹¦¨'); return; }
+      if (gachaCount >= gachaMax) { stopGacha(); updateStatus('ï¿½wï¿½ï¿½ï¿½ï¿½'); return; }
       try {
         if (window.__wbEmit) {
           window.__wbEmit('wbGacha', []);
@@ -4086,7 +4086,7 @@ console.log('[GM] Monitor injected '+ver);
         }
       } catch(e) { console.error('[Gacha] error:', e.message); }
       gachaCount++;
-      updateStatus('µo°e¤¤ ' + gachaCount + '/' + gachaMax);
+      updateStatus('ï¿½oï¿½eï¿½ï¿½ ' + gachaCount + '/' + gachaMax);
     }
 
     function startGacha(){
@@ -4096,7 +4096,7 @@ console.log('[GM] Monitor injected '+ver);
       gachaCount = 0;
       if (gachaTimer) clearInterval(gachaTimer);
       gachaTimer = setInterval(sendGacha, 2000);
-      updateStatus('¶}©l ' + gachaMax + ' ¦¸');
+      updateStatus('ï¿½}ï¿½l ' + gachaMax + ' ï¿½ï¿½');
       startObservingGachaMsg();
     }
 
@@ -4105,7 +4105,7 @@ console.log('[GM] Monitor injected '+ver);
       if (gachaTimer) { clearInterval(gachaTimer); gachaTimer = null; }
       var chk = document.getElementById('__gmp_gacha_enable');
       if (chk) chk.checked = false;
-      updateStatus('¤w°±¤î');
+      updateStatus('ï¿½wï¿½ï¿½ï¿½ï¿½');
     }
 
     function updateStatus(msg){
@@ -4133,7 +4133,7 @@ console.log('[GM] Monitor injected '+ver);
         gachaMax = Math.max(1, parseInt(t.value)||30);
         if (gachaEnabled) {
           gachaCount = 0;
-          updateStatus('µo°e¤¤ ' + gachaCount + '/' + gachaMax);
+          updateStatus('ï¿½oï¿½eï¿½ï¿½ ' + gachaCount + '/' + gachaMax);
         }
       }
     });
@@ -4193,7 +4193,7 @@ console.log('[GM] Monitor injected '+ver);
 
     function startFocusTest(){
       focusOn=true;
-      if(stEl){stEl.textContent='¹B¦æ¤¤';stEl.style.color='#4ade80';}
+      if(stEl){stEl.textContent='ï¿½Bï¿½æ¤¤';stEl.style.color='#4ade80';}
       if(logEl)logEl.innerHTML='';
       logLines=[];
       addLog('STARTED','#22d3ee');
@@ -4205,7 +4205,7 @@ console.log('[GM] Monitor injected '+ver);
       focusOn=false;
       if(focusTimer){clearInterval(focusTimer);focusTimer=null;}
       if(minimizeTimer){clearTimeout(minimizeTimer);minimizeTimer=null;}
-      if(stEl){stEl.textContent='¤w°±¤î';stEl.style.color='#888';}
+      if(stEl){stEl.textContent='ï¿½wï¿½ï¿½ï¿½ï¿½';stEl.style.color='#888';}
       if(chk)chk.checked=false;
       addLog('STOPPED','#e94560');
     }
@@ -4233,16 +4233,16 @@ console.log('[GM] Monitor injected '+ver);
         var bossId=inp?inp.value.trim()||'wb_casper':'wb_casper';
         var resEl=document.getElementById('__gmp_socket_result');
         if(!window.__wbEmit){
-          if(resEl){resEl.textContent='? __wbEmit ¤£¥i¥Î';resEl.style.color='#e94560';}
+          if(resEl){resEl.textContent='? __wbEmit ï¿½ï¿½ï¿½iï¿½ï¿½';resEl.style.color='#e94560';}
           return;
         }
         try{
           window.__wbEmit('joinBoss',[bossId]);
-          if(resEl){resEl.textContent='? joinBoss["'+bossId+'"] ¤wµo°e';resEl.style.color='#4ade80';}
+          if(resEl){resEl.textContent='? joinBoss["'+bossId+'"] ï¿½wï¿½oï¿½e';resEl.style.color='#4ade80';}
         }catch(er){
           if(resEl){resEl.textContent='? '+er.message;resEl.style.color='#e94560';}
         }
-        // 2¬í«á²M°£µ²ªG
+        // 2ï¿½ï¿½ï¿½Mï¿½ï¿½ï¿½ï¿½ï¿½G
         setTimeout(function(){if(resEl)resEl.textContent='';},3000);
       }
     });
