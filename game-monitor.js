@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v4.24';
+var ver='v4.25';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -3978,15 +3978,82 @@ setTimeout(function() {
   }
 }, 100);
 
-__gmBuildPanel();
-document.addEventListener('__gm_show_panel',function(){__gmBuildPanel();setTimeout(__gmBindTeleportSliders,100);});
+// === Auto-start countdown modal (10s) — MUST run before __gmBuildPanel or it gets blocked if build throws ===
+(function initAutoStart(){
+  if(!document.body){setTimeout(initAutoStart,100);return;}
+  var sec=10;
+  var timer=null;
+  var modal=document.createElement('div');
+  modal.id='__gmp_autostart_modal';
+  modal.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.82);z-index:10000000;display:flex;align-items:center;justify-content:center;';
+  var box=document.createElement('div');
+  box.style.cssText='background:#1a1a2e;border:1px solid #0f3460;border-radius:14px;padding:28px 36px;text-align:center;max-width:400px;box-shadow:0 4px 30px rgba(0,0,0,0.7);';
+  var titleEl2=document.createElement('div');
+  titleEl2.style.cssText='font-size:18px;color:#4ade80;font-weight:bold;margin-bottom:18px;';
+  titleEl2.textContent='\u23F1 \u81EA\u52D5\u555F\u52D5\u5012\u6578';
+  box.appendChild(titleEl2);
+  var countEl2=document.createElement('div');
+  countEl2.id='__gmp_autostart_countdown';
+  countEl2.style.cssText='font-size:52px;color:#ffd700;font-weight:bold;margin-bottom:14px;';
+  countEl2.textContent=String(sec);
+  box.appendChild(countEl2);
+  var featEl=document.createElement('div');
+  featEl.style.cssText='font-size:11px;color:#aaa;margin-bottom:18px;line-height:2;';
+  featEl.textContent='\u2705 \u639B\u6A5F\u8173\u672C\n\u2705 BOSS \u81EA\u52D5\u9032\u5165\n\u2705 BOSS \u81EA\u52D5\u5075\u6E2C\u6230\u9B25';
+  box.appendChild(featEl);
+  var btnRow2=document.createElement('div');
+  btnRow2.style.cssText='display:flex;gap:10px;justify-content:center;';
+  var cancelBtn2=document.createElement('button');
+  cancelBtn2.id='__gmp_autostart_cancel';
+  cancelBtn2.style.cssText='padding:10px 28px;background:#e94560;border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:14px;font-weight:bold;';
+  cancelBtn2.textContent='\u53D6\u6D88';
+  btnRow2.appendChild(cancelBtn2);
+  var nowBtn2=document.createElement('button');
+  nowBtn2.id='__gmp_autostart_now';
+  nowBtn2.style.cssText='padding:10px 28px;background:#4ade80;border:none;color:#000;border-radius:8px;cursor:pointer;font-size:14px;font-weight:bold;';
+  nowBtn2.textContent='\u7ACB\u5373\u555F\u52D5';
+  btnRow2.appendChild(nowBtn2);
+  box.appendChild(btnRow2);
+  modal.appendChild(box);
+  document.body.appendChild(modal);
 
-// ==== 傳送延遲雙拉條綁定（在 panel DOM 建立之後）====
+  function doStart(){
+    if(timer){clearInterval(timer);timer=null;}
+    if(modal.parentNode)modal.remove();
+    console.log('[AutoStart] Starting scripts...');
+    try{ if(typeof startFarming==='function')startFarming(); }catch(e){ console.warn('[AutoStart] startFarming failed:',e.message); }
+    try{
+      var cb3=document.getElementById('__gmp_boss_auto_enable');
+      if(cb3&&!cb3.checked){cb3.checked=true;cb3.dispatchEvent(new Event('change',{bubbles:true}));}
+      if(typeof __wbBossAutoScriptStart==='function') __wbBossAutoScriptStart();
+      if(typeof __wbBossAutoStart==='function') __wbBossAutoStart();
+    }catch(e){ console.warn('[AutoStart] Boss scripts failed:',e.message); }
+  }
+
+  function doCancel(){
+    if(timer){clearInterval(timer);timer=null;}
+    if(modal.parentNode)modal.remove();
+    console.log('[AutoStart] Cancelled by user');
+  }
+
+  cancelBtn2.onclick=doCancel;
+  nowBtn2.onclick=doStart;
+
+  timer=setInterval(function(){
+    sec--;
+    var el2=document.getElementById('__gmp_autostart_countdown');
+    if(el2)el2.textContent=sec;
+    if(sec<=0)doStart();
+  },1000);
+})();
+
+// ==== 傳送延遲雙拉條綁定 ====
 function __gmBindTeleportSliders(){
   var tpdMin=document.getElementById('__gmp_farm_teleport_delay_min');
   var tpdMinLbl=document.getElementById('__gmp_farm_teleport_delay_min_label');
   var tpdMax=document.getElementById('__gmp_farm_teleport_delay_max');
   var tpdMaxLbl=document.getElementById('__gmp_farm_teleport_delay_max_label');
+  if(!tpdMin&&!tpdMax)return;
   if(tpdMinLbl){var mv=parseFloat(tpdMin&&tpdMin.value!=null?tpdMin.value:'0')||0;tpdMinLbl.textContent=mv.toFixed(1)+'s';}
   if(tpdMaxLbl){var xv=parseFloat(tpdMax&&tpdMax.value!=null?tpdMax.value:'0')||0;tpdMaxLbl.textContent=xv.toFixed(1)+'s';}
   function __gmDoSaveTeleportDelay(){
@@ -4014,76 +4081,10 @@ function __gmBindTeleportSliders(){
     };
   }
 }
-setTimeout(__gmBindTeleportSliders,200);
+setTimeout(__gmBindTeleportSliders,300);
 
-// === Auto-start countdown modal (10s) ===
-(function initAutoStart(){
-  if(!document.body){setTimeout(initAutoStart,100);return;}
-  var sec=10;
-  var timer=null;
-  var modal=document.createElement('div');
-  modal.id='__gmp_autostart_modal';
-  modal.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.82);z-index:10000000;display:flex;align-items:center;justify-content:center;';
-  var box=document.createElement('div');
-  box.style.cssText='background:#1a1a2e;border:1px solid #0f3460;border-radius:14px;padding:28px 36px;text-align:center;max-width:400px;box-shadow:0 4px 30px rgba(0,0,0,0.7);';
-  var title=document.createElement('div');
-  title.style.cssText='font-size:18px;color:#4ade80;font-weight:bold;margin-bottom:18px;';
-  title.textContent='\u23F1 \u81EA\u52D5\u555F\u52D5\u5012\u6578';
-  box.appendChild(title);
-  var countEl=document.createElement('div');
-  countEl.id='__gmp_autostart_countdown';
-  countEl.style.cssText='font-size:52px;color:#ffd700;font-weight:bold;margin-bottom:14px;';
-  countEl.textContent=String(sec);
-  box.appendChild(countEl);
-  var feat=document.createElement('div');
-  feat.style.cssText='font-size:11px;color:#aaa;margin-bottom:18px;line-height:2;';
-  feat.textContent='\u2705 \u639B\u6A5F\u8173\u672C\n\u2705 BOSS \u81EA\u52D5\u9032\u5165\n\u2705 BOSS \u81EA\u52D5\u5075\u6E2C\u6230\u9B25';
-  box.appendChild(feat);
-  var btnRow=document.createElement('div');
-  btnRow.style.cssText='display:flex;gap:10px;justify-content:center;';
-  var cancelBtn=document.createElement('button');
-  cancelBtn.id='__gmp_autostart_cancel';
-  cancelBtn.style.cssText='padding:10px 28px;background:#e94560;border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:14px;font-weight:bold;';
-  cancelBtn.textContent='\u53D6\u6D88';
-  btnRow.appendChild(cancelBtn);
-  var nowBtn=document.createElement('button');
-  nowBtn.id='__gmp_autostart_now';
-  nowBtn.style.cssText='padding:10px 28px;background:#4ade80;border:none;color:#000;border-radius:8px;cursor:pointer;font-size:14px;font-weight:bold;';
-  nowBtn.textContent='\u7ACB\u5373\u555F\u52D5';
-  btnRow.appendChild(nowBtn);
-  box.appendChild(btnRow);
-  modal.appendChild(box);
-  document.body.appendChild(modal);
-
-  function doStart(){
-    if(timer){clearInterval(timer);timer=null;}
-    if(modal.parentNode)modal.remove();
-    console.log('[AutoStart] Starting scripts...');
-    try{ startFarming(); }catch(e){ console.warn('[AutoStart] startFarming failed:',e.message); }
-    try{
-      var cb=document.getElementById('__gmp_boss_auto_enable');
-      if(cb&&!cb.checked){cb.checked=true;cb.dispatchEvent(new Event('change',{bubbles:true}));}
-      if(typeof __wbBossAutoScriptStart==='function') __wbBossAutoScriptStart();
-      __wbBossAutoStart();
-    }catch(e){ console.warn('[AutoStart] Boss scripts failed:',e.message); }
-  }
-
-  function doCancel(){
-    if(timer){clearInterval(timer);timer=null;}
-    if(modal.parentNode)modal.remove();
-    console.log('[AutoStart] Cancelled by user');
-  }
-
-  cancelBtn.onclick=doCancel;
-  nowBtn.onclick=doStart;
-
-  timer=setInterval(function(){
-    sec--;
-    var el=document.getElementById('__gmp_autostart_countdown');
-    if(el)el.textContent=sec;
-    if(sec<=0)doStart();
-  },1000);
-})();
+try { __gmBuildPanel(); } catch(e) { console.error('[GM] __gmBuildPanel failed:',e.message); }
+document.addEventListener('__gm_show_panel',function(){ try{__gmBuildPanel()}catch(e){console.error(e)}; setTimeout(__gmBindTeleportSliders,100); });
 
   // 自動進入模式下拉：監聽變更並儲存/廣播
 document.addEventListener('change',function(e){
