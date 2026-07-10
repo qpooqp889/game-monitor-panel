@@ -369,26 +369,40 @@ function __wbCronQuickEnter(){
     as.farmWasRunning=true; window.stopFarming();
     console.log('[WB-CronQuick] Stopped farming');
   }
-  // 確保 WB tab
-  try{__wbEnsureWBTab();}catch(e){}
-  // ★ 00分進入：先清掉可能殘留的 br-lobby 結算畫面
-  var lbClean=document.getElementById('br-lobby');
-  if(lbClean){
-    console.log('[WB-CronQuick] Window start, cleaning br-lobby');
-    try{lbClean.click();}catch(e){}
-    // 等畫面切換後再繼續
-    return setTimeout(function(){__wbCronQuickEnter();},2000);
-  }
-  // 先對 #panel-scroll 滾輪連續滾兩次，確保 lazy-load 卡片全部渲染
-  var panel=document.getElementById('panel-scroll');
-  if(panel){
-    panel.scrollTop=panel.scrollTop+400;
+  // 確保 WB tab (串列等待：先點狩獵場 → 等DOM更新 → 點世界王 → 等渲染)
+  var zoneTab=document.querySelector('div.tab[data-tab="zone"]');
+  if(zoneTab){
+    zoneTab.click();
+    // Step1: 800ms後點世界王
     setTimeout(function(){
-      panel.scrollTop=panel.scrollTop+400;
-      setTimeout(function(){ __wbCronQuickScanCards(); },300);
-    },300);
+      var wbTab=document.querySelector('div.tab[data-tab="boss"]');
+      if(!wbTab){
+        var allTabs=document.querySelectorAll('div.tab, button.tab, span.tab, a.tab, .zone-tab, .sub-tab');
+        allTabs.forEach(function(t){if(t.textContent.indexOf('世界王')!==-1)wbTab=t;});
+      }
+      if(wbTab)wbTab.click();
+      // Step2: 500ms後 (br-lobby檢查→scroll→scan)
+      setTimeout(function(){
+        var lbClean=document.getElementById('br-lobby');
+        if(lbClean){
+          console.log('[WB-CronQuick] Window start, cleaning br-lobby');
+          try{lbClean.click();}catch(e){}
+        }
+        var panel=document.getElementById('panel-scroll');
+        if(panel){
+          panel.scrollTop=panel.scrollTop+400;
+          setTimeout(function(){
+            panel.scrollTop=panel.scrollTop+400;
+            setTimeout(function(){ __wbCronQuickScanCards(); },300);
+          },300);
+        }else{
+          __wbCronQuickScanCards();
+        }
+      },500);
+    },800);
     return;
   }
+  console.warn('[WB-CronQuick] No zone tab found');
   __wbCronQuickScanCards();
 }
 
