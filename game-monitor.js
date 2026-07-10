@@ -1,5 +1,5 @@
-ï»¿(function(){
-var ver='v4.20';
+(function(){
+var ver='v4.21';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -9,8 +9,8 @@ if(window.__gmInjected){
 window.__gmInjected=true;
 window.__gmVer=ver;
 
-// è¼‰å…¥é€²éšæ¨¡çµ„ï¼ˆè‹¥å°šæœªè¼‰å…¥ï¼Œé€é content script relayï¼‰
-// ç¾åœ¨ popup.js æœƒä¸€æ¬¡æ³¨å…¥å…©å€‹è…³æœ¬ï¼Œé€™è¡Œåƒ…ä½œç‚ºå…¼å®¹å‚™æ´
+// ¸ü¤J¶i¶¥¼Ò²Õ¡]­Y©|¥¼¸ü¤J¡A³z¹L content script relay¡^
+// ²{¦b popup.js ·|¤@¦¸ª`¤J¨â­Ó¸}¥»¡A³o¦æ¶È§@¬°­İ®e³Æ´©
 if(!window.__gmAdvanced){
   window.postMessage({type:'GM_LOAD_ADVANCED',src:'advanced-farming.js'},'*');
   console.log('[GM] Requested advanced-farming.js via content script');
@@ -18,13 +18,13 @@ if(!window.__gmAdvanced){
 window.__battleStatus={packets:[]};window.__gmOnlineCount=null;
 window.__gmFarming={running:false,timer:null,returning:false,waitTimer:null};
 window.__gmLogoutModalVisible=false;
-window.__gmLogoutDayOffset=0; // 0=ä»Šå¤©, 1=æ˜¨å¤©, 2=å‰å¤©...
+window.__gmLogoutDayOffset=0; // 0=¤µ¤Ñ, 1=¬Q¤Ñ, 2=«e¤Ñ...
 
 
 // ====== WB Boss Hook ======
 window.__wbBossEmitLog=[];
 window.__wbSocket=null;
-window.lastState=null;  // åˆå§‹åŒ–å…¨åŸŸ lastState
+window.lastState=null;  // ªì©l¤Æ¥ş°ì lastState
 (function(){
   function installSioHook(){
     if(window.__wbSioHooked)return;
@@ -55,16 +55,16 @@ window.lastState=null;  // åˆå§‹åŒ–å…¨åŸŸ lastState
           var payload=JSON.stringify(p.data).slice(0,2000);
           window.__sioPackets=window.__sioPackets||[];
           window.__sioPackets.push({t:Date.now(),dir:'EVENT',evt:evtName,args:payload});
-          // è§£æ state äº‹ä»¶ä¸¦æ›´æ–° window.lastState
+          // ¸ÑªR state ¨Æ¥ó¨Ã§ó·s window.lastState
           if(evtName==='state'&&p.data[1]){
             window.lastState=p.data[1];
           }
-          // æ•æ‰æ‰€æœ‰äº‹ä»¶ â†’ ä¸–ç•Œç‹å¿«å– + äº‹ä»¶åˆ—è¡¨
+          // ®·®»©Ò¦³¨Æ¥ó ¡÷ ¥@¬É¤ı§Ö¨ú + ¨Æ¥ó¦Cªí
           window.__wbAllEvents=window.__wbAllEvents||[];
           var rec={t:Date.now(),evt:evtName,payload:payload};
           window.__wbAllEvents.push(rec);
           if(window.__wbAllEvents.length>500)window.__wbAllEvents.shift();
-          // è¢«å‹•åµæ¸¬ï¼šäº‹ä»¶åå«ä¸–ç•Œç‹é—œéµå­—ï¼Œæˆ– state å« mode:bossï¼Œæˆ–æœ‰ boss:{...}
+          // ³Q°Ê°»´ú¡G¨Æ¥ó¦W§t¥@¬É¤ıÃöÁä¦r¡A©Î state §t mode:boss¡A©Î¦³ boss:{...}
           var _payloadStr=p.data.length>1?JSON.stringify(p.data[1]):'';
           var _isWbEvtName=/\b(respawn|worldBoss|bossList|world_boss|getBoss|RefreshBoss|bossInfo)\b/i.test(evtName);
           var _isStateBoss=_payloadStr.indexOf('"mode":"boss"')>-1||_payloadStr.indexOf('"mode": "boss"')>-1;
@@ -75,13 +75,13 @@ window.lastState=null;  // åˆå§‹åŒ–å…¨åŸŸ lastState
             window.__wbWorldBossCache.ts=Date.now();
             window.__wbLastEvtName=evtName;
             console.log('[WB] WorldBoss event captured:',evtName,JSON.stringify(p.data[1]).slice(0,200));
-            // æ›´æ–° UI å…ƒç´ ï¼ˆè¢«å‹•åµæ¸¬åˆ°å°±ç«‹åˆ»åˆ·æ–°ï¼‰
+            // §ó·s UI ¤¸¯À¡]³Q°Ê°»´ú¨ì´N¥ß¨è¨ê·s¡^
             var evtEl=document.getElementById('__gmp_wb_evt_name');
             if(evtEl){evtEl.textContent=evtName;evtEl.style.color='#4ade80';}
             var cntEl=document.getElementById('__gmp_wb_count');
             if(cntEl)cntEl.textContent='1+';
             __wbUpdateWorldBossUI();
-            // é€šçŸ¥æ‰€æœ‰è¨‚é–±è€…
+            // ³qª¾©Ò¦³­q¾\ªÌ
             (window.__wbBossEvtSubscribers||[]).forEach(function(fn){try{fn(evtName,p.data);}catch(e){}});
           }
         }
@@ -99,22 +99,22 @@ function __wbCastSkill(id,target){if(!window.__wbSocket)return;try{var p={id:id}
 function __wbSetBossSet(s){if(!window.__wbSocket)return;try{window.__wbSocket.emit('setBossSet',s);}catch(e){}}
 function __wbEmit(evt,data){if(!window.__wbSocket||!window.__wbSocket.emit)return;try{window.__wbSocket.emit(evt,data);console.log('[WB-Emit]',evt,JSON.stringify(data).slice(0,200));}catch(e){console.warn('[WB-Emit] failed',e);}}
 
-// ====== World Boss ç›£æ§ ======
-// å¿«å–ï¼šæœ€è¿‘ä¸€æ¬¡å«ä¸–ç•Œç‹è³‡è¨Šçš„ socket äº‹ä»¶
+// ====== World Boss ºÊ±± ======
+// §Ö¨ú¡G³Ìªñ¤@¦¸§t¥@¬É¤ı¸ê°Tªº socket ¨Æ¥ó
 window.__wbWorldBossCache={data:null,ts:0};
 window.__wbBossEvtSubscribers=[];
-// å·²ç¢ºèªçš„ä¸–ç•Œç‹äº‹ä»¶åï¼ˆç”±ä½¿ç”¨è€…æˆ–è‡ªå‹•åµæ¸¬ç¢ºèªå¾Œå¯«å…¥ï¼‰
+// ¤w½T»{ªº¥@¬É¤ı¨Æ¥ó¦W¡]¥Ñ¨Ï¥ÎªÌ©Î¦Û°Ê°»´ú½T»{«á¼g¤J¡^
 window.__wbWorldBossEvtName=null;
-// è‡ªå‹•æŸ¥è©¢è¨ˆæ™‚å™¨ handle
+// ¦Û°Ê¬d¸ß­p®É¾¹ handle
 window.__wbWorldBossTimer=null;
-// è¨‚é–±ç‰¹å®šä¸–ç•Œç‹äº‹ä»¶ï¼ˆç”¨æ–¼ UI å³æ™‚æ›´æ–°ï¼‰
+// ­q¾\¯S©w¥@¬É¤ı¨Æ¥ó¡]¥Î©ó UI §Y®É§ó·s¡^
 function __wbSubscribeWorldBoss(fn){if(window.__wbBossEvtSubscribers.indexOf(fn)<0)window.__wbBossEvtSubscribers.push(fn);}
-// æ‰‹å‹•æŸ¥è©¢ä¸–ç•Œç‹ï¼ˆå˜—è©¦å¸¸è¦‹äº‹ä»¶åï¼‰
+// ¤â°Ê¬d¸ß¥@¬É¤ı¡]¹Á¸Õ±`¨£¨Æ¥ó¦W¡^
 function __wbQueryWorldBoss(){
   __wbUpdateWorldBossUI();
   return true;
 }
-// è‡ªå‹•æŸ¥è©¢ï¼šæ¯ 60 ç§’åŸ·è¡Œä¸€æ¬¡
+// ¦Û°Ê¬d¸ß¡G¨C 60 ¬í°õ¦æ¤@¦¸
 function __wbStartWorldBossTimer(){
   if(window.__wbWorldBossTimer)clearInterval(window.__wbWorldBossTimer);
   window.__wbWorldBossCountdown=60;
@@ -136,15 +136,15 @@ function __wbStopWorldBossTimer(){
 function __wbParseWorldBossData(raw){
   if(!raw)return[];
   var arr=[];
-  // å˜—è©¦å¸¸è¦‹åŒ…è£æ ¼å¼
+  // ¹Á¸Õ±`¨£¥]¸Ë®æ¦¡
   if(Array.isArray(raw))arr=raw;
   else if(raw&&raw.list)arr=raw.list;
   else if(raw&&raw.bosses)arr=raw.bosses;
   else if(raw&&raw.data)arr=Array.isArray(raw.data)?raw.data:[raw.data];
   else if(typeof raw==='object')arr=[raw];
-  // éæ¿¾ï¼šæ¯é …é ˆæœ‰ name
+  // ¹LÂo¡G¨C¶µ¶·¦³ name
   arr=arr.filter(function(it){return it&&(it.name||it.n||it.bossName);});
-  // æ¨™æº–åŒ–æ¬„ä½
+  // ¼Ğ·Ç¤ÆÄæ¦ì
   return arr.map(function(it){
     return{
       name:it.name||it.n||it.bossName||it.boss_name||'?',
@@ -157,7 +157,7 @@ function __wbParseWorldBossData(raw){
     };
   });
 }
-// æ›´æ–°ä¸–ç•Œç‹ UIï¼ˆé¡¯ç¤ºåœ¨ BOSS Tab é ‚ç«¯ï¼‰
+// §ó·s¥@¬É¤ı UI¡]Åã¥Ü¦b BOSS Tab ³»ºİ¡^
 function __wbUpdateWorldBossUI(autoNav){
   var el=document.getElementById('__gmp_wb_list');
   var timerEl=document.getElementById('__gmp_wb_timer');
@@ -169,7 +169,7 @@ function __wbUpdateWorldBossUI(autoNav){
       timerEl.textContent=window.__wbWorldBossCountdown+'s/60s';
     }  }
 
-  // === è®€å–éŠæˆ² DOM ===
+  // === Åª¨ú¹CÀ¸ DOM ===
   var cards=document.querySelectorAll('.wb-card[data-boss]');
   var bossList=[];
   cards.forEach(function(card){
@@ -189,7 +189,7 @@ function __wbUpdateWorldBossUI(autoNav){
     var subText=subEl?subEl.textContent.trim():'';
 
     var status='unknown',respawn=null,respawnMin=null;
-    if(subText.indexOf('å·²è¢«æ“Šæ•—')!==-1||subText.indexOf('å·²è¢«å¾æœ')!==-1){
+    if(subText.indexOf('¤w³QÀ»±Ñ')!==-1||subText.indexOf('¤w³Q©ºªA')!==-1){
       status='dead';
       var m=subText.match(/(\d{1,2}):(\d{2})/);
       if(m){
@@ -200,19 +200,19 @@ function __wbUpdateWorldBossUI(autoNav){
         respawn=Math.round((target-now)/1000);
         respawnMin=Math.ceil(respawn/60);
       }
-    } else if(subText.indexOf('å­˜æ´»')!==-1||subText.indexOf('æˆ°é¬¥ä¸­')!==-1||subText.indexOf('HP')!==-1){
+    } else if(subText.indexOf('¦s¬¡')!==-1||subText.indexOf('¾Ô°«¤¤')!==-1||subText.indexOf('HP')!==-1){
       status='alive';
-    } else if(subText.indexOf('ç­‰å¾…')!==-1){
+    } else if(subText.indexOf('µ¥«İ')!==-1){
       status='waiting';
     }
 
     bossList.push({id:bossId,name:name,lv:lv,hp:status==='alive'?1:0,maxHp:1,respawn:respawn,respawnMin:respawnMin,status:status});
   });
 
-  // === è®€å–å„ªå…ˆè¨ä¼æ¸…å–® ===
+  // === Åª¨úÀu¥ı°Q¥ï²M³æ ===
   window.__wbLoadHuntList(function(huntIds){
     if(bossList.length){
-      if(countEl)countEl.textContent=bossList.length+' éš»';
+      if(countEl)countEl.textContent=bossList.length+' °¦';
       var html=bossList.map(function(b){
         var rsStr=b.respawn!==null?'\u91cd\u751f:'+Math.floor(b.respawn/60)+'m '+String((b.respawn%60)+'s').padStart(3,'0'):(b.status==='alive'?'\u5b58\u6d3b\u4e2d':'--');
         var sc={alive:'#4ade80',dead:'#888',waiting:'#fbbf24',unknown:'#555'};
@@ -231,10 +231,10 @@ function __wbUpdateWorldBossUI(autoNav){
       if(countEl)countEl.textContent='--';
       el.innerHTML='<div style="font-size:10px;color:#888;padding:8px;text-align:center;">\u4e16\u754c\u738b\u5217\u8868\u4e3a\u7a7a<br><span style="font-size:9px;color:#555;">\u8bf7\u5148\u5207\u6362\u5230\u300c\u72e9\u7315\u573a \u2192 \u4e16\u754c\u738b\u300d\u5206\u9875'+ (autoNav?'<br><span style="font-size:9px;color:#ffd700;">\u81ea\u52a8\u5bfc\u822a\u4e2d...</span>':'') +'</span></div>';
     }
-    // åŒæ­¥æ›´æ–°å„ªå…ˆè¨ä¼æ¸…å–® UI
+    // ¦P¨B§ó·sÀu¥ı°Q¥ï²M³æ UI
     window.__wbUpdateHuntListUI();
   });
-  // === è‡ªå‹•å°èˆª ===
+  // === ¦Û°Ê¾É¯è ===
   if(autoNav && bossList.length===0){
     try{
       var zoneTab=document.querySelector('div.tab[data-tab="zone"]');
@@ -244,7 +244,7 @@ function __wbUpdateWorldBossUI(autoNav){
     }catch(e){console.warn('[WB] autoNav error:',e);}
   }
 }
-// å˜—è©¦è‡ªå‹•åµæ¸¬ä¸–ç•Œç‹äº‹ä»¶ï¼ˆæ¯ 5 ç§’æª¢æŸ¥æœ€è¿‘æ•ç²çš„äº‹ä»¶ï¼‰
+// ¹Á¸Õ¦Û°Ê°»´ú¥@¬É¤ı¨Æ¥ó¡]¨C 5 ¬íÀË¬d³Ìªñ®·Àòªº¨Æ¥ó¡^
 function __wbDetectWorldBossEvt(){
   var evts=window.__wbAllEvents||[];
   var candidates={};
@@ -260,7 +260,7 @@ function __wbDetectWorldBossEvt(){
   }
   return null;
 }
-// åˆæ¬¡å•Ÿå‹•åµæ¸¬
+// ªì¦¸±Ò°Ê°»´ú
 setTimeout(function(){
   var detected=__wbDetectWorldBossEvt();
   if(detected){
@@ -268,7 +268,7 @@ setTimeout(function(){
     console.log('[WB-WorldBoss] confirmed event:',detected);
   }
   __wbStartWorldBossTimer();
-  // æ¯ 5 ç§’åµæ¸¬æ–°äº‹ä»¶
+  // ¨C 5 ¬í°»´ú·s¨Æ¥ó
   window.__wbWorldBossDetectTimer=setInterval(function(){
     if(!window.__wbWorldBossEvtName){
       var d=__wbDetectWorldBossEvt();
@@ -312,21 +312,21 @@ function __gmOpenLogoutHistory(){
     '<div style="background:#0f0f23;border:2px solid #4ade80;border-radius:10px;width:520px;max-height:80vh;display:flex;flex-direction:column;color:#fff;">'+
       '<div id="__gmp_logout_header" style="padding:12px 16px;border-bottom:1px solid #0f3460;display:flex;justify-content:space-between;align-items:center;">'+
         '<div>'+
-          '<div style="font-size:14px;font-weight:bold;color:#4ade80;">ğŸ“œ è¢«ç™»å‡ºæ­·å²è¨˜éŒ„</div>'+
+          '<div style="font-size:14px;font-weight:bold;color:#4ade80;">?? ³Qµn¥X¾ú¥v°O¿ı</div>'+
           '<div id="__gmp_logout_subtitle" style="font-size:10px;color:#888;margin-top:2px;">--</div>'+
         '</div>'+
-        '<button id="__gmp_logout_close" style="background:#e94560;border:none;color:#fff;width:24px;height:24px;border-radius:4px;cursor:pointer;font-size:14px;font-weight:bold;">Ã—</button>'+
+        '<button id="__gmp_logout_close" style="background:#e94560;border:none;color:#fff;width:24px;height:24px;border-radius:4px;cursor:pointer;font-size:14px;font-weight:bold;">¡Ñ</button>'+
       '</div>'+
       '<div style="padding:8px 12px;background:#1a1a2e;display:flex;gap:6px;align-items:center;border-bottom:1px solid #0f3460;">'+
-        '<button id="__gmp_logout_prev_day" style="padding:4px 8px;background:#0f3460;border:1px solid #00d9ff;border-radius:4px;color:#00d9ff;font-size:10px;cursor:pointer;">â—€ å‰ä¸€å¤©</button>'+
+        '<button id="__gmp_logout_prev_day" style="padding:4px 8px;background:#0f3460;border:1px solid #00d9ff;border-radius:4px;color:#00d9ff;font-size:10px;cursor:pointer;">? «e¤@¤Ñ</button>'+
         '<span id="__gmp_logout_current_day" style="flex:1;text-align:center;font-size:11px;color:#aaa;font-weight:bold;">--</span>'+
-        '<button id="__gmp_logout_next_day" style="padding:4px 8px;background:#0f3460;border:1px solid #00d9ff;border-radius:4px;color:#00d9ff;font-size:10px;cursor:pointer;">å¾Œä¸€å¤© â–¶</button>'+
+        '<button id="__gmp_logout_next_day" style="padding:4px 8px;background:#0f3460;border:1px solid #00d9ff;border-radius:4px;color:#00d9ff;font-size:10px;cursor:pointer;">«á¤@¤Ñ ?</button>'+
       '</div>'+
       '<div id="__gmp_logout_list" style="padding:12px 16px;overflow-y:auto;flex:1;font-size:11px;"></div>'+
       '<div style="padding:10px 12px;border-top:1px solid #0f3460;display:flex;gap:6px;align-items:center;">'+
         '<input type="date" id="__gmp_logout_date" style="padding:4px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;">'+
-        '<button id="__gmp_logout_clear_before" style="padding:5px 10px;background:#fbbf24;border:none;color:#0f0f23;border-radius:4px;font-size:11px;font-weight:bold;cursor:pointer;">ğŸ—‘ï¸ æ¸…é™¤é¸å®šåŠä¹‹å‰</button>'+
-        '<button id="__gmp_logout_clear_all" style="padding:5px 10px;background:#e94560;border:none;color:#fff;border-radius:4px;font-size:11px;font-weight:bold;cursor:pointer;">âš ï¸ å…¨éƒ¨æ¸…é™¤</button>'+
+        '<button id="__gmp_logout_clear_before" style="padding:5px 10px;background:#fbbf24;border:none;color:#0f0f23;border-radius:4px;font-size:11px;font-weight:bold;cursor:pointer;">??? ²M°£¿ï©w¤Î¤§«e</button>'+
+        '<button id="__gmp_logout_clear_all" style="padding:5px 10px;background:#e94560;border:none;color:#fff;border-radius:4px;font-size:11px;font-weight:bold;cursor:pointer;">?? ¥ş³¡²M°£</button>'+
       '</div>'+
     '</div>';
   document.body.appendChild(modal);
@@ -344,21 +344,21 @@ function __gmOpenLogoutHistory(){
   };
   document.getElementById('__gmp_logout_clear_before').onclick=function(){
     var dateStr=document.getElementById('__gmp_logout_date').value;
-    if(!dateStr){alert('è«‹é¸æ“‡æ—¥æœŸ');return;}
+    if(!dateStr){alert('½Ğ¿ï¾Ü¤é´Á');return;}
     var d=new Date(dateStr+'T00:00:00');
     var nextDay=new Date(d.getTime()+86400000);
-    if(!confirm('ç¢ºå®šè¦æ¸…é™¤ '+d.toLocaleDateString()+' (å«) ä¹‹å‰çš„æ‰€æœ‰è¨˜éŒ„ï¼Ÿ'))return;
+    if(!confirm('½T©w­n²M°£ '+d.toLocaleDateString()+' (§t) ¤§«eªº©Ò¦³°O¿ı¡H'))return;
     LogoutDB.clearBefore(nextDay).then(function(n){
-      alert('å·²æ¸…é™¤ '+n+' ç­†è¨˜éŒ„');
+      alert('¤w²M°£ '+n+' µ§°O¿ı');
       __gmRenderLogoutList();
-    }).catch(function(e){alert('æ¸…é™¤å¤±æ•—ï¼š'+e.message)});
+    }).catch(function(e){alert('²M°£¥¢±Ñ¡G'+e.message)});
   };
   document.getElementById('__gmp_logout_clear_all').onclick=function(){
-    if(!confirm('âš ï¸ ç¢ºå®šè¦æ¸…é™¤æ‰€æœ‰æ­·å²è¨˜éŒ„ï¼Ÿæ­¤å‹•ä½œç„¡æ³•å¾©åŸã€‚'))return;
+    if(!confirm('?? ½T©w­n²M°£©Ò¦³¾ú¥v°O¿ı¡H¦¹°Ê§@µLªk´_­ì¡C'))return;
     LogoutDB.clearAll().then(function(){
-      alert('å·²æ¸…é™¤æ‰€æœ‰è¨˜éŒ„');
+      alert('¤w²M°£©Ò¦³°O¿ı');
       __gmRenderLogoutList();
-    }).catch(function(e){alert('æ¸…é™¤å¤±æ•—ï¼š'+e.message)});
+    }).catch(function(e){alert('²M°£¥¢±Ñ¡G'+e.message)});
   };
   modal.onclick=function(e){if(e.target===modal)__gmCloseLogoutHistory()};
   
@@ -377,13 +377,13 @@ function __gmRenderLogoutList(){
   var now=new Date();
   var base=new Date(now.getFullYear(),now.getMonth(),now.getDate());
   base.setDate(base.getDate()-offset);
-  if(offset===0)dayLabel='ä»Šå¤©';
-  else if(offset===1)dayLabel='æ˜¨å¤©';
-  else if(offset===2)dayLabel='å‰å¤©';
-  else dayLabel='å‰ '+offset+' å¤©';
+  if(offset===0)dayLabel='¤µ¤Ñ';
+  else if(offset===1)dayLabel='¬Q¤Ñ';
+  else if(offset===2)dayLabel='«e¤Ñ';
+  else dayLabel='«e '+offset+' ¤Ñ';
   dayLabel+=' ('+base.toLocaleDateString()+')';
   
-  var subtitle='é¡¯ç¤º '+dayLabel+' çš„è¨˜éŒ„';
+  var subtitle='Åã¥Ü '+dayLabel+' ªº°O¿ı';
   var subEl=document.getElementById('__gmp_logout_subtitle');
   if(subEl)subEl.textContent=subtitle;
   var dayEl=document.getElementById('__gmp_logout_current_day');
@@ -395,14 +395,14 @@ function __gmRenderLogoutList(){
   
   var listEl=document.getElementById('__gmp_logout_list');
   if(!listEl)return;
-  listEl.innerHTML='<div style="text-align:center;color:#888;padding:20px;">è¼‰å…¥ä¸­...</div>';
+  listEl.innerHTML='<div style="text-align:center;color:#888;padding:20px;">¸ü¤J¤¤...</div>';
   
   LogoutDB.getByDayOffset(offset).then(function(records){
     LogoutDB.count().then(function(total){
-      var subtitle2='å…± '+records.length+' ç­†ï¼ˆç¸½ '+total+' ç­†ï¼‰';
+      var subtitle2='¦@ '+records.length+' µ§¡]Á` '+total+' µ§¡^';
       if(subEl)subEl.textContent=subtitle2;
       if(records.length===0){
-        listEl.innerHTML='<div style="text-align:center;color:#666;padding:30px;">'+dayLabel+' æ²’æœ‰è¨˜éŒ„</div>';
+        listEl.innerHTML='<div style="text-align:center;color:#666;padding:30px;">'+dayLabel+' ¨S¦³°O¿ı</div>';
         return;
       }
       var html='';
@@ -416,13 +416,13 @@ function __gmRenderLogoutList(){
         html+='<span style="color:'+color+';font-weight:bold;">#'+(total-i)+' '+dateStr+' '+timeStr+'</span>';
         html+='<span style="color:#666;font-size:10px;">id='+r.id+'</span>';
         html+='</div>';
-        if(r.mode)html+='<div style="color:#888;font-size:10px;margin-top:2px;">è§’è‰²: '+r.mode+'</div>';
+        if(r.mode)html+='<div style="color:#888;font-size:10px;margin-top:2px;">¨¤¦â: '+r.mode+'</div>';
         html+='</div>';
       });
       listEl.innerHTML=html;
     });
   }).catch(function(e){
-    listEl.innerHTML='<div style="text-align:center;color:#e94560;padding:20px;">è¼‰å…¥å¤±æ•—: '+e.message+'</div>';
+    listEl.innerHTML='<div style="text-align:center;color:#e94560;padding:20px;">¸ü¤J¥¢±Ñ: '+e.message+'</div>';
   });
 }
 
@@ -523,95 +523,95 @@ setInterval(function(){
 // Zone data
 var ZONES={
   town:[
-    {id:'town_silver_knight',name:'éŠ€é¨å£«æ‘',sub:'å®‰å…¨å€'},
-    {id:'town_elf',name:'å¦–ç²¾æ£®æ—',sub:'å®‰å…¨å€'},
-    {id:'town_talking',name:'èªªè©±ä¹‹å³¶',sub:'å®‰å…¨å€'},
-    {id:'town_gludio',name:'ç‡ƒæŸ³æ‘',sub:'å®‰å…¨å€'},
-    {id:'town_giran',name:'å¥‡å²©',sub:'å®‰å…¨å€'},
-    {id:'town_heine',name:'æµ·éŸ³',sub:'å®‰å…¨å€'},
-    {id:'town_oren',name:'æ­ç‘æ‘èŠ',sub:'å®‰å…¨å€'},
-    {id:'town_ivory_tower',name:'è±¡ç‰™å¡”',sub:'å®‰å…¨å€'},
-    {id:'town_sherine',name:'å¸­ç³ç¥æ®¿',sub:'å®‰å…¨å€'},
-    {id:'town_witon',name:'å¨é “æ‘',sub:'å®‰å…¨å€'},
+    {id:'town_silver_knight',name:'»ÈÃM¤h§ø',sub:'¦w¥ş°Ï'},
+    {id:'town_elf',name:'§¯ºë´ËªL',sub:'¦w¥ş°Ï'},
+    {id:'town_talking',name:'»¡¸Ü¤§®q',sub:'¦w¥ş°Ï'},
+    {id:'town_gludio',name:'¿U¬h§ø',sub:'¦w¥ş°Ï'},
+    {id:'town_giran',name:'©_©¥',sub:'¦w¥ş°Ï'},
+    {id:'town_heine',name:'®ü­µ',sub:'¦w¥ş°Ï'},
+    {id:'town_oren',name:'¼Ú·ç§ø²ø',sub:'¦w¥ş°Ï'},
+    {id:'town_ivory_tower',name:'¶H¤ú¶ğ',sub:'¦w¥ş°Ï'},
+    {id:'town_sherine',name:'®uµY¯«·µ',sub:'¦w¥ş°Ï'},
+    {id:'town_witon',name:'«Â¹y§ø',sub:'¦w¥ş°Ï'},
   ],
   wild:[
-    {id:'training',name:'æ–°å…µä¿®ç·´å ´',sub:'å»ºè­° Lv.3'},
-    {id:'silver_knight',name:'éŠ€é¨å£«åœ°å€',sub:'å»ºè­° Lv.10'},
-    {id:'talking_island',name:'èªªè©±ä¹‹å³¶å‘¨é‚Š',sub:'å»ºè­° Lv.6'},
-    {id:'zone_01',name:'å¦–ç²¾æ£®æ—å‘¨é‚Š',sub:'å»ºè­° Lv.9'},
-    {id:'talking_island_port',name:'èªªè©±ä¹‹å³¶æ¸¯å£',sub:'å»ºè­° Lv.14'},
-    {id:'elf_forest',name:'å¦–é­”æ£®æ—',sub:'å»ºè­° Lv.15'},
-    {id:'gludio',name:'å¤é­¯ä¸',sub:'å»ºè­° Lv.11'},
-    {id:'windwood',name:'é¢¨æœ¨',sub:'å»ºè­° Lv.10'},
-    {id:'desert',name:'æ²™æ¼ ',sub:'å»ºè­° Lv.20'},
-    {id:'kent',name:'è‚¯ç‰¹',sub:'å»ºè­° Lv.11'},
-    {id:'dragon_valley',name:'é¾ä¹‹è°·',sub:'å»ºè­° Lv.20'},
-    {id:'fire_dragon',name:'ç«é¾çªŸ',sub:'å»ºè­° Lv.33'},
-    {id:'giran',name:'å¥‡å²©',sub:'å»ºè­° Lv.20'},
-    {id:'heine',name:'æµ·éŸ³',sub:'å»ºè­° Lv.19'},
-    {id:'mirror_forest',name:'é¡å­æ£®æ—',sub:'å»ºè­° Lv.22'},
-    {id:'zone_02',name:'æ­ç‘',sub:'å»ºè­° Lv.18'},
-    {id:'zone_03',name:'æ­ç‘é›ªåŸ',sub:'å»ºè­° Lv.32'},
-    {id:'zone_04',name:'è‰¾çˆ¾æ‘©æ¿€æˆ°åœ°',sub:'å»ºè­° Lv.24'},
-    {id:'zone_05',name:'åœ‹å¢ƒè¦å¡',sub:'å»ºè­° Lv.29'},
-    {id:'dream_island',name:'å¤¢å¹»ä¹‹å³¶',sub:'å»ºè­° Lv.39'},
+    {id:'training',name:'·s§L­×½m³õ',sub:'«ØÄ³ Lv.3'},
+    {id:'silver_knight',name:'»ÈÃM¤h¦a°Ï',sub:'«ØÄ³ Lv.10'},
+    {id:'talking_island',name:'»¡¸Ü¤§®q©PÃä',sub:'«ØÄ³ Lv.6'},
+    {id:'zone_01',name:'§¯ºë´ËªL©PÃä',sub:'«ØÄ³ Lv.9'},
+    {id:'talking_island_port',name:'»¡¸Ü¤§®q´ä¤f',sub:'«ØÄ³ Lv.14'},
+    {id:'elf_forest',name:'§¯Å]´ËªL',sub:'«ØÄ³ Lv.15'},
+    {id:'gludio',name:'¥j¾|¤B',sub:'«ØÄ³ Lv.11'},
+    {id:'windwood',name:'­·¤ì',sub:'«ØÄ³ Lv.10'},
+    {id:'desert',name:'¨Fºz',sub:'«ØÄ³ Lv.20'},
+    {id:'kent',name:'ªÖ¯S',sub:'«ØÄ³ Lv.11'},
+    {id:'dragon_valley',name:'Às¤§¨¦',sub:'«ØÄ³ Lv.20'},
+    {id:'fire_dragon',name:'¤õÀs¸]',sub:'«ØÄ³ Lv.33'},
+    {id:'giran',name:'©_©¥',sub:'«ØÄ³ Lv.20'},
+    {id:'heine',name:'®ü­µ',sub:'«ØÄ³ Lv.19'},
+    {id:'mirror_forest',name:'Ãè¤l´ËªL',sub:'«ØÄ³ Lv.22'},
+    {id:'zone_02',name:'¼Ú·ç',sub:'«ØÄ³ Lv.18'},
+    {id:'zone_03',name:'¼Ú·ç³·­ì',sub:'«ØÄ³ Lv.32'},
+    {id:'zone_04',name:'¦ãº¸¼¯¿E¾Ô¦a',sub:'«ØÄ³ Lv.24'},
+    {id:'zone_05',name:'°ê¹Ò­n¶ë',sub:'«ØÄ³ Lv.29'},
+    {id:'dream_island',name:'¹Ú¤Û¤§®q',sub:'«ØÄ³ Lv.39'},
   ],
   dungeon:[
-    {id:'zone_06',name:'å¤é­¯ä¸åœ°ç›£1æ¨“',sub:'Lv.9'},
-    {id:'zone_07',name:'å¤é­¯ä¸åœ°ç›£2æ¨“',sub:'Lv.14'},
-    {id:'zone_08',name:'å¤é­¯ä¸åœ°ç›£3æ¨“',sub:'Lv.14'},
-    {id:'zone_09',name:'å¤é­¯ä¸åœ°ç›£4æ¨“',sub:'Lv.15'},
-    {id:'zone_10',name:'å¤é­¯ä¸åœ°ç›£5æ¨“',sub:'Lv.16'},
-    {id:'zone_11',name:'å¤é­¯ä¸åœ°ç›£6æ¨“',sub:'Lv.20'},
-    {id:'zone_12',name:'å¤é­¯ä¸åœ°ç›£7æ¨“',sub:'Lv.18'},
-    {id:'zone_13',name:'èªªè©±ä¹‹å³¶åœ°ç›£1æ¨“',sub:'Lv.10'},
-    {id:'zone_14',name:'èªªè©±ä¹‹å³¶åœ°ç›£2æ¨“',sub:'Lv.11'},
-    {id:'zone_15',name:'çœ é¾æ´ç©´1æ¨“',sub:'Lv.6'},
-    {id:'zone_16',name:'çœ é¾æ´ç©´2æ¨“',sub:'Lv.9'},
-    {id:'zone_17',name:'çœ é¾æ´ç©´3æ¨“',sub:'Lv.13'},
-    {id:'crystal_cave1',name:'æ°´æ™¶æ´ç©´1æ¨“',sub:'Lv.28'},
-    {id:'crystal_cave2',name:'æ°´æ™¶æ´ç©´2æ¨“',sub:'Lv.28'},
-    {id:'crystal_cave3',name:'æ°´æ™¶æ´ç©´3æ¨“',sub:'Lv.28'},
-    {id:'zone_18',name:'å¥‡å²©åœ°ç›£1æ¨“',sub:'Lv.14'},
-    {id:'zone_19',name:'å¥‡å²©åœ°ç›£2æ¨“',sub:'Lv.15'},
-    {id:'zone_20',name:'å¥‡å²©åœ°ç›£3æ¨“',sub:'Lv.15'},
-    {id:'zone_21',name:'å¥‡å²©åœ°ç›£4æ¨“',sub:'Lv.22'},
-    {id:'zone_22',name:'æ²™æ¼ åœ°ç›£1æ¨“',sub:'Lv.9'},
-    {id:'zone_23',name:'æ²™æ¼ åœ°ç›£2æ¨“',sub:'Lv.15'},
-    {id:'zone_24',name:'æ²™æ¼ åœ°ç›£3æ¨“',sub:'Lv.15'},
-    {id:'zone_25',name:'æ²™æ¼ åœ°ç›£4æ¨“',sub:'Lv.25'},
-    {id:'zone_26',name:'é¾ä¹‹è°·åœ°ç›£1æ¨“',sub:'Lv.24'},
-    {id:'zone_27',name:'é¾ä¹‹è°·åœ°ç›£2æ¨“',sub:'Lv.28'},
-    {id:'zone_28',name:'é¾ä¹‹è°·åœ°ç›£3æ¨“',sub:'Lv.29'},
-    {id:'zone_29',name:'é¾ä¹‹è°·åœ°ç›£4æ¨“',sub:'Lv.30'},
-    {id:'zone_30',name:'é¾ä¹‹è°·åœ°ç›£5æ¨“',sub:'Lv.36'},
-    {id:'zone_31',name:'é¾ä¹‹è°·åœ°ç›£6æ¨“',sub:'Lv.38'},
-    {id:'zone_32',name:'èèŸ»æ´çªŸ1æ¨“',sub:'Lv.16'},
-    {id:'zone_33',name:'èèŸ»æ´çªŸ2æ¨“',sub:'Lv.16'},
-    {id:'zone_34',name:'åœ°ä¸‹é€šé“1æ¨“',sub:'Lv.16'},
-    {id:'zone_35',name:'åœ°ä¸‹é€šé“2æ¨“',sub:'Lv.19'},
-    {id:'zone_36',name:'åœ°ä¸‹é€šé“3æ¨“',sub:'Lv.21'},
-    {id:'eva_kingdom',name:'ä¼Šå¨ƒç‹åœ‹',sub:'Lv.22'},
-    {id:'zone_37',name:'è±¡ç‰™å¡”4æ¨“',sub:'Lv.32'},
-    {id:'zone_38',name:'è±¡ç‰™å¡”5æ¨“',sub:'Lv.32'},
-    {id:'zone_39',name:'è±¡ç‰™å¡”6æ¨“',sub:'Lv.43'},
-    {id:'zone_40',name:'è±¡ç‰™å¡”7æ¨“',sub:'Lv.43'},
-    {id:'zone_41',name:'è±¡ç‰™å¡”8æ¨“',sub:'Lv.43'},
+    {id:'zone_06',name:'¥j¾|¤B¦aºÊ1¼Ó',sub:'Lv.9'},
+    {id:'zone_07',name:'¥j¾|¤B¦aºÊ2¼Ó',sub:'Lv.14'},
+    {id:'zone_08',name:'¥j¾|¤B¦aºÊ3¼Ó',sub:'Lv.14'},
+    {id:'zone_09',name:'¥j¾|¤B¦aºÊ4¼Ó',sub:'Lv.15'},
+    {id:'zone_10',name:'¥j¾|¤B¦aºÊ5¼Ó',sub:'Lv.16'},
+    {id:'zone_11',name:'¥j¾|¤B¦aºÊ6¼Ó',sub:'Lv.20'},
+    {id:'zone_12',name:'¥j¾|¤B¦aºÊ7¼Ó',sub:'Lv.18'},
+    {id:'zone_13',name:'»¡¸Ü¤§®q¦aºÊ1¼Ó',sub:'Lv.10'},
+    {id:'zone_14',name:'»¡¸Ü¤§®q¦aºÊ2¼Ó',sub:'Lv.11'},
+    {id:'zone_15',name:'¯vÀs¬}¥Ş1¼Ó',sub:'Lv.6'},
+    {id:'zone_16',name:'¯vÀs¬}¥Ş2¼Ó',sub:'Lv.9'},
+    {id:'zone_17',name:'¯vÀs¬}¥Ş3¼Ó',sub:'Lv.13'},
+    {id:'crystal_cave1',name:'¤ô´¹¬}¥Ş1¼Ó',sub:'Lv.28'},
+    {id:'crystal_cave2',name:'¤ô´¹¬}¥Ş2¼Ó',sub:'Lv.28'},
+    {id:'crystal_cave3',name:'¤ô´¹¬}¥Ş3¼Ó',sub:'Lv.28'},
+    {id:'zone_18',name:'©_©¥¦aºÊ1¼Ó',sub:'Lv.14'},
+    {id:'zone_19',name:'©_©¥¦aºÊ2¼Ó',sub:'Lv.15'},
+    {id:'zone_20',name:'©_©¥¦aºÊ3¼Ó',sub:'Lv.15'},
+    {id:'zone_21',name:'©_©¥¦aºÊ4¼Ó',sub:'Lv.22'},
+    {id:'zone_22',name:'¨Fºz¦aºÊ1¼Ó',sub:'Lv.9'},
+    {id:'zone_23',name:'¨Fºz¦aºÊ2¼Ó',sub:'Lv.15'},
+    {id:'zone_24',name:'¨Fºz¦aºÊ3¼Ó',sub:'Lv.15'},
+    {id:'zone_25',name:'¨Fºz¦aºÊ4¼Ó',sub:'Lv.25'},
+    {id:'zone_26',name:'Às¤§¨¦¦aºÊ1¼Ó',sub:'Lv.24'},
+    {id:'zone_27',name:'Às¤§¨¦¦aºÊ2¼Ó',sub:'Lv.28'},
+    {id:'zone_28',name:'Às¤§¨¦¦aºÊ3¼Ó',sub:'Lv.29'},
+    {id:'zone_29',name:'Às¤§¨¦¦aºÊ4¼Ó',sub:'Lv.30'},
+    {id:'zone_30',name:'Às¤§¨¦¦aºÊ5¼Ó',sub:'Lv.36'},
+    {id:'zone_31',name:'Às¤§¨¦¦aºÊ6¼Ó',sub:'Lv.38'},
+    {id:'zone_32',name:'¿ÂÃÆ¬}¸]1¼Ó',sub:'Lv.16'},
+    {id:'zone_33',name:'¿ÂÃÆ¬}¸]2¼Ó',sub:'Lv.16'},
+    {id:'zone_34',name:'¦a¤U³q¹D1¼Ó',sub:'Lv.16'},
+    {id:'zone_35',name:'¦a¤U³q¹D2¼Ó',sub:'Lv.19'},
+    {id:'zone_36',name:'¦a¤U³q¹D3¼Ó',sub:'Lv.21'},
+    {id:'eva_kingdom',name:'¥ì«½¤ı°ê',sub:'Lv.22'},
+    {id:'zone_37',name:'¶H¤ú¶ğ4¼Ó',sub:'Lv.32'},
+    {id:'zone_38',name:'¶H¤ú¶ğ5¼Ó',sub:'Lv.32'},
+    {id:'zone_39',name:'¶H¤ú¶ğ6¼Ó',sub:'Lv.43'},
+    {id:'zone_40',name:'¶H¤ú¶ğ7¼Ó',sub:'Lv.43'},
+    {id:'zone_41',name:'¶H¤ú¶ğ8¼Ó',sub:'Lv.43'},
   ],
   special:[
-    {id:'antaras_lair',name:'å®‰å¡”ç‘æ–¯æ£²æ¯åœ°',sub:'Lv.93'},
-    {id:'fafurion_lair',name:'æ³•åˆ©æ˜‚æ´ç©´',sub:'Lv.93'},
-    {id:'valakas_lair',name:'å·´æ‹‰å¡æ–¯å·¢ç©´',sub:'Lv.95'},
+    {id:'antaras_lair',name:'¦w¶ğ·ç´µ´Ï®§¦a',sub:'Lv.93'},
+    {id:'fafurion_lair',name:'ªk§Q©ù¬}¥Ş',sub:'Lv.93'},
+    {id:'valakas_lair',name:'¤Ú©Ô¥d´µ±_¥Ş',sub:'Lv.95'},
   ],
   WORLDBOSS:[
-    {id:'wb_sema',name:'è¥¿ç‘ª',lv:42},{id:'wb_batus',name:'å·´åœŸç‘Ÿ',lv:43},
-    {id:'wb_casper',name:'å¡å£«æŸ',lv:44},{id:'wb_marcus',name:'é¦¬åº«çˆ¾',lv:45},
-    {id:'wb_ifrit',name:'ä¼Šå¼—åˆ©ç‰¹',lv:45},{id:'wb_wyvern',name:'é£›é¾',lv:48},
-    {id:'wb_blackelder',name:'é»‘é•·è€…',lv:50},{id:'wb_doppel',name:'è®Šå½¢æ€ªé¦–é ˜',lv:50},
-    {id:'wb_baphomet',name:'å·´é¢¨ç‰¹',lv:50},{id:'wb_kurt',name:'å…‹ç‰¹',lv:51},
-    {id:'wb_dk',name:'æ­»äº¡é¨å£«',lv:52},{id:'wb_ice',name:'å†°ä¹‹å¥³ç‹',lv:56},
-    {id:'wb_antqueen',name:'å·¨èŸ»å¥³çš‡',lv:57},{id:'wb_phoenix',name:'ä¸æ­»é³¥',lv:59},
-    {id:'wb_demon',name:'æƒ¡é­”',lv:61},
+    {id:'wb_sema',name:'¦èº¿',lv:42},{id:'wb_batus',name:'¤Ú¤g·æ',lv:43},
+    {id:'wb_casper',name:'¥d¤h¬f',lv:44},{id:'wb_marcus',name:'°¨®wº¸',lv:45},
+    {id:'wb_ifrit',name:'¥ì¥±§Q¯S',lv:45},{id:'wb_wyvern',name:'­¸Às',lv:48},
+    {id:'wb_blackelder',name:'¶ÂªøªÌ',lv:50},{id:'wb_doppel',name:'ÅÜ§Î©Ç­º»â',lv:50},
+    {id:'wb_baphomet',name:'¤Ú­·¯S',lv:50},{id:'wb_kurt',name:'§J¯S',lv:51},
+    {id:'wb_dk',name:'¦º¤`ÃM¤h',lv:52},{id:'wb_ice',name:'¦B¤§¤k¤ı',lv:56},
+    {id:'wb_antqueen',name:'¥¨ÃÆ¤k¬Ó',lv:57},{id:'wb_phoenix',name:'¤£¦º³¾',lv:59},
+    {id:'wb_demon',name:'´cÅ]',lv:61},
   ],
 };
 
@@ -677,7 +677,7 @@ function startFarming(){
   var atkCheck=document.getElementById('__gmp_farm_atk');
   var reconnectCheck=document.getElementById('__gmp_farm_reconnect');
   var charNameInput=document.getElementById('__gmp_farm_char_name');
-  // è‹¥è§’è‰²åç¨±ç‚ºç©ºï¼Œè‡ªå‹•å¾éŠæˆ² DOM è®€å– id="t-name" å¡«å…¥
+  // ­Y¨¤¦â¦WºÙ¬°ªÅ¡A¦Û°Ê±q¹CÀ¸ DOM Åª¨ú id="t-name" ¶ñ¤J
   if(!charNameInput.value.trim()){
     var tname=document.getElementById('t-name');
     if(tname){charNameInput.value=tname.textContent.trim();}
@@ -706,7 +706,7 @@ function startFarming(){
   var reconnectInterval=parseInt(reconnectIntervalInput.value)||60;
   var charSlot=parseInt(charSlotSelect.value)||0;
 
-  if(!farmZone){alert('è«‹å…ˆé¸æ“‡æ›æ©Ÿåœ°åœ–ï¼');return;}
+  if(!farmZone){alert('½Ğ¥ı¿ï¾Ü±¾¾÷¦a¹Ï¡I');return;}
 
   window.__gmFarming={running:true,timer:null,returning:false,inTown:false,reconnectTimer:null,logoutCount:0,lastLogoutTime:null,__firstAttackSent:false,__lastAttackTime:null};
   window.__gmFarming.reconnectEnabled=reconnectEnabled;
@@ -716,9 +716,9 @@ function startFarming(){
   window.__gmFarming.__lastLogoutFlag=false;
   window.__gmFarming.hpAction=hpAction;
   window.__gmFarming.mpAction=mpAction;
-  btn.textContent='â–  åœæ­¢è…³æœ¬';
+  btn.textContent='¡½ °±¤î¸}¥»';
   btn.style.background='#e94560';
-  status.textContent='å‚³é€è‡³æ›æ©Ÿåœ°åœ–...';
+  status.textContent='¶Ç°e¦Ü±¾¾÷¦a¹Ï...';
   status.style.color='#fbbf24';
 
   // Immediately teleport to farm zone
@@ -732,7 +732,7 @@ function startFarming(){
       window.__gmFarming.timer=setTimeout(loop,1000);
       return;
     }
-    // é€²éšè¦å‰‡è©•ä¼°ï¼ˆæ¯æ¬¡ loop éƒ½æœƒåŸ·è¡Œï¼Œéœ€æœ‰å®Œæ•´ stateï¼‰
+    // ¶i¶¥³W«hµû¦ô¡]¨C¦¸ loop ³£·|°õ¦æ¡A»İ¦³§¹¾ã state¡^
     if(window.__gmAdvanced&&window.__gmAdvanced.tick){
       try{window.__gmAdvanced.tick(d)}catch(e){}
     }
@@ -745,8 +745,8 @@ function startFarming(){
       var zoneId=d.zoneId||ZONE_NAME_LOOKUP[zoneName]||zoneName||'';
       // Check if in town: by mode='lobby' or zone name contains town keywords
       var isInTown=mode==='lobby'||
-                   zoneName.indexOf('å¤§å»³')>-1||zoneName.indexOf('å¤§å…')>-1||
-                   zoneName.indexOf('æ‘')>-1||zoneName.indexOf('å®‰å…¨')>-1;
+                   zoneName.indexOf('¤jÆU')>-1||zoneName.indexOf('¤j?')>-1||
+                   zoneName.indexOf('§ø')>-1||zoneName.indexOf('¦w¥ş')>-1;
       
       console.log('[GM] mode:',mode,'zoneName:',zoneName,'isInTown:',isInTown,'HP:',Math.round(hp/maxHp*100)+'%','MP:',Math.round(mp/maxMp*100)+'%');
       
@@ -762,7 +762,7 @@ function startFarming(){
           sendCmd('attack');
           window.__gmFarming.__firstAttackSent=true;
           window.__gmFarming.__lastAttackTime=Date.now();
-          status.textContent='âš”ï¸ é¦–æ¬¡æ”»æ“Š...';
+          status.textContent='?? ­º¦¸§ğÀ»...';
           console.log('[GM] First attack sent');
         }
         // Periodic check: every 10s, check if monsters exist
@@ -774,7 +774,7 @@ function startFarming(){
             if(!hasActiveMonster){
               sendCmd('attack');
               window.__gmFarming.__lastAttackTime=Date.now();
-              status.textContent='âš”ï¸ ç„¡æ€ªç‰©ï¼Œé‡æ–°æ”»æ“Š...';
+              status.textContent='?? µL©Çª«¡A­«·s§ğÀ»...';
               console.log('[GM] Re-attack: no active monsters after 10s');
             } else {
               console.log('[GM] Monsters active, skip attack');
@@ -783,21 +783,21 @@ function startFarming(){
         }
       }
 
-      // æŒ‡å®šç›®æ¨™ + æ”»æ“Šå…¨éƒ¨
+      // «ü©w¥Ø¼Ğ + §ğÀ»¥ş³¡
       var elSpecify=document.getElementById('__gmp_farm_specify_target');
       var elTargetIdx=document.getElementById('__gmp_farm_target_index');
       var elAttackAll=document.getElementById('__gmp_farm_attack_all');
       var specify=elSpecify?elSpecify.checked:false;
       var tgtIdx=elTargetIdx?parseInt(elTargetIdx.value)||1:1;
       var atkAll=elAttackAll?elAttackAll.checked:false;
-      // æŒ‡å®šç›®æ¨™ï¼šæ¯5ç§’ send setTarget
+      // «ü©w¥Ø¼Ğ¡G¨C5¬í send setTarget
       if(specify&&window.__wbSocket&&window.__wbSocket.connected){
         if(!window.__gmFarming.__lastSetTarget||(Date.now()-window.__gmFarming.__lastSetTarget)>=5000){
           try{window.__wbSocket.emit('setTarget',tgtIdx);console.log('[GM] [WB-SEND] setTarget ['+tgtIdx+']')}catch(e){}
           window.__gmFarming.__lastSetTarget=Date.now();
         }
       }
-      // æ”»æ“Šå…¨éƒ¨ï¼šå°æ‰€æœ‰ HP>0 çš„æ€ªç‰© send setTargetï¼ˆæ¯5ç§’ï¼‰
+      // §ğÀ»¥ş³¡¡G¹ï©Ò¦³ HP>0 ªº©Çª« send setTarget¡]¨C5¬í¡^
       if(atkAll&&d.monsters&&d.monsters.length>0&&
          (!window.__gmFarming.__lastAttackAll||(Date.now()-window.__gmFarming.__lastAttackAll)>=5000)){
         for(var ai=0;ai<d.monsters.length;ai++){
@@ -805,7 +805,7 @@ function startFarming(){
             try{window.__wbSocket.emit('setTarget',ai)}catch(e){}
           }
         }
-        console.log('[GM] [WB-SEND] setTarget (æ”»æ“Šå…¨éƒ¨) â†’ '+d.monsters.length+' targets');
+        console.log('[GM] [WB-SEND] setTarget (§ğÀ»¥ş³¡) ¡÷ '+d.monsters.length+' targets');
         window.__gmFarming.__lastAttackAll=Date.now();
       }
 
@@ -826,13 +826,13 @@ function startFarming(){
         if(mpLow)needReturn=true;
       }
 
-      // Feature 1: HP low â†’ trigger action (selectChar or toLobby)
+      // Feature 1: HP low ¡÷ trigger action (selectChar or toLobby)
       if(hpLow&&mode!=='boss'&&mode!=='bosscombat'){
         try{
           if(hpAction==='toLobby'){
             sendCmd('toLobby');
             console.log('[GM] HP low, sent toLobby');
-            status.textContent='HPä¸è¶³ï¼Œå›å¤§å»³...';
+            status.textContent='HP¤£¨¬¡A¦^¤jÆU...';
           } else {
             if(window.__wbSocket && window.__wbSocket.connected){
               window.__wbSocket.emit('selectChar', window.__gmFarming.charSlot||0);
@@ -840,19 +840,19 @@ function startFarming(){
               window.__ws.send('42["selectChar",'+(window.__gmFarming.charSlot||0)+']');
             }
             console.log('[GM] HP low, sent selectChar');
-            status.textContent='HPä¸è¶³ï¼Œé‡æ–°è¼‰å…¥è§’è‰²...';
+            status.textContent='HP¤£¨¬¡A­«·s¸ü¤J¨¤¦â...';
           }
         }catch(e){console.log('[GM] HP trigger error:', e.message);}
         status.style.color='#fbbf24';
       }
 
-      // Feature 1b: MP low â†’ trigger action (selectChar or toLobby)
+      // Feature 1b: MP low ¡÷ trigger action (selectChar or toLobby)
       if(mpLow&&mode!=='boss'&&mode!=='bosscombat'){
         try{
           if(mpAction==='toLobby'){
             sendCmd('toLobby');
             console.log('[GM] MP low, sent toLobby');
-            status.textContent='MPä¸è¶³ï¼Œå›å¤§å»³...';
+            status.textContent='MP¤£¨¬¡A¦^¤jÆU...';
           } else {
             if(window.__wbSocket && window.__wbSocket.connected){
               window.__wbSocket.emit('selectChar', window.__gmFarming.charSlot||0);
@@ -860,7 +860,7 @@ function startFarming(){
               window.__ws.send('42["selectChar",'+(window.__gmFarming.charSlot||0)+']');
             }
             console.log('[GM] MP low, sent selectChar');
-            status.textContent='MPä¸è¶³ï¼Œé‡æ–°è¼‰å…¥è§’è‰²...';
+            status.textContent='MP¤£¨¬¡A­«·s¸ü¤J¨¤¦â...';
           }
         }catch(e){console.log('[GM] MP trigger error:', e.message);}
         status.style.color='#fbbf24';
@@ -875,7 +875,7 @@ function startFarming(){
         if(hpGtOk||mpGtOk){
           console.log('[GM] Teleporting to farm zone:',farmZone);
           sendZone(farmZone);
-          status.textContent='HP/MPå……è¶³ï¼Œå‚³é€æ›æ©Ÿ...';
+          status.textContent='HP/MP¥R¨¬¡A¶Ç°e±¾¾÷...';
           status.style.color='#4ade80';
           window.__gmFarming.returning=false;
         }
@@ -895,7 +895,7 @@ function startFarming(){
   }
   loop();
 
-  // === æ–·ç·šé‡é€£æª¢æ¸¬ ===
+  // === Â_½u­«³sÀË´ú ===
   function checkReconnect(){
     if(!window.__gmFarming.running)return;
     if(!window.__gmFarming.reconnectEnabled||!window.__gmFarming.charName){
@@ -905,7 +905,7 @@ function startFarming(){
     
     var charName=window.__gmFarming.charName;
     
-    // æª¢æ¸¬æ˜¯å¦åœ¨è§’è‰²é¸æ“‡ç•«é¢ï¼ˆæª¢æ¸¬ #slots æˆ– .char-slot æ˜¯å¦å­˜åœ¨ï¼‰
+    // ÀË´ú¬O§_¦b¨¤¦â¿ï¾Üµe­±¡]ÀË´ú #slots ©Î .char-slot ¬O§_¦s¦b¡^
     var slotsDiv=document.getElementById('slots');
     var charSlots=document.querySelectorAll('.char-slot');
     var isOnCharSelect=slotsDiv!==null||charSlots.length>0;
@@ -916,60 +916,60 @@ function startFarming(){
         window.__gmFarming.lastLogoutTime=Date.now();
         window.__gmFarming.__lastLogoutFlag=true;
         updateLogoutUI();
-        // å¯«å…¥ç™»å‡ºè¨˜éŒ„ (chrome.storage.local)
+        // ¼g¤Jµn¥X°O¿ı (chrome.storage.local)
         if(window.LogoutDB){
           LogoutDB.add(Date.now(),window.__gmFarming.charName||'').then(function(){
-            console.log('[GM] ç™»å‡ºäº‹ä»¶å·²è¨˜éŒ„');
+            console.log('[GM] µn¥X¨Æ¥ó¤w°O¿ı');
           }).catch(function(e){
-            console.warn('[GM] ç™»å‡ºè¨˜éŒ„å¯«å…¥å¤±æ•—:',e);
+            console.warn('[GM] µn¥X°O¿ı¼g¤J¥¢±Ñ:',e);
           });
         }
         var lastTime=new Date().toLocaleTimeString();
-        console.log('[GM] è¢«ç™»å‡º #'+window.__gmFarming.logoutCount+' @ '+lastTime);
+        console.log('[GM] ³Qµn¥X #'+window.__gmFarming.logoutCount+' @ '+lastTime);
       }
-      status.textContent='âš ï¸ æ–·ç·šæª¢æ¸¬ #'+window.__gmFarming.logoutCount+'ï¼Œå˜—è©¦é‡é€£...';
+      status.textContent='?? Â_½uÀË´ú #'+window.__gmFarming.logoutCount+'¡A¹Á¸Õ­«³s...';
       status.style.color='#fbbf24';
-      console.log('[GM] æ–·ç·šæª¢æ¸¬ï¼šåœ¨è§’è‰²é¸æ“‡ç•«é¢ï¼Œå˜—è©¦é»æ“Šè§’è‰²æ§½...');
+      console.log('[GM] Â_½uÀË´ú¡G¦b¨¤¦â¿ï¾Üµe­±¡A¹Á¸ÕÂIÀ»¨¤¦â¼Ñ...');
       
-      // å˜—è©¦æ‰¾åˆ°åŒ…å«è§’è‰²åç¨±çš„ .char-slot ä¸¦é»æ“Š
+      // ¹Á¸Õ§ä¨ì¥]§t¨¤¦â¦WºÙªº .char-slot ¨ÃÂIÀ»
       var clicked=false;
       charSlots.forEach(function(slot){
         if(slot.innerHTML.indexOf(charName)>-1){
           var emptyDiv=slot.querySelector('.empty');
           if(!emptyDiv){
-            console.log('[GM] æ‰¾åˆ°è§’è‰²æ§½ï¼Œé»æ“Šé€²å…¥...');
+            console.log('[GM] §ä¨ì¨¤¦â¼Ñ¡AÂIÀ»¶i¤J...');
             slot.click();
             clicked=true;
-            status.textContent='ğŸ”„ é»æ“Šè§’è‰²é€²å…¥éŠæˆ²...';
+            status.textContent='?? ÂIÀ»¨¤¦â¶i¤J¹CÀ¸...';
             status.style.color='#4ade80';
           }
         }
       });
       
       if(!clicked){
-        console.log('[GM] æœªæ‰¾åˆ°è§’è‰²æ§½ï¼Œå˜—è©¦é»æ“Šä»»ä½•æœ‰æ•ˆè§’è‰²...');
-        // å‚™ç”¨ï¼šé»æ“Šç¬¬ä¸€å€‹æœ‰è§’è‰²åçš„æ§½
+        console.log('[GM] ¥¼§ä¨ì¨¤¦â¼Ñ¡A¹Á¸ÕÂIÀ»¥ô¦ó¦³®Ä¨¤¦â...');
+        // ³Æ¥Î¡GÂIÀ»²Ä¤@­Ó¦³¨¤¦â¦Wªº¼Ñ
         var firstChar=document.querySelector('.char-slot:not(.empty)');
         if(firstChar){
           firstChar.click();
           clicked=true;
-          console.log('[GM] é»æ“Šç¬¬ä¸€å€‹è§’è‰²æ§½...');
+          console.log('[GM] ÂIÀ»²Ä¤@­Ó¨¤¦â¼Ñ...');
         }
       }
     } else {
       if(window.__gmFarming.__lastLogoutFlag){
         window.__gmFarming.__lastLogoutFlag=false;
-        console.log('[GM] å·²é›¢é–‹è§’è‰²é¸æ“‡ç•«é¢');
+        console.log('[GM] ¤wÂ÷¶}¨¤¦â¿ï¾Üµe­±');
       }
     }
     
     window.__gmFarming.reconnectTimer=setTimeout(checkReconnect,window.__gmFarming.reconnectInterval);
   }
-  // å»¶é²å•Ÿå‹•æª¢æ¸¬
+  // ©µ¿ğ±Ò°ÊÀË´ú
   window.__gmFarming.reconnectTimer=setTimeout(checkReconnect,window.__gmFarming.reconnectInterval);
 }
 
-// æ›´æ–°è¢«ç™»å‡ºè¨ˆæ•¸å™¨ UI
+// §ó·s³Qµn¥X­p¼Æ¾¹ UI
 function updateLogoutUI(){
   var el=document.getElementById('__gmp_farm_logout_count');
   if(!el)return;
@@ -981,13 +981,13 @@ function updateLogoutUI(){
   var elTime=document.getElementById('__gmp_farm_logout_time');
   if(elTime){
     if(window.__gmFarming&&window.__gmFarming.lastLogoutTime){
-      elTime.textContent='æœ€å¾Œ: '+new Date(window.__gmFarming.lastLogoutTime).toLocaleTimeString();
+      elTime.textContent='³Ì«á: '+new Date(window.__gmFarming.lastLogoutTime).toLocaleTimeString();
     } else {
-      elTime.textContent='å°šæœªè¢«ç™»å‡º';
+      elTime.textContent='©|¥¼³Qµn¥X';
     }
   }
 }
-// åˆå§‹åŒ–é¡¯ç¤º
+// ªì©l¤ÆÅã¥Ü
 setTimeout(updateLogoutUI,500);
   setTimeout(function(){
     if(window.LogoutDB){
@@ -1010,8 +1010,8 @@ function stopFarming(){
   window.__gmFarming.returning=false;
   var btn=document.getElementById('__gmp_farm_btn');
   var status=document.getElementById('__gmp_farm_status');
-  if(btn){btn.textContent='â–¶ é–‹å•Ÿè…³æœ¬';btn.style.background='#0f3460'}
-  if(status){status.textContent='å·²åœæ­¢';status.style.color='#888'}
+  if(btn){btn.textContent='? ¶}±Ò¸}¥»';btn.style.background='#0f3460'}
+  if(status){status.textContent='¤w°±¤î';status.style.color='#888'}
 }
 // Export to window for cross-IIFE access (cron mode in wb-boss.js)
 window.startFarming=startFarming;
@@ -1029,35 +1029,36 @@ function __gmBuildPanel(){
   p.innerHTML=
   '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #0f3460;">'+
   '<div style="display:flex;align-items:center;gap:6px;">'+
-    '<button id="__gmp_tab_game" style="padding:5px 9px;background:#0f3460;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">ç‹€æ…‹</button>'+
-    '<button id="__gmp_tab_farm" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">æ›æ©Ÿ</button>'+
-    '<button id="__gmp_tab_boss" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">ğŸ‘‘BOSS</button>'+
-    '<button id="__gmp_tab_friend" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">ğŸ” å¥½å‹</button>'+
+    '<button id="__gmp_tab_game" style="padding:5px 9px;background:#0f3460;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">ª¬ºA</button>'+
+    '<button id="__gmp_tab_farm" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">±¾¾÷</button>'+
+    '<button id="__gmp_tab_boss" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">??BOSS</button>'+
+    '<button id="__gmp_tab_friend" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">?? ¦n¤Í</button>'+
     '<div style="position:relative;display:inline-block;">'+
-      '<button id="__gmp_tab_more_btn" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:14px;line-height:1;" title="æ›´å¤š">â‹®</button>'+
+      '<button id="__gmp_tab_more_btn" style="padding:5px 9px;background:#333;border:none;color:#aaa;border-radius:6px;cursor:pointer;font-size:14px;line-height:1;" title="§ó¦h">?</button>'+
       '<div id="__gmp_tab_more_menu" style="display:none;position:absolute;top:100%;right:0;background:#1a1a2e;border:1px solid #0f3460;border-radius:6px;padding:4px 0;z-index:100;min-width:100px;box-shadow:0 4px 12px rgba(0,0,0,0.5);">'+
-        '<button id="__gmp_tab_zone" style="display:block;width:100%;padding:6px 12px;background:transparent;border:none;color:#aaa;cursor:pointer;font-size:11px;text-align:left;">ğŸ—ºï¸ åœ°åœ–</button>'+
-        '<button id="__gmp_tab_monitor" style="display:block;width:100%;padding:6px 12px;background:transparent;border:none;color:#aaa;cursor:pointer;font-size:11px;text-align:left;">ğŸ“¡ ç›£æ§</button>'+
-        '<button id="__gmp_tab_skill" style="display:block;width:100%;padding:6px 12px;background:transparent;border:none;color:#aaa;cursor:pointer;font-size:11px;text-align:left;">âš¡ æŠ€èƒ½</button>'+
-        '<button id="__gmp_tab_status" style="display:block;width:100%;padding:6px 12px;background:transparent;border:none;color:#aaa;cursor:pointer;font-size:11px;text-align:left;">ğŸ“Š ç‹€æ…‹</button>'+
-        '<button id="__gmp_tab_other" style="display:block;width:100%;padding:6px 12px;background:transparent;border:none;color:#aaa;cursor:pointer;font-size:11px;text-align:left;">ğŸ”§ å…¶ä»–</button>'+
+        '<button id="__gmp_tab_zone" style="display:block;width:100%;padding:6px 12px;background:transparent;border:none;color:#aaa;cursor:pointer;font-size:11px;text-align:left;">??? ¦a¹Ï</button>'+
+        '<button id="__gmp_tab_monitor" style="display:block;width:100%;padding:6px 12px;background:transparent;border:none;color:#aaa;cursor:pointer;font-size:11px;text-align:left;">?? ºÊ±±</button>'+
+        '<button id="__gmp_tab_skill" style="display:block;width:100%;padding:6px 12px;background:transparent;border:none;color:#aaa;cursor:pointer;font-size:11px;text-align:left;">? §Ş¯à</button>'+
+        '<button id="__gmp_tab_status" style="display:block;width:100%;padding:6px 12px;background:transparent;border:none;color:#aaa;cursor:pointer;font-size:11px;text-align:left;">?? ª¬ºA</button>'+
+        '<button id="__gmp_tab_other" style="display:block;width:100%;padding:6px 12px;background:transparent;border:none;color:#aaa;cursor:pointer;font-size:11px;text-align:left;">?? ¨ä¥L</button>'+
       '</div>'+
     '</div>'+
     '<span id="__gmp_ver" style="font-size:10px;color:#4ade80;font-weight:bold;">'+ver+'</span>'+
   '</div>'+
   '<div style="display:flex;gap:3px;">'+
-    '<button id="__gmp_expand" style="background:#0f3460;border:none;color:#fff;width:22px;height:22px;border-radius:4px;cursor:pointer;font-size:12px;">â–¼</button>'+
+    '<button id="__gmp_expand" style="background:#0f3460;border:none;color:#fff;width:22px;height:22px;border-radius:4px;cursor:pointer;font-size:12px;">¡¿</button>'+
     '<button id="__gmp_zoom_in" style="background:#333;border:none;color:#fff;width:20px;height:20px;border-radius:4px;cursor:pointer;font-size:12px;">+</button>'+
     '<button id="__gmp_zoom_out" style="background:#333;border:none;color:#fff;width:20px;height:20px;border-radius:4px;cursor:pointer;font-size:12px;">-</button>'+
     '<button id="__gmp_close" style="background:#e94560;border:none;color:#fff;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:12px;">X</button>'+
-'</div>'+
-'</div>'+
+'</div>'+ // controls div
+'</div>'+ // header row
+'<div id="__gmp_content">'+
 
     // === GAME TAB ===
     '<div id="__gmp_tab_content_game" style="display:block;">'+
     '<div style="display:flex;gap:5px;margin-bottom:8px;">'+
-      '<button id="__gmp_lobby" style="flex:1;padding:6px 0;background:#e94560;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">ğŸ  è¿”å›å¤§å»³</button>'+
-      '<button id="__gmp_zone_town" style="flex:1;padding:6px 0;background:#0f3460;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:11px;">âš”ï¸ éŠ€é¨å£«æ‘</button>'+
+      '<button id="__gmp_lobby" style="flex:1;padding:6px 0;background:#e94560;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">?? ªğ¦^¤jÆU</button>'+
+      '<button id="__gmp_zone_town" style="flex:1;padding:6px 0;background:#0f3460;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:11px;">?? »ÈÃM¤h§ø</button>'+
     '</div>'+
     '<div style="background:rgba(255,255,255,0.05);padding:8px;border-radius:6px;margin-bottom:8px;">'+
       '<div id="__gmp_name" style="font-weight:bold;color:#ffd700;font-size:14px;">Loading...</div>'+
@@ -1080,43 +1081,43 @@ function __gmBuildPanel(){
         '<span style="color:#888;font-size:10px;">GOLD </span><span id="__gmp_gold" style="color:#ffd700;font-weight:bold;">--</span>'+
       '</div>'+
       '<div style="flex:1;background:rgba(255,255,255,0.05);padding:5px 8px;border-radius:4px;text-align:center;">'+
-        '<span style="color:#888;font-size:10px;">ğŸ‘¥ </span><span id="__gmp_online" style="color:#7bd14a;font-weight:bold;">--</span>'+
+        '<span style="color:#888;font-size:10px;">?? </span><span id="__gmp_online" style="color:#7bd14a;font-weight:bold;">--</span>'+
       '</div>'+
     '</div>'+
     '<div style="background:rgba(255,255,255,0.05);padding:6px;border-radius:4px;">'+
-      '<div style="font-weight:bold;margin-bottom:3px;font-size:11px;">ğŸ‘¾ MONSTERS</div>'+
+      '<div style="font-weight:bold;margin-bottom:3px;font-size:11px;">?? MONSTERS</div>'+
       '<div id="__gmp_mobs" style="font-size:11px;color:#aaa;">...</div>'+
     '</div>'+
     '</div>'+
     // === ZONE TAB ===
     '<div id="__gmp_tab_content_zone" style="display:none;">'+
-    '<input id="__gmp_search" placeholder="ğŸ” æœå°‹..." style="width:100%;padding:6px 8px;background:rgba(255,255,255,0.08);border:1px solid #0f3460;border-radius:6px;color:#fff;font-size:11px;margin-bottom:6px;outline:none;box-sizing:border-box;">'+
+    '<input id="__gmp_search" placeholder="?? ·j´M..." style="width:100%;padding:6px 8px;background:rgba(255,255,255,0.08);border:1px solid #0f3460;border-radius:6px;color:#fff;font-size:11px;margin-bottom:6px;outline:none;box-sizing:border-box;">'+
     '<div style="display:flex;gap:3px;margin-bottom:6px;flex-wrap:wrap;">'+
-      '<button class="__gmp_st active" data-t="town" style="padding:4px 7px;background:#0f3460;border:none;color:#fff;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">æ‘</button>'+
-      '<button class="__gmp_st" data-t="wild" style="padding:4px 7px;background:#333;border:none;color:#aaa;border-radius:5px;cursor:pointer;font-size:10px;">é‡å¤–</button>'+
-      '<button class="__gmp_st" data-t="dungeon" style="padding:4px 7px;background:#333;border:none;color:#aaa;border-radius:5px;cursor:pointer;font-size:10px;">åœ°ç›£</button>'+
-      '<button class="__gmp_st" data-t="special" style="padding:4px 7px;background:#333;border:none;color:#aaa;border-radius:5px;cursor:pointer;font-size:10px;">ç‹/ç‰¹</button>'+
+      '<button class="__gmp_st active" data-t="town" style="padding:4px 7px;background:#0f3460;border:none;color:#fff;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">§ø</button>'+
+      '<button class="__gmp_st" data-t="wild" style="padding:4px 7px;background:#333;border:none;color:#aaa;border-radius:5px;cursor:pointer;font-size:10px;">³¥¥~</button>'+
+      '<button class="__gmp_st" data-t="dungeon" style="padding:4px 7px;background:#333;border:none;color:#aaa;border-radius:5px;cursor:pointer;font-size:10px;">¦aºÊ</button>'+
+      '<button class="__gmp_st" data-t="special" style="padding:4px 7px;background:#333;border:none;color:#aaa;border-radius:5px;cursor:pointer;font-size:10px;">¤ı/¯S</button>'+
     '</div>'+
     '<div id="__gmp_boss_list" style="max-height:180px;overflow-y:auto;margin-bottom:4px;display:none;"></div>'+
     '<div id="__gmp_zone_list" style="max-height:180px;overflow-y:auto;"></div>'+
     '</div>'+
     // === BOSS TAB ===
     '<div id="__gmp_tab_content_boss" style="display:none;">'+
-    // â˜… è¨˜éŒ„æŒ‰éˆ•åˆ—ï¼ˆç½®é ‚ï¼‰
+    // ¡¹ °O¿ı«ö¶s¦C¡]¸m³»¡^
     '<div style="margin-bottom:8px;display:flex;align-items:center;gap:6px;">'+
     '<input type="checkbox" id="__gmp_boss_auto_loot" style="width:13px;height:13px;cursor:pointer;">'+
     '<label for="__gmp_boss_auto_loot" style="font-size:10px;color:#fbbf24;cursor:pointer;margin-right:4px;">\uD83D\uDCB0</label>'+
     '<button id="__gmp_boss_history_btn" style="flex:1;padding:5px;background:#1a1a3e;border:1px solid #0f3460;color:#86c5ff;border-radius:4px;cursor:pointer;font-size:10px;font-weight:bold;">\uD83D\uDCCB BOSS \u5386\u53f2\u8bb0\u5f55</button>'+
     '<button id="__gmp_boss_loot_btn" style="flex:1;padding:5px;background:#1a1a1a;border:1px solid #6b4226;color:#fbbf24;border-radius:4px;cursor:pointer;font-size:10px;font-weight:bold;">\uD83D\uDCB0 \u6389\u843d\u8A18\u9304</button>'+
     '</div>'+
-    // === ç•¶å‰ BOSS æˆ°é¬¥ ===
-    // === BOSS è‡ªå‹•é–‹é—œ ===
+    // === ·í«e BOSS ¾Ô°« ===
+    // === BOSS ¦Û°Ê¶}Ãö ===
 '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:8px;background:rgba(233,69,96,0.12);border-radius:6px;">'+
 '<input type="checkbox" id="__gmp_boss_auto_enable" style="width:16px;height:16px;cursor:pointer;">'+
-'<label for="__gmp_boss_auto_enable" style="font-size:12px;color:#e94560;font-weight:bold;cursor:pointer;">\u2694\uFE0F è‡ªå‹•æˆ°é¬¥</label>'+
-'<span id="__gmp_boss_auto_status_short" style="font-size:10px;color:#888;">åœæ­¢ä¸­</span>'+
+'<label for="__gmp_boss_auto_enable" style="font-size:12px;color:#e94560;font-weight:bold;cursor:pointer;">\u2694\uFE0F ¦Û°Ê¾Ô°«</label>'+
+'<span id="__gmp_boss_auto_status_short" style="font-size:10px;color:#888;">°±¤î¤¤</span>'+
 '<div style="flex:1;"></div>'+
-'<button id="__gmp_boss_auto_config_btn" style="padding:4px 8px;background:#0f3460;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:10px;">\u2699 é€²éšè¨­å®š</button>'+
+'<button id="__gmp_boss_auto_config_btn" style="padding:4px 8px;background:#0f3460;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:10px;">\u2699 ¶i¶¥³]©w</button>'+
 '</div>'+
 '<div style="background:rgba(255,255,255,0.06);padding:8px;border-radius:6px;margin-bottom:8px;">'+
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">'+
@@ -1129,15 +1130,15 @@ function __gmBuildPanel(){
         '</div>'+
 '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:6px 8px;background:rgba(76,175,80,0.10);border-radius:6px;">'+
 '<input type="checkbox" id="__gmp_boss_auto_script_enable" style="width:16px;height:16px;cursor:pointer;">'+
-'<label for="__gmp_boss_auto_script_enable" style="font-size:12px;color:#4caf50;font-weight:bold;cursor:pointer;">\uD83C\uDFAF è‡ªå‹•é€²å…¥ä¸–ç•Œç‹</label>'+
-'<span id="__gmp_boss_script_status" style="font-size:9px;color:#888;margin-left:4px;">\u00B7 é–’ç½®ä¸­</span>'+
-'<select id="__gmp_boss_script_mode" style="background:#1a3a1a;color:#fbbf24;border:1px solid #4ade80;border-radius:4px;padding:1px 3px;font-size:9px;margin-left:4px;cursor:pointer;"><option value="cron">å®šæ™‚æ¨¡å¼</option><option value="scheduled">æ™ºèƒ½æ¨¡å¼</option><option value="realtime">å³æ™‚æ¨¡å¼</option></select><button id="__gmp_debug_export_btn" style="margin-left:auto;padding:2px 8px;background:#1a1a3a;border:1px solid #ffd700;color:#ffd700;border-radius:3px;cursor:pointer;font-size:9px;" title="åŒ¯å‡º Debug Log åˆ° Console (F12)" data-wb-action="exportDebug">ğŸ“‹ åŒ¯å‡ºLog</button>'+
+'<label for="__gmp_boss_auto_script_enable" style="font-size:12px;color:#4caf50;font-weight:bold;cursor:pointer;">\uD83C\uDFAF ¦Û°Ê¶i¤J¥@¬É¤ı</label>'+
+'<span id="__gmp_boss_script_status" style="font-size:9px;color:#888;margin-left:4px;">\u00B7 ¶¢¸m¤¤</span>'+
+'<select id="__gmp_boss_script_mode" style="background:#1a3a1a;color:#fbbf24;border:1px solid #4ade80;border-radius:4px;padding:1px 3px;font-size:9px;margin-left:4px;cursor:pointer;"><option value="cron">©w®É¼Ò¦¡</option><option value="scheduled">´¼¯à¼Ò¦¡</option><option value="realtime">§Y®É¼Ò¦¡</option></select><button id="__gmp_debug_export_btn" style="margin-left:auto;padding:2px 8px;background:#1a1a3a;border:1px solid #ffd700;color:#ffd700;border-radius:3px;cursor:pointer;font-size:9px;" title="¶×¥X Debug Log ¨ì Console (F12)" data-wb-action="exportDebug">?? ¶×¥XLog</button>'+
 '</div>'+
 '<div id="__gmp_cron_config" style="display:none;padding:4px 8px;background:rgba(255,215,0,0.06);border-radius:4px;margin-bottom:4px;font-size:10px;color:#ffd700;">'+
-  '<span>æ¯æ•´é» </span><input id="__gmp_cron_start_min" type="number" value="0" min="0" max="59" style="width:36px;padding:2px 4px;background:#2a2a4a;border:1px solid #0f3460;border-radius:3px;color:#fff;font-size:10px;outline:none;text-align:center;">'+
-  '<span> åˆ†é–‹å§‹åµæ¸¬BOSS & æˆ°é¬¥ï¼Œ </span><input id="__gmp_cron_stop_min" type="number" value="2" min="0" max="59" style="width:36px;padding:2px 4px;background:#2a2a4a;border:1px solid #0f3460;border-radius:3px;color:#fff;font-size:10px;outline:none;text-align:center;">'+
-  '<span> åˆ†åœæ­¢ä¸¦æ¢å¾©æ›æ©Ÿ</span>'+
-  '<label style="margin-left:8px;cursor:pointer;font-size:10px;color:#ffd700;"><input type="checkbox" id="__gmp_cron_quick_enter" checked style="width:12px;height:12px;vertical-align:middle;margin-right:2px;">å¿«é€Ÿé€²å…¥</label>'+
+  '<span>¨C¾ãÂI </span><input id="__gmp_cron_start_min" type="number" value="0" min="0" max="59" style="width:36px;padding:2px 4px;background:#2a2a4a;border:1px solid #0f3460;border-radius:3px;color:#fff;font-size:10px;outline:none;text-align:center;">'+
+  '<span> ¤À¶}©l°»´úBOSS & ¾Ô°«¡A </span><input id="__gmp_cron_stop_min" type="number" value="2" min="0" max="59" style="width:36px;padding:2px 4px;background:#2a2a4a;border:1px solid #0f3460;border-radius:3px;color:#fff;font-size:10px;outline:none;text-align:center;">'+
+  '<span> ¤À°±¤î¨Ã«ì´_±¾¾÷</span>'+
+  '<label style="margin-left:8px;cursor:pointer;font-size:10px;color:#ffd700;"><input type="checkbox" id="__gmp_cron_quick_enter" checked style="width:12px;height:12px;vertical-align:middle;margin-right:2px;">§Ö³t¶i¤J</label>'+
 '</div>'+
 '<div style="display:flex;align-items:center;gap:2px;margin-top:4px;margin-bottom:4px;">'+
 '<input type="checkbox" id="__gmp_boss_auto_reenter" style="width:13px;height:13px;cursor:pointer;">'+
@@ -1150,66 +1151,66 @@ function __gmBuildPanel(){
       '</div>'+
       '<div id="__gmp_boss_buffs" style="font-size:10px;color:#86c5ff;margin-top:4px;"></div>'+
     '</div>'+
-    // === ä¸–ç•Œç‹åˆ—è¡¨ï¼ˆå¯ç¸®æ”¾ 300pxï¼‰===
+    // === ¥@¬É¤ı¦Cªí¡]¥iÁY©ñ 300px¡^===
     '<div style="background:rgba(233,69,96,0.06);padding:0;border-radius:6px;margin-bottom:8px;border:1px solid rgba(233,69,96,0.3);">'+
       '<div id="__gmp_wb_toggle" style="display:flex;justify-content:space-between;align-items:center;padding:8px;cursor:pointer;user-select:none;border-bottom:1px solid rgba(233,69,96,0.2);">'+
-        '<span style="font-size:11px;color:#e94560;font-weight:bold;">&#x1F3C5; ä¸–ç•Œç‹åˆ—è¡¨ <span id="__gmp_wb_count" style="font-size:9px;color:#888;">--</span></span>'+
+        '<span style="font-size:11px;color:#e94560;font-weight:bold;">&#x1F3C5; ¥@¬É¤ı¦Cªí <span id="__gmp_wb_count" style="font-size:9px;color:#888;">--</span></span>'+
         '<div style="display:flex;gap:4px;align-items:center;">'+
-          '<span id="__gmp_wb_timer" style="font-size:9px;color:#888;">æ¯ 60s</span>'+
-          '<button id="__gmp_wb_refresh" style="padding:2px 6px;background:#0f3460;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:9px;font-weight:bold;">&#x2699; åˆ·æ–°</button>'+
-          '<button id="__gmp_wb_show_detected" style="padding:2px 6px;background:#2a2a4a;border:1px solid #555;color:#aaa;border-radius:4px;cursor:pointer;font-size:9px;">? äº‹ä»¶</button>'+
+          '<span id="__gmp_wb_timer" style="font-size:9px;color:#888;">¨C 60s</span>'+
+          '<button id="__gmp_wb_refresh" style="padding:2px 6px;background:#0f3460;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:9px;font-weight:bold;">&#x2699; ¨ê·s</button>'+
+          '<button id="__gmp_wb_show_detected" style="padding:2px 6px;background:#2a2a4a;border:1px solid #555;color:#aaa;border-radius:4px;cursor:pointer;font-size:9px;">? ¨Æ¥ó</button>'+
         '</div>'+
       '</div>'+
       '<div id="__gmp_wb_body" style="max-height:300px;overflow-y:auto;padding:6px;">'+
-        '<div id="__gmp_wb_list" style="font-size:10px;color:#555;padding:6px;text-align:center;">DOM è®€å–ä¸­...</div>'+
+        '<div id="__gmp_wb_list" style="font-size:10px;color:#555;padding:6px;text-align:center;">DOM Åª¨ú¤¤...</div>'+
       '</div>'+
     '</div>'+
-    // === å„ªå…ˆè¨ä¼æ¸…å–®ï¼ˆå¯ç¸®æ”¾ 300pxï¼‰===
+    // === Àu¥ı°Q¥ï²M³æ¡]¥iÁY©ñ 300px¡^===
     '<div style="background:rgba(76,175,80,0.06);padding:0;border-radius:6px;margin-bottom:8px;border:1px solid rgba(76,175,80,0.3);">'+
       '<div id="__gmp_hunt_toggle" style="display:flex;justify-content:space-between;align-items:center;padding:8px;cursor:pointer;user-select:none;border-bottom:1px solid rgba(76,175,80,0.2);">'+
-        '<span style="font-size:11px;color:#4caf50;font-weight:bold;">&#x1F3AF; å„ªå…ˆè¨ä¼æ¸…å–® <span id="__gmp_hunt_count" style="font-size:9px;color:#888;"></span></span>'+
+        '<span style="font-size:11px;color:#4caf50;font-weight:bold;">&#x1F3AF; Àu¥ı°Q¥ï²M³æ <span id="__gmp_hunt_count" style="font-size:9px;color:#888;"></span></span>'+
         '<div style="display:flex;gap:4px;align-items:center;">'+
           '<span id="__gmp_hunt_timer" style="font-size:9px;color:#888;"></span>'+
         '</div>'+
       '</div>'+
-      '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 8px;background:rgba(0,0,0,0.1);border-bottom:1px solid rgba(76,175,80,0.15);"><span style="font-size:10px;color:#888;">&#x1F465; æœ€å°åœ¨å ´äººæ•¸æ‰é€²å…¥:</span><span style="font-size:10px;color:#888;">å„BOSSå¯è‡ªè¨­æœ€ä½äººæ•¸</span></div>'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 8px;background:rgba(0,0,0,0.1);border-bottom:1px solid rgba(76,175,80,0.15);"><span style="font-size:10px;color:#888;">&#x1F465; ³Ì¤p¦b³õ¤H¼Æ¤~¶i¤J:</span><span style="font-size:10px;color:#888;">¦UBOSS¥i¦Û³]³Ì§C¤H¼Æ</span></div>'+
           '<div id="__gmp_hunt_body" style="max-height:300px;overflow-y:auto;padding:6px;">'+
-        '<div id="__gmp_hunt_list" style="font-size:10px;color:#555;padding:6px;text-align:center;">é»é¸ä¸Šæ–¹ä¸–ç•Œç‹ [+] åŠ å…¥</div>'+
+        '<div id="__gmp_hunt_list" style="font-size:10px;color:#555;padding:6px;text-align:center;">ÂI¿ï¤W¤è¥@¬É¤ı [+] ¥[¤J</div>'+
       '</div>'+
     '</div>'+
-    // === å†·å»è¨ˆæ™‚ ===
+    // === §N«o­p®É ===
     '<div style="margin-bottom:8px;">'+
-      '<div style="font-size:10px;color:#888;margin-bottom:4px;">å†·å»è¨ˆæ™‚</div>'+
+      '<div style="font-size:10px;color:#888;margin-bottom:4px;">§N«o­p®É</div>'+
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">'+
-        '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">&#x1F48A;</span> è—¥æ°´ <span id="__gmp_cd_pot" style="color:#4ade80;float:right;">å°±ç·’</span></div>'+
-        '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">&#x2694;&#xFE0F;</span> æ”»æ“Š <span id="__gmp_cd_atk" style="color:#4ade80;float:right;">å°±ç·’</span></div>'+
-        '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">&#x1F49A;</span> æ²»ç™‚ <span id="__gmp_cd_heal" style="color:#4ade80;float:right;">å°±ç·’</span></div>'+
-        '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">&#x1F504;</span> è½‰æ› <span id="__gmp_cd_convert" style="color:#4ade80;float:right;">å°±ç·’</span></div>'+
-        '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">&#x1F6E1;&#xFE0F;</span> å±éšœ <span id="__gmp_cd_barrier" style="color:#4ade80;float:right;">å°±ç·’</span></div>'+
+        '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">&#x1F48A;</span> ÃÄ¤ô <span id="__gmp_cd_pot" style="color:#4ade80;float:right;">´Nºü</span></div>'+
+        '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">&#x2694;&#xFE0F;</span> §ğÀ» <span id="__gmp_cd_atk" style="color:#4ade80;float:right;">´Nºü</span></div>'+
+        '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">&#x1F49A;</span> ªvÀø <span id="__gmp_cd_heal" style="color:#4ade80;float:right;">´Nºü</span></div>'+
+        '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">&#x1F504;</span> Âà´« <span id="__gmp_cd_convert" style="color:#4ade80;float:right;">´Nºü</span></div>'+
+        '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;font-size:10px;"><span style="color:#888;">&#x1F6E1;&#xFE0F;</span> «Ì»Ù <span id="__gmp_cd_barrier" style="color:#4ade80;float:right;">´Nºü</span></div>'+
       '</div>'+
     '</div>'+
-    // === æ‰‹å‹•æŒ‡ä»¤ ===
+    // === ¤â°Ê«ü¥O ===
     '<div style="margin-bottom:8px;">'+
-      '<div style="font-size:10px;color:#888;margin-bottom:4px;">æ‰‹å‹•æŒ‡ä»¤ï¼ˆç›´æ¥ç™¼é€ï¼‰</div>'+
+      '<div style="font-size:10px;color:#888;margin-bottom:4px;">¤â°Ê«ü¥O¡]ª½±µµo°e¡^</div>'+
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">'+
-        '<button id="__gmp_boss_pot" style="padding:8px;background:#1a4a1a;border:1px solid #2a6a2a;color:#4ade80;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">&#x1F48A; è—¥æ°´</button>'+
-        '<button id="__gmp_boss_atk" style="padding:8px;background:#2a1a1a;border:1px solid #6a2a2a;color:#f87171;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">&#x2694;&#xFE0F; æ”»æ“Š</button>'+
-        '<button id="__gmp_boss_heal" style="padding:8px;background:#1a2a1a;border:1px solid #2a5a2a;color:#86efac;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">&#x1F49A; æ²»ç™‚</button>'+
-        '<button id="__gmp_boss_convert" style="padding:8px;background:#1a1a4a;border:1px solid #2a2a7a;color:#a5b4fc;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">&#x1F504; è½‰æ›</button>'+
-        '<button id="__gmp_boss_barrier" style="padding:8px;background:#1a1a3a;border:1px solid #3a3a8a;color:#818cf8;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">&#x1F6E1;&#xFE0F; å±éšœ</button>'+
-        '<button id="__gmp_boss_holy" style="padding:8px;background:#2a1a2a;border:1px solid #6a2a6a;color:#d8b4fe;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">&#x2728; ç¥è–</button>'+
+        '<button id="__gmp_boss_pot" style="padding:8px;background:#1a4a1a;border:1px solid #2a6a2a;color:#4ade80;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">&#x1F48A; ÃÄ¤ô</button>'+
+        '<button id="__gmp_boss_atk" style="padding:8px;background:#2a1a1a;border:1px solid #6a2a2a;color:#f87171;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">&#x2694;&#xFE0F; §ğÀ»</button>'+
+        '<button id="__gmp_boss_heal" style="padding:8px;background:#1a2a1a;border:1px solid #2a5a2a;color:#86efac;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">&#x1F49A; ªvÀø</button>'+
+        '<button id="__gmp_boss_convert" style="padding:8px;background:#1a1a4a;border:1px solid #2a2a7a;color:#a5b4fc;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">&#x1F504; Âà´«</button>'+
+        '<button id="__gmp_boss_barrier" style="padding:8px;background:#1a1a3a;border:1px solid #3a3a8a;color:#818cf8;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">&#x1F6E1;&#xFE0F; «Ì»Ù</button>'+
+        '<button id="__gmp_boss_holy" style="padding:8px;background:#2a1a2a;border:1px solid #6a2a6a;color:#d8b4fe;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">&#x2728; ¯«¸t</button>'+
       '</div>'+
     '</div>'+
-    // === è§£é™¤å†·å»é™åˆ¶ ===
+    // === ¸Ñ°£§N«o­­¨î ===
     '<div style="margin-bottom:8px;">'+
       '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">'+
         '<input type="checkbox" id="__gmp_boss_bypass" style="width:14px;height:14px;cursor:pointer;">'+
-        '<label for="__gmp_boss_bypass" style="font-size:11px;color:#ffd700;cursor:pointer;">&#x1F513; è§£é™¤å†·å»é™åˆ¶</label>'+
+        '<label for="__gmp_boss_bypass" style="font-size:11px;color:#ffd700;cursor:pointer;">&#x1F513; ¸Ñ°£§N«o­­¨î</label>'+
       '</div>'+
-      '<div style="font-size:10px;color:#555;padding-left:22px;">&#x26A0;&#xFE0F; ä¼ºæœå™¨ä»æœƒé©—è­‰å†·å»</div>'+
+      '<div style="font-size:10px;color:#555;padding-left:22px;">&#x26A0;&#xFE0F; ¦øªA¾¹¤´·|ÅçÃÒ§N«o</div>'+
     '</div>'+
-    // === è‡ªå‹•æ›æ©Ÿ BOSS ===
-// === BOSS è‡ªå‹•è¨­å®š Modal ===
+    // === ¦Û°Ê±¾¾÷ BOSS ===
+// === BOSS ¦Û°Ê³]©w Modal ===
 '<div id="__gmp_boss_auto_modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9999;justify-content:center;align-items:center;">'+
 '<div style="background:#1a1a2e;border:2px solid #0f3460;border-radius:10px;padding:16px;width:350px;max-height:80vh;overflow-y:auto;">'+
 '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">'+
@@ -1220,7 +1221,7 @@ function __gmBuildPanel(){
 '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+
 '<input type="checkbox" id="__gmp_boss_auto_atk" style="width:13px;height:13px;cursor:pointer;" checked>'+
 '<label for="__gmp_boss_auto_atk" style="font-size:11px;color:#f87171;cursor:pointer;">\u2694\uFE0F \u958b\u59cb\u653b\u64caBOSS</label>'+
-'\n<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px;"><input type="checkbox" id="__gmp_boss_auto_pot_stop" style="width:13px;height:13px;cursor:pointer;"><label for="__gmp_boss_auto_pot_stop" style="font-size:10px;color:#f87171;">På°‘æ–¼åœæ­¢æ”»\u5f31</label><input id="__gmp_boss_auto_pot_stop_hp" type="number" value="30" min="1" max="100" style="width:50px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;outline:none;text-align:center;"><span style="font-size:9px;color:#888;">%</span></div>\n</div>'+
+'\n<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px;"><input type="checkbox" id="__gmp_boss_auto_pot_stop" style="width:13px;height:13px;cursor:pointer;"><label for="__gmp_boss_auto_pot_stop" style="font-size:10px;color:#f87171;">P¤Ö©ó°±¤î§ğ\u5f31</label><input id="__gmp_boss_auto_pot_stop_hp" type="number" value="30" min="1" max="100" style="width:50px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;outline:none;text-align:center;"><span style="font-size:9px;color:#888;">%</span></div>\n</div>'+
 '<div style="display:flex;align-items:center;gap:4px;margin-bottom:8px;padding:6px 8px;background:rgba(248,113,113,0.08);border-radius:4px;">'+
 '<span style="font-size:10px;color:#f87171;">\u8a2d\u5b9aBOSS\u8840\u91cf\u5c11\u65bc</span>'+
 '<input id="__gmp_boss_auto_atk_hp_pct" type="number" value="100" min="0" max="100" style="width:45px;padding:2px 4px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;text-align:center;">'+
@@ -1304,84 +1305,84 @@ function __gmBuildPanel(){
 '</div>'+
 
 
-    // === Socket ç‹€æ…‹ + åŒ¯å…¥åŒ¯å‡º ===
+    // === Socket ª¬ºA + ¶×¤J¶×¥X ===
     '<div style="margin-bottom:6px;">'+
-      '<div style="font-size:10px;color:#888;margin-bottom:4px;">&#x1F4E1; Socket.IO ç‹€æ…‹</div>'+
+      '<div style="font-size:10px;color:#888;margin-bottom:4px;">&#x1F4E1; Socket.IO ª¬ºA</div>'+
       '<div style="display:flex;gap:6px;margin-bottom:4px;">'+
-        '<span style="font-size:10px;color:#888;">é€£æ¥: </span><span id="__gmp_sock_status" style="font-size:10px;color:#ffd700;">æª¢æ¸¬ä¸­...</span>'+
+        '<span style="font-size:10px;color:#888;">³s±µ: </span><span id="__gmp_sock_status" style="font-size:10px;color:#ffd700;">ÀË´ú¤¤...</span>'+
       '</div>'+
-      '<div style="font-size:10px;color:#888;">å·²æ•ç²: <span id="__gmp_sock_sent" style="color:#4ade80;">0</span> ç™¼é€ / <span id="__gmp_sock_evts" style="color:#00d9ff;">0</span> äº‹ä»¶</div>'+
+      '<div style="font-size:10px;color:#888;">¤w®·Àò: <span id="__gmp_sock_sent" style="color:#4ade80;">0</span> µo°e / <span id="__gmp_sock_evts" style="color:#00d9ff;">0</span> ¨Æ¥ó</div>'+
       '<div style="margin:8px 0 4px;display:flex;gap:4px;">'+
-        '<button id="__gmp_export_all" style="flex:1;padding:5px 4px;background:#0f3460;border:1px solid #7bd14a;color:#7bd14a;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">&#x1F4E5; åŒ¯å‡ºè¨­å®š</button>'+
-        '<button id="__gmp_import_all" style="flex:1;padding:5px 4px;background:#0f3460;border:1px solid #fbbf24;color:#fbbf24;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">&#x1F4E4; åŒ¯å…¥è¨­å®š</button>'+
+        '<button id="__gmp_export_all" style="flex:1;padding:5px 4px;background:#0f3460;border:1px solid #7bd14a;color:#7bd14a;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">&#x1F4E5; ¶×¥X³]©w</button>'+
+        '<button id="__gmp_import_all" style="flex:1;padding:5px 4px;background:#0f3460;border:1px solid #fbbf24;color:#fbbf24;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">&#x1F4E4; ¶×¤J³]©w</button>'+
         '<input type="file" id="__gmp_import_file" accept=".json" style="display:none;">'+
       '</div>'+
       '<div id="__gmp_idb_status" style="font-size:10px;color:#555;margin-top:3px;text-align:center;"></div>'+
     '</div>'+
-    // === äº‹ä»¶åˆ—å«è‡ªå‹•åˆ·æ–°é–‹é—œ ===
+    // === ¨Æ¥ó¦C§t¦Û°Ê¨ê·s¶}Ãö ===
     '<div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;padding:4px 6px;background:rgba(0,0,0,0.15);border-radius:4px;">'+
       '<label style="display:flex;align-items:center;gap:3px;cursor:pointer;margin-right:6px;">'+
         '<input type="checkbox" id="__gmp_wb_auto" checked style="width:11px;height:11px;cursor:pointer;">'+
-        '<span style="font-size:9px;color:#888;">æ¯ 60s</span>'+
+        '<span style="font-size:9px;color:#888;">¨C 60s</span>'+
       '</label>'+
-      '<span style="font-size:9px;color:#555;">äº‹ä»¶:</span>'+
-      '<span id="__gmp_wb_evt_name" style="font-size:9px;color:#ffd700;">DOM å³æ™‚è®€å–</span>'+
+      '<span style="font-size:9px;color:#555;">¨Æ¥ó:</span>'+
+      '<span id="__gmp_wb_evt_name" style="font-size:9px;color:#ffd700;">DOM §Y®ÉÅª¨ú</span>'+
     '</div>'+
   '</div>'+  // closes __gmp_tab_content_boss
   '</div>'+// === MONITOR TAB ===
     '<div id="__gmp_tab_content_monitor" style="display:none;">'+
       '<div style="background:rgba(74,222,128,0.08);padding:8px;border-radius:6px;margin-bottom:8px;">'+
-        '<div style="font-size:11px;color:#4ade80;font-weight:bold;margin-bottom:6px;">ğŸ“¡ å°åŒ…ç›£æ§ (Packet Monitor)</div>'+
-        '<div style="font-size:10px;color:#aaa;margin-bottom:6px;">è¨˜éŒ„æ‰€æœ‰ WebSocket èˆ‡ Socket.IO å°åŒ…ï¼ŒåŒ¯å‡ºç‚º TXT ä¾›åˆ†æ</div>'+
+        '<div style="font-size:11px;color:#4ade80;font-weight:bold;margin-bottom:6px;">?? «Ê¥]ºÊ±± (Packet Monitor)</div>'+
+        '<div style="font-size:10px;color:#aaa;margin-bottom:6px;">°O¿ı©Ò¦³ WebSocket »P Socket.IO «Ê¥]¡A¶×¥X¬° TXT ¨Ñ¤ÀªR</div>'+
         '<div style="display:flex;gap:4px;margin-bottom:6px;">'+
-          '<button id="__gmp_monitor_start" style="flex:1;padding:8px;background:#1a4a1a;border:1px solid #4ade80;color:#4ade80;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">â–¶ é–‹å§‹ç›£æ§</button>'+
-          '<button id="__gmp_monitor_stop" style="flex:1;padding:8px;background:#4a1a1a;border:1px solid #e94560;color:#e94560;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;" disabled>â–  åœæ­¢ç›£æ§</button>'+
+          '<button id="__gmp_monitor_start" style="flex:1;padding:8px;background:#1a4a1a;border:1px solid #4ade80;color:#4ade80;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">? ¶}©lºÊ±±</button>'+
+          '<button id="__gmp_monitor_stop" style="flex:1;padding:8px;background:#4a1a1a;border:1px solid #e94560;color:#e94560;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;" disabled>¡½ °±¤îºÊ±±</button>'+
         '</div>'+
-        '<button id="__gmp_monitor_export" style="width:100%;padding:8px;background:#0f3460;border:1px solid #00d9ff;color:#00d9ff;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;margin-bottom:4px;">ğŸ’¾ åŒ¯å‡º TXT</button>'+
-        '<button id="__gmp_monitor_clear" style="width:100%;padding:6px;background:#333;border:1px solid #666;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">ğŸ—‘ï¸ æ¸…ç©ºè¨˜éŒ„</button>'+
+        '<button id="__gmp_monitor_export" style="width:100%;padding:8px;background:#0f3460;border:1px solid #00d9ff;color:#00d9ff;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;margin-bottom:4px;">?? ¶×¥X TXT</button>'+
+        '<button id="__gmp_monitor_clear" style="width:100%;padding:6px;background:#333;border:1px solid #666;color:#aaa;border-radius:6px;cursor:pointer;font-size:11px;">??? ²MªÅ°O¿ı</button>'+
       '</div>'+
       '<div style="background:rgba(255,255,255,0.04);padding:8px;border-radius:6px;margin-bottom:8px;">'+
-        '<div style="font-size:10px;color:#888;margin-bottom:4px;">ç›£æ§ç‹€æ…‹</div>'+
+        '<div style="font-size:10px;color:#888;margin-bottom:4px;">ºÊ±±ª¬ºA</div>'+
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:10px;">'+
-          '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;"><span style="color:#888;">ç‹€æ…‹:</span> <span id="__gmp_monitor_status" style="color:#e94560;font-weight:bold;">æœªå•Ÿå‹•</span></div>'+
-          '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;"><span style="color:#888;">å·²è¨˜éŒ„:</span> <span id="__gmp_monitor_count" style="color:#4ade80;font-weight:bold;">0</span></div>'+
+          '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;"><span style="color:#888;">ª¬ºA:</span> <span id="__gmp_monitor_status" style="color:#e94560;font-weight:bold;">¥¼±Ò°Ê</span></div>'+
+          '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;"><span style="color:#888;">¤w°O¿ı:</span> <span id="__gmp_monitor_count" style="color:#4ade80;font-weight:bold;">0</span></div>'+
           '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;"><span style="color:#888;">SEND:</span> <span id="__gmp_monitor_send" style="color:#fbbf24;">0</span></div>'+
           '<div style="background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:4px;"><span style="color:#888;">RECV:</span> <span id="__gmp_monitor_recv" style="color:#86c5ff;">0</span></div>'+
         '</div>'+
       '</div>'+
       '<div style="background:rgba(0,0,0,0.3);padding:6px;border-radius:6px;max-height:280px;overflow-y:auto;font-family:monospace;font-size:10px;">'+
-        '<div style="color:#888;margin-bottom:4px;border-bottom:1px solid #333;padding-bottom:4px;">æœ€æ–°å°åŒ… (æœ€è¿‘ 50 ç­†):</div>'+
+        '<div style="color:#888;margin-bottom:4px;border-bottom:1px solid #333;padding-bottom:4px;">³Ì·s«Ê¥] (³Ìªñ 50 µ§):</div>'+
         '<div id="__gmp_monitor_log" style="color:#ccc;line-height:1.4;"></div>'+
       '</div>'+
     '</div>'+
     // === SKILL TAB ===
     '<div id="__gmp_tab_content_skill" style="display:none;">'+
       '<div style="background:rgba(245,158,11,0.08);padding:8px;border-radius:6px;margin-bottom:8px;">'+
-        '<div style="font-size:11px;color:#f59e0b;font-weight:bold;margin-bottom:6px;">âš¡ è‡ªå‹•æ–½æ³•è¨­å®š</div>'+
-        '<div style="font-size:10px;color:#aaa;margin-bottom:6px;">è®€å–éŠæˆ²è¨­å®šé¢æ¿å…§æ‰€æœ‰æ§åˆ¶é …ï¼Œå³æ™‚åŒæ­¥ä¿®æ”¹</div>'+
+        '<div style="font-size:11px;color:#f59e0b;font-weight:bold;margin-bottom:6px;">? ¦Û°Ê¬Iªk³]©w</div>'+
+        '<div style="font-size:10px;color:#aaa;margin-bottom:6px;">Åª¨ú¹CÀ¸³]©w­±ªO¤º©Ò¦³±±¨î¶µ¡A§Y®É¦P¨B­×§ï</div>'+
         '<div style="display:flex;gap:4px;margin-bottom:4px;">'+
-          '<button id="__gmp_skill_read" style="flex:1;padding:8px;background:#1a3a1a;border:1px solid #4ade80;color:#4ade80;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">ğŸ“¥ è®€å–è¨­å®š</button>'+
-          '<button id="__gmp_skill_open_panel" style="flex:1;padding:8px;background:#0f3460;border:1px solid #00d9ff;color:#00d9ff;border-radius:6px;cursor:pointer;font-size:12px;">ğŸ”“ é–‹å•Ÿé¢æ¿</button>'+
+          '<button id="__gmp_skill_read" style="flex:1;padding:8px;background:#1a3a1a;border:1px solid #4ade80;color:#4ade80;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">?? Åª¨ú³]©w</button>'+
+          '<button id="__gmp_skill_open_panel" style="flex:1;padding:8px;background:#0f3460;border:1px solid #00d9ff;color:#00d9ff;border-radius:6px;cursor:pointer;font-size:12px;">?? ¶}±Ò­±ªO</button>'+
         '</div>'+
-        '<button id="__gmp_skill_clear" style="width:100%;padding:5px;background:#333;border:1px solid #666;color:#aaa;border-radius:6px;cursor:pointer;font-size:10px;">ğŸ—‘ï¸ æ¸…ç©º</button>'+
+        '<button id="__gmp_skill_clear" style="width:100%;padding:5px;background:#333;border:1px solid #666;color:#aaa;border-radius:6px;cursor:pointer;font-size:10px;">??? ²MªÅ</button>'+
       '</div>'+
       '<div style="background:rgba(0,0,0,0.2);padding:6px 8px;border-radius:6px;margin-bottom:6px;font-size:10px;">'+
-        '<span style="color:#888;">ç‹€æ…‹:</span> <span id="__gmp_skill_status" style="color:#fbbf24;">æœªè®€å–</span>'+
-        ' | <span style="color:#888;">é …ç›®:</span> <span id="__gmp_skill_count" style="color:#4ade80;">0</span>'+
-        ' | <span style="color:#888;">è§’è‰²:</span> <span id="__gmp_skill_char" style="color:#f59e0b;">--</span>'+
+        '<span style="color:#888;">ª¬ºA:</span> <span id="__gmp_skill_status" style="color:#fbbf24;">¥¼Åª¨ú</span>'+
+        ' | <span style="color:#888;">¶µ¥Ø:</span> <span id="__gmp_skill_count" style="color:#4ade80;">0</span>'+
+        ' | <span style="color:#888;">¨¤¦â:</span> <span id="__gmp_skill_char" style="color:#f59e0b;">--</span>'+
       '</div>'+
       '<div id="__gmp_skill_list" style="background:rgba(0,0,0,0.25);padding:6px 8px;border-radius:6px;max-height:360px;overflow-y:auto;font-size:11px;">'+
-        '<div id="__gmp_skill_empty" style="color:#555;text-align:center;padding:24px 0;">å°šç„¡è³‡æ–™<br><span style="font-size:9px;color:#444;">é»ã€Œè®€å–è¨­å®šã€å¾éŠæˆ²é¢æ¿æŠ“å–</span></div>'+
+        '<div id="__gmp_skill_empty" style="color:#555;text-align:center;padding:24px 0;">©|µL¸ê®Æ<br><span style="font-size:9px;color:#444;">ÂI¡uÅª¨ú³]©w¡v±q¹CÀ¸­±ªO§ì¨ú</span></div>'+
       '</div>'+
     '</div>'+
 
     // === STATUS TAB ===
     '<div id="__gmp_tab_content_status" style="display:none;">'+
       '<div style="background:rgba(100,149,237,0.08);padding:8px;border-radius:6px;margin-bottom:8px;">'+
-        '<div style="font-size:11px;color:cornflowerblue;font-weight:bold;margin-bottom:6px;">ğŸ“Š å…¨éƒ¨è¨­å®šç‹€æ…‹ (chrome.storage.local)</div>'+
+        '<div style="font-size:11px;color:cornflowerblue;font-weight:bold;margin-bottom:6px;">?? ¥ş³¡³]©wª¬ºA (chrome.storage.local)</div>'+
         '<div style="margin:8px 0 4px;display:flex;gap:4px;">'+
-          '<button id="__gmp_status_export" style="flex:1;padding:5px 4px;background:#0f3460;border:1px solid #7bd14a;color:#7bd14a;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">ğŸ“¤ åŒ¯å‡ºå…¨éƒ¨è¨­å®š</button>'+
-          '<button id="__gmp_status_import" style="flex:1;padding:5px 4px;background:#0f3460;border:1px solid #fbbf24;color:#fbbf24;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">ğŸ“¥ åŒ¯å…¥å…¨éƒ¨è¨­å®š</button>'+
+          '<button id="__gmp_status_export" style="flex:1;padding:5px 4px;background:#0f3460;border:1px solid #7bd14a;color:#7bd14a;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">?? ¶×¥X¥ş³¡³]©w</button>'+
+          '<button id="__gmp_status_import" style="flex:1;padding:5px 4px;background:#0f3460;border:1px solid #fbbf24;color:#fbbf24;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;">?? ¶×¤J¥ş³¡³]©w</button>'+
           '<input type="file" id="__gmp_status_import_file" accept=".json" style="display:none;">'+
         '</div>'+
         '<div id="__gmp_status_summary" style="font-size:10px;color:#aaa;margin-top:4px;padding:6px;background:rgba(0,0,0,0.2);border-radius:4px;max-height:200px;overflow-y:auto;"></div>'+
@@ -1391,20 +1392,20 @@ function __gmBuildPanel(){
     // === FRIEND TAB ===
     '<div id="__gmp_tab_content_friend" style="display:none;">'+
       '<div style="background:rgba(34,211,238,0.06);padding:8px;border-radius:6px;margin-bottom:8px;">'+
-        '<div style="font-size:11px;color:#22d3ee;font-weight:bold;margin-bottom:6px;">ğŸ” å¥½å‹æŸ¥è©¢</div>'+
+        '<div style="font-size:11px;color:#22d3ee;font-weight:bold;margin-bottom:6px;">?? ¦n¤Í¬d¸ß</div>'+
         '<div style="display:flex;gap:4px;margin-bottom:4px;">'+
-          '<input id="__gmp_player_name" placeholder="è¼¸å…¥è§’è‰²åç¨±..." style="flex:1;padding:5px 8px;background:#2a2a4a;border:1px solid #0f3460;border-radius:6px;color:#fff;font-size:11px;outline:none;">'+
-          '<button id="__gmp_player_lookup" style="padding:5px 10px;background:#0f3460;border:1px solid #22d3ee;color:#22d3ee;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">é€å‡º</button>'+
+          '<input id="__gmp_player_name" placeholder="¿é¤J¨¤¦â¦WºÙ..." style="flex:1;padding:5px 8px;background:#2a2a4a;border:1px solid #0f3460;border-radius:6px;color:#fff;font-size:11px;outline:none;">'+
+          '<button id="__gmp_player_lookup" style="padding:5px 10px;background:#0f3460;border:1px solid #22d3ee;color:#22d3ee;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;">°e¥X</button>'+
         '</div>'+
         '<div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">'+
           '<input type="checkbox" id="__gmp_player_auto_refresh" style="width:12px;height:12px;cursor:pointer;">'+
-          '<span style="font-size:9px;color:#888;">æ¯60ç§’è‡ªå‹•æ›´æ–°</span>'+
+          '<span style="font-size:9px;color:#888;">¨C60¬í¦Û°Ê§ó·s</span>'+
           '<span style="flex:1;"></span>'+
-          '<input id="__gmp_player_filter" placeholder="ğŸ” æª¢ç´¢..." style="padding:5px 8px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;">'+
-          '<button id="__gmp_player_sel_all" style="padding:3px 6px;background:#1a3a1a;border:1px solid #22d3ee;color:#22d3ee;border-radius:4px;cursor:pointer;font-size:9px;">â˜‘ å…¨é¸</button>'+
-          '<button id="__gmp_player_sel_none" style="padding:3px 6px;background:#1a3a1a;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:9px;">â˜ å–æ¶ˆ</button>'+
-          '<button id="__gmp_player_export_sel" style="padding:3px 6px;background:#1a3a1a;border:1px solid #7bd14a;color:#7bd14a;border-radius:4px;cursor:pointer;font-size:9px;">ğŸ“¤ åŒ¯å‡ºå‹¾é¸</button>'+
-          '<button id="__gmp_player_import" style="padding:3px 6px;background:#1a3a1a;border:1px solid #fbbf24;color:#fbbf24;border-radius:4px;cursor:pointer;font-size:9px;">ğŸ“¥ åŒ¯å…¥</button>'+
+          '<input id="__gmp_player_filter" placeholder="?? ÀË¯Á..." style="padding:5px 8px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;">'+
+          '<button id="__gmp_player_sel_all" style="padding:3px 6px;background:#1a3a1a;border:1px solid #22d3ee;color:#22d3ee;border-radius:4px;cursor:pointer;font-size:9px;">? ¥ş¿ï</button>'+
+          '<button id="__gmp_player_sel_none" style="padding:3px 6px;background:#1a3a1a;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:9px;">? ¨ú®ø</button>'+
+          '<button id="__gmp_player_export_sel" style="padding:3px 6px;background:#1a3a1a;border:1px solid #7bd14a;color:#7bd14a;border-radius:4px;cursor:pointer;font-size:9px;">?? ¶×¥X¤Ä¿ï</button>'+
+          '<button id="__gmp_player_import" style="padding:3px 6px;background:#1a3a1a;border:1px solid #fbbf24;color:#fbbf24;border-radius:4px;cursor:pointer;font-size:9px;">?? ¶×¤J</button>'+
           '<input type="file" id="__gmp_player_import_file" accept=".json" style="display:none;">'+
         '</div>'+
         '<div id="__gmp_player_history" style="font-size:10px;color:#aaa;max-height:500px;overflow-y:auto;"></div>'+
@@ -1413,11 +1414,11 @@ function __gmBuildPanel(){
 
 // === FARM TAB ===
     '<div id="__gmp_tab_content_farm" style="display:none;">'+
-    // Start/Stop button â€” moved to TOP
-    '<button id="__gmp_farm_btn" style="width:100%;padding:9px;background:#0f3460;border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:12px;font-weight:bold;margin-bottom:8px;">â–¶ é–‹å•Ÿè…³æœ¬</button>'+
+    // Start/Stop button ¡X moved to TOP
+    '<button id="__gmp_farm_btn" style="width:100%;padding:9px;background:#0f3460;border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:12px;font-weight:bold;margin-bottom:8px;">? ¶}±Ò¸}¥»</button>'+
     '<div style="margin-bottom:8px;">'+
-      '<div style="font-size:10px;color:#888;margin-bottom:3px;">æ›æ©Ÿåœ°åœ–</div>'+
-      '<input id="__gmp_farm_search" placeholder="æœå°‹é‡å¤–/åœ°ç›£åç¨±..." '+
+      '<div style="font-size:10px;color:#888;margin-bottom:3px;">±¾¾÷¦a¹Ï</div>'+
+      '<input id="__gmp_farm_search" placeholder="·j´M³¥¥~/¦aºÊ¦WºÙ..." '+
         'style="width:100%;padding:5px 8px;background:#2a2a4a;border:1px solid #0f3460;border-radius:6px;'+
         'color:#aaa;font-size:11px;outline:none;box-sizing:border-box;margin-bottom:4px;display:block;">'+
       '<select id="__gmp_farm_zone" size="6" '+
@@ -1428,150 +1429,150 @@ function __gmBuildPanel(){
     // HP row
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+
       '<input type="checkbox" id="__gmp_farm_hp_chk" checked style="width:14px;height:14px;cursor:pointer;">'+
-      '<span style="font-size:10px;color:#e94560;width:50px;">HPä½æ–¼</span>'+
+      '<span style="font-size:10px;color:#e94560;width:50px;">HP§C©ó</span>'+
       '<input id="__gmp_farm_hp" type="number" value="20" min="1" max="100" style="width:50px;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;text-align:center;">'+
       '<span style="font-size:10px;color:#888;width:20px;">%</span>'+
       '<select id="__gmp_farm_hp_action" style="flex:1;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#e94560;font-size:10px;outline:none;">'+
-        '<option value="selectChar">é¸æ“‡è§’è‰²</option>'+
-        '<option value="toLobby">å›å¤§å»³</option>'+
+        '<option value="selectChar">¿ï¾Ü¨¤¦â</option>'+
+        '<option value="toLobby">¦^¤jÆU</option>'+
       '</select>'+
     '</div>'+
     // HP trigger note
-    '<div style="font-size:9px;color:#666;margin-bottom:6px;padding-left:62px;">HP è§¸ç™¼æ™‚åŸ·è¡Œå‹•ä½œ</div>'+
+    '<div style="font-size:9px;color:#666;margin-bottom:6px;padding-left:62px;">HP Ä²µo®É°õ¦æ°Ê§@</div>'+
     // MP row
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+
       '<input type="checkbox" id="__gmp_farm_mp_chk" checked style="width:14px;height:14px;cursor:pointer;">'+
-      '<span style="font-size:10px;color:#00d9ff;width:50px;">MPä½æ–¼</span>'+
+      '<span style="font-size:10px;color:#00d9ff;width:50px;">MP§C©ó</span>'+
       '<input id="__gmp_farm_mp" type="number" value="10" min="1" max="100" style="width:50px;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;text-align:center;">'+
       '<span style="font-size:10px;color:#888;width:20px;">%</span>'+
       '<select id="__gmp_farm_mp_action" style="flex:1;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#00d9ff;font-size:10px;outline:none;">'+
-        '<option value="selectChar">é¸æ“‡è§’è‰²</option>'+
-        '<option value="toLobby">å›å¤§å»³</option>'+
+        '<option value="selectChar">¿ï¾Ü¨¤¦â</option>'+
+        '<option value="toLobby">¦^¤jÆU</option>'+
       '</select>'+
     '</div>'+
     // MP trigger note
-    '<div style="font-size:9px;color:#666;margin-bottom:6px;padding-left:62px;">MP è§¸ç™¼æ™‚åŸ·è¡Œå‹•ä½œ</div>'+
+    '<div style="font-size:9px;color:#666;margin-bottom:6px;padding-left:62px;">MP Ä²µo®É°õ¦æ°Ê§@</div>'+
     // Logic operator AND/OR
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
       '<input type="checkbox" id="__gmp_farm_logic_chk" checked style="width:14px;height:14px;cursor:pointer;">'+
-      '<span style="font-size:10px;color:#ffd700;width:50px;">æ¢ä»¶</span>'+
+      '<span style="font-size:10px;color:#ffd700;width:50px;">±ø¥ó</span>'+
       '<select id="__gmp_farm_logic" style="padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;">'+
-        '<option value="AND">AND (ä¸”)</option>'+
-        '<option value="OR" selected>OR (æˆ–)</option>'+
+        '<option value="AND">AND (¥B)</option>'+
+        '<option value="OR" selected>OR (©Î)</option>'+
       '</select>'+
-      '<span style="font-size:10px;color:#888;">çµ„åˆåˆ¤æ–·</span>'+
+      '<span style="font-size:10px;color:#888;">²Õ¦X§PÂ_</span>'+
     '</div>'+
     // HP > condition
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
       '<input type="checkbox" id="__gmp_farm_hp_gt_chk" checked style="width:14px;height:14px;cursor:pointer;">'+
-      '<span style="font-size:10px;color:#4ade80;width:50px;">HPå¤§æ–¼</span>'+
+      '<span style="font-size:10px;color:#4ade80;width:50px;">HP¤j©ó</span>'+
       '<input id="__gmp_farm_hp_gt" type="number" value="90" min="1" max="100" style="width:55px;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;text-align:center;">'+
-      '<span style="font-size:10px;color:#888;">% å‚³é€æ›æ©Ÿ</span>'+
+      '<span style="font-size:10px;color:#888;">% ¶Ç°e±¾¾÷</span>'+
     '</div>'+
     // MP > condition
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
       '<input type="checkbox" id="__gmp_farm_mp_gt_chk" checked style="width:14px;height:14px;cursor:pointer;">'+
-      '<span style="font-size:10px;color:#7bd14a;width:50px;">MPå¤§æ–¼</span>'+
+      '<span style="font-size:10px;color:#7bd14a;width:50px;">MP¤j©ó</span>'+
       '<input id="__gmp_farm_mp_gt" type="number" value="90" min="1" max="100" style="width:55px;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;text-align:center;">'+
-      '<span style="font-size:10px;color:#888;">% å‚³é€æ›æ©Ÿ</span>'+
+      '<span style="font-size:10px;color:#888;">% ¶Ç°e±¾¾÷</span>'+
     '</div>'+
-    // è¢«ç™»å‡ºæ¬¡æ•¸è¨ˆæ•¸å™¨
+    // ³Qµn¥X¦¸¼Æ­p¼Æ¾¹
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding:6px 8px;background:#1a1a2e;border-radius:6px;">'+
-      '<span style="font-size:11px;color:#e94560;font-weight:bold;">ğŸšª è¢«ç™»å‡ºæ¬¡æ•¸</span>'+
+      '<span style="font-size:11px;color:#e94560;font-weight:bold;">?? ³Qµn¥X¦¸¼Æ</span>'+
       '<b id="__gmp_farm_logout_count" style="font-size:18px;color:#4ade80;min-width:24px;text-align:center;">0</b>'+
-      '<span id="__gmp_farm_logout_time" style="font-size:9px;color:#888;flex:1;">å°šæœªè¢«ç™»å‡º</span>'+
+      '<span id="__gmp_farm_logout_time" style="font-size:9px;color:#888;flex:1;">©|¥¼³Qµn¥X</span>'+
     '</div>'+
-    // Auto reconnect (æ–·ç·šé‡é€£)
+    // Auto reconnect (Â_½u­«³s)
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
       '<input type="checkbox" id="__gmp_farm_reconnect" checked style="width:14px;height:14px;cursor:pointer;">'+
-      '<span style="font-size:10px;color:#ffd700;">ğŸ”„ æ–·ç·šé‡é€£</span>'+
-      '<input id="__gmp_farm_char_name" type="text" placeholder="è§’è‰²åç¨±" style="flex:1;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;">'+
+      '<span style="font-size:10px;color:#ffd700;">?? Â_½u­«³s</span>'+
+      '<input id="__gmp_farm_char_name" type="text" placeholder="¨¤¦â¦WºÙ" style="flex:1;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;">'+
     '</div>'+
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:10px;color:#888;">'+
-      'æª¢æ¸¬é–“éš” <input id="__gmp_farm_reconnect_interval" type="number" value="600" min="10" max="900" style="width:50px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;outline:none;text-align:center;"> ç§’'+
+      'ÀË´ú¶¡¹j <input id="__gmp_farm_reconnect_interval" type="number" value="600" min="10" max="900" style="width:50px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;outline:none;text-align:center;"> ¬í'+
     '</div>'+
-    // Character slot â€” right below reconnect settings
+    // Character slot ¡X right below reconnect settings
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding:6px;background:#1a1a2e;border:1px solid #0f3460;border-radius:6px;">'+
-      '<span style="font-size:10px;color:#ffd700;width:70px;">è§’è‰²æ§½ä½</span>'+
+      '<span style="font-size:10px;color:#ffd700;width:70px;">¨¤¦â¼Ñ¦ì</span>'+
       '<select id="__gmp_farm_char_slot" style="flex:1;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;">'+
-        '<option value="0">æ§½ 0</option>'+
-        '<option value="1">æ§½ 1</option>'+
-        '<option value="2">æ§½ 2</option>'+
+        '<option value="0">¼Ñ 0</option>'+
+        '<option value="1">¼Ñ 1</option>'+
+        '<option value="2">¼Ñ 2</option>'+
       '</select>'+
     '</div>'+
     // Auto attack
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'+
       '<input type="checkbox" id="__gmp_farm_atk" checked style="width:14px;height:14px;cursor:pointer;">'+
-      '<span style="font-size:11px;color:#7bd14a;font-weight:bold;">âš”ï¸ è‡ªå‹•æ”»æ“Š</span>'+
+      '<span style="font-size:11px;color:#7bd14a;font-weight:bold;">?? ¦Û°Ê§ğÀ»</span>'+
     '</div>'+
-    // æŒ‡å®šç›®æ¨™
+    // «ü©w¥Ø¼Ğ
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+
       '<input type="checkbox" id="__gmp_farm_specify_target" style="width:14px;height:14px;cursor:pointer;">'+
-      '<span style="font-size:10px;color:#ffa500;">ğŸ¯ æŒ‡å®šç›®æ¨™</span>'+
+      '<span style="font-size:10px;color:#ffa500;">?? «ü©w¥Ø¼Ğ</span>'+
       '<select id="__gmp_farm_target_index" style="padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;">'+
-        '<option value="0">ç›®æ¨™ 0</option><option value="1" selected>ç›®æ¨™ 1</option><option value="2">ç›®æ¨™ 2</option>'+
-        '<option value="3">ç›®æ¨™ 3</option><option value="4">ç›®æ¨™ 4</option><option value="5">ç›®æ¨™ 5</option>'+
-        '<option value="6">ç›®æ¨™ 6</option><option value="7">ç›®æ¨™ 7</option><option value="8">ç›®æ¨™ 8</option>'+
-        '<option value="9">ç›®æ¨™ 9</option><option value="10">ç›®æ¨™ 10</option>'+
+        '<option value="0">¥Ø¼Ğ 0</option><option value="1" selected>¥Ø¼Ğ 1</option><option value="2">¥Ø¼Ğ 2</option>'+
+        '<option value="3">¥Ø¼Ğ 3</option><option value="4">¥Ø¼Ğ 4</option><option value="5">¥Ø¼Ğ 5</option>'+
+        '<option value="6">¥Ø¼Ğ 6</option><option value="7">¥Ø¼Ğ 7</option><option value="8">¥Ø¼Ğ 8</option>'+
+        '<option value="9">¥Ø¼Ğ 9</option><option value="10">¥Ø¼Ğ 10</option>'+
       '</select>'+
     '</div>'+
-    // æ”»æ“Šå…¨éƒ¨
+    // §ğÀ»¥ş³¡
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">'+
       '<input type="checkbox" id="__gmp_farm_attack_all" style="width:14px;height:14px;cursor:pointer;">'+
-      '<span style="font-size:10px;color:#ff6347;">ğŸ”¥ æ”»æ“Šå…¨éƒ¨ (ä¸€æ¬¡é€å‡º 0,1,2)</span>'+
+      '<span style="font-size:10px;color:#ff6347;">?? §ğÀ»¥ş³¡ (¤@¦¸°e¥X 0,1,2)</span>'+
     '</div>'+
     // Status
-    '<div id="__gmp_farm_status" style="font-size:10px;color:#888;margin-bottom:6px;text-align:center;">å·²åœæ­¢</div>'+
+    '<div id="__gmp_farm_status" style="font-size:10px;color:#888;margin-bottom:6px;text-align:center;">¤w°±¤î</div>'+
     // Advanced settings button
     '<div style="display:flex;gap:4px;margin-bottom:4px;">'+
-      '<button id="__gmp_farm_advanced_settings" style="flex:1;padding:5px;background:#0f3460;border:1px solid #ffd700;border-radius:6px;color:#ffd700;font-size:11px;font-weight:bold;cursor:pointer;">âš™ï¸ é€²éšè¨­å®š (Advanced Rules)</button>'+
+      '<button id="__gmp_farm_advanced_settings" style="flex:1;padding:5px;background:#0f3460;border:1px solid #ffd700;border-radius:6px;color:#ffd700;font-size:11px;font-weight:bold;cursor:pointer;">?? ¶i¶¥³]©w (Advanced Rules)</button>'+
     '</div>'+
     // Logout history shortcut box
     '<div id="__gmp_farm_logout_box" style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding:6px 8px;background:#1a1a2e;border:1px solid #0f3460;border-radius:6px;">'+
-      '<span style="font-size:10px;color:#aaa;">âš ï¸ è¢«ç™»å‡º</span>'+
+      '<span style="font-size:10px;color:#aaa;">?? ³Qµn¥X</span>'+
       '<span id="__gmp_farm_logout_count" style="font-size:14px;font-weight:bold;color:#4ade80;">0</span>'+
-      '<span style="font-size:10px;color:#888;">æ¬¡</span>'+
+      '<span style="font-size:10px;color:#888;">¦¸</span>'+
       '<span id="__gmp_farm_logout_time" style="font-size:10px;color:#666;flex:1;text-align:right;">--</span>'+
-      '<button id="__gmp_farm_logout_history" style="padding:3px 8px;background:#0f3460;border:1px solid #4ade80;border-radius:4px;color:#4ade80;font-size:10px;font-weight:bold;cursor:pointer;">ğŸ“œ æ­·å²</button>'+
+      '<button id="__gmp_farm_logout_history" style="padding:3px 8px;background:#0f3460;border:1px solid #4ade80;border-radius:4px;color:#4ade80;font-size:10px;font-weight:bold;cursor:pointer;">?? ¾ú¥v</button>'+
     '</div>'+
 
     // Test Reconnect button
 
-    '<button id="__gmp_farm_test_reconnect" style="width:100%;padding:6px;background:#2a2a4a;border:1px solid #ffd700;color:#ffd700;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;margin-bottom:4px;">ğŸ§ª æ¸¬è©¦æ–·ç·šé‡é€£</button>'+ 
+    '<button id="__gmp_farm_test_reconnect" style="width:100%;padding:6px;background:#2a2a4a;border:1px solid #ffd700;color:#ffd700;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;margin-bottom:4px;">?? ´ú¸ÕÂ_½u­«³s</button>'+ 
     '</div>'+  // closes inner farm content div
     '</div>'+ // closes farm tab content div
     '<div id="__gmp_tab_content_other" style="display:none;">'+
     '  <div style="background:rgba(255,255,255,0.04);padding:10px;border-radius:6px;margin-bottom:8px;">'+
-    '    <div style="font-size:11px;color:#ffd700;font-weight:bold;margin-bottom:6px;">ğŸ° ä¸–ç•Œç‹æŠ½ç</div>'+
+    '    <div style="font-size:11px;color:#ffd700;font-weight:bold;margin-bottom:6px;">?? ¥@¬É¤ı©â¼ú</div>'+
     '    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;">'+
-    '      <span style="font-size:10px;color:#aaa;">æ¬¡æ•¸:</span>'+
+    '      <span style="font-size:10px;color:#aaa;">¦¸¼Æ:</span>'+
     '      <input id="__gmp_gacha_count" type="number" value="30" min="1" max="999" style="width:55px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;outline:none;text-align:center;">'+
     '      <label style="display:flex;align-items:center;gap:3px;cursor:pointer;font-size:10px;color:#aaa;">'+
     '        <input type="checkbox" id="__gmp_gacha_enable" style="width:14px;height:14px;cursor:pointer;">'+
-    '        <span>æ¯ 2 ç§’è‡ªå‹•æŠ½</span>'+
+    '        <span>¨C 2 ¬í¦Û°Ê©â</span>'+
     '      </label>'+
     '      <span id="__gmp_gacha_status" style="font-size:10px;color:#888;">--</span>'+
-    '      <button id="__gmp_gacha_hist_btn" style="margin-left:auto;padding:2px 8px;background:#2a2a4a;border:1px solid #22d3ee;color:#22d3ee;border-radius:4px;cursor:pointer;font-size:10px;">ğŸ“‹ æ­·å²</button>'+
+    '      <button id="__gmp_gacha_hist_btn" style="margin-left:auto;padding:2px 8px;background:#2a2a4a;border:1px solid #22d3ee;color:#22d3ee;border-radius:4px;cursor:pointer;font-size:10px;">?? ¾ú¥v</button>'+
     '    </div>'+
     '    <div id="__gmp_gacha_hist_summary" style="font-size:9px;color:#666;margin-top:2px;"></div>'+
     '  </div>'+
     '  <div style="background:rgba(255,255,255,0.04);padding:10px;border-radius:6px;margin-bottom:8px;">'+
-    '    <div style="font-size:11px;color:#ffd700;font-weight:bold;margin-bottom:6px;">ğŸªŸ è‡ªå‹•ç½®é ‚æ¸¬è©¦</div>'+
+    '    <div style="font-size:11px;color:#ffd700;font-weight:bold;margin-bottom:6px;">?? ¦Û°Ê¸m³»´ú¸Õ</div>'+
     '    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'+
     '      <label style="display:flex;align-items:center;gap:3px;cursor:pointer;font-size:10px;color:#aaa;">'+
     '        <input type="checkbox" id="__gmp_focus_test" style="width:14px;height:14px;cursor:pointer;">'+
-    '        <span>æ¯ 10 ç§’ç½®é ‚ï¼Œ5 ç§’å¾Œç¸®å°</span>'+
+    '        <span>¨C 10 ¬í¸m³»¡A5 ¬í«áÁY¤p</span>'+
     '      </label>'+
-    '      <span id="__gmp_focus_test_status" style="font-size:10px;color:#888;">å·²åœæ­¢</span>'+
+    '      <span id="__gmp_focus_test_status" style="font-size:10px;color:#888;">¤w°±¤î</span>'+
     '    </div>'+
     '    <div id="__gmp_focus_test_log" style="margin-top:6px;max-height:120px;overflow-y:auto;font-size:9px;color:#aaa;font-family:Consolas,monospace;line-height:1.4;"></div>'+
     '  </div>'+
     '  <div style="background:rgba(255,255,255,0.04);padding:10px;border-radius:6px;margin-bottom:8px;">'+
-    '    <div style="font-size:11px;color:#ffd700;font-weight:bold;margin-bottom:6px;">ğŸ“¨ Socket å°åŒ…æ¸¬è©¦</div>'+
+    '    <div style="font-size:11px;color:#ffd700;font-weight:bold;margin-bottom:6px;">?? Socket «Ê¥]´ú¸Õ</div>'+
     '    <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">'+
     '      <span style="font-size:10px;color:#aaa;">joinBoss</span>'+
     '      <input id="__gmp_socket_boss_id" type="text" value="wb_casper" style="width:100px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;outline:none;">'+
-    '      <button id="__gmp_socket_send" style="padding:3px 10px;background:#e94560;border:none;color:#fff;border-radius:4px;cursor:pointer;font-size:10px;font-weight:bold;">ç™¼é€</button>'+
+    '      <button id="__gmp_socket_send" style="padding:3px 10px;background:#e94560;border:none;color:#fff;border-radius:4px;cursor:pointer;font-size:10px;font-weight:bold;">µo°e</button>'+
     '      <span id="__gmp_socket_result" style="font-size:10px;color:#888;"></span>'+
     '    </div>'+
     '  </div>'+
@@ -1593,8 +1594,8 @@ function __gmBuildPanel(){
     var f=(filter||'').toLowerCase();
     farmSel.innerHTML='';
     var allZones=[
-      {list:ZONES.wild,label:'-- é‡å¤– --'},
-      {list:ZONES.dungeon,label:'-- åœ°ç›£ --'}
+      {list:ZONES.wild,label:'-- ³¥¥~ --'},
+      {list:ZONES.dungeon,label:'-- ¦aºÊ --'}
     ];
     allZones.forEach(function(g){
       var opts=g.list.filter(function(z){
@@ -1633,7 +1634,7 @@ function __gmBuildPanel(){
   function buildBossItem(b){
     var div=document.createElement('div');
     div.style.cssText='display:flex;align-items:center;padding:5px 8px;background:rgba(233,69,96,0.08);border-radius:5px;margin-bottom:2px;cursor:pointer;border:1px solid rgba(233,69,96,0.3);transition:all 0.15s;';
-    div.innerHTML='<span style="font-size:11px;color:#e94560;">ğŸ‘‘ '+b.name+'</span><span style="font-size:10px;color:#888;margin-left:auto;">Lv.'+b.lv+'</span>';
+    div.innerHTML='<span style="font-size:11px;color:#e94560;">?? '+b.name+'</span><span style="font-size:10px;color:#888;margin-left:auto;">Lv.'+b.lv+'</span>';
     div.onmouseover=function(){this.style.background='rgba(233,69,96,0.2)'};
     div.onmouseout=function(){this.style.background='rgba(233,69,96,0.08)'};
     div.onclick=function(){
@@ -1671,8 +1672,8 @@ function __gmBuildPanel(){
   document.querySelectorAll('.__gmp_st').forEach(function(b){b.onclick=function(){renderZones(this.dataset.t)}});
 
   // === Tab switching ===
-  // åˆ‡æ›éŠæˆ²å…§ Tabï¼ˆåŒ…å«è‡ªå‹•é€²å…¥ä¸–ç•Œç‹çš„é ç±¤å°èˆªï¼‰
-  // @param {string} tab - Tab åç¨± ('zone','game','skill','status','farm','boss','monitor')
+  // ¤Á´«¹CÀ¸¤º Tab¡]¥]§t¦Û°Ê¶i¤J¥@¬É¤ıªº­¶ÅÒ¾É¯è¡^
+  // @param {string} tab - Tab ¦WºÙ ('zone','game','skill','status','farm','boss','monitor')
   function switchTab(tab){
     activeTab=tab;
     var mainBtns=['game','farm','boss','friend'];
@@ -1757,10 +1758,10 @@ function __gmBuildPanel(){
 
   // ========== Monitor Tab Logic ==========
   window.__pmLog=[];
-  window.__pmMaxLog=1000;  // æœ€å¤šä¿å­˜ 1000 ç­†
+  window.__pmMaxLog=1000;  // ³Ì¦h«O¦s 1000 µ§
   window.__pmMonitoring=false;
 
-  // åŒ…è£ __battleStatus.packets.push ä¾†å³æ™‚è¨˜éŒ„
+  // ¥]¸Ë __battleStatus.packets.push ¨Ó§Y®É°O¿ı
   // ===== Socket.IO / Engine.IO binary decoder =====
   function __pmDecodeSocketIO(buf){
     try{
@@ -1841,7 +1842,7 @@ function __gmBuildPanel(){
     var startBtn=document.getElementById('__gmp_monitor_start');
     var stopBtn=document.getElementById('__gmp_monitor_stop');
 
-    if(status)status.textContent=window.__pmMonitoring?'ç›£æ§ä¸­':'æœªå•Ÿå‹•';
+    if(status)status.textContent=window.__pmMonitoring?'ºÊ±±¤¤':'¥¼±Ò°Ê';
     if(status)status.style.color=window.__pmMonitoring?'#4ade80':'#e94560';
     if(count)count.textContent=window.__pmLog.length;
     if(send)send.textContent=window.__pmLog.filter(function(p){return p.dir==='SEND'}).length;
@@ -1861,19 +1862,19 @@ function __gmBuildPanel(){
         '</div>';
       }).join('');
     } else if(logEl){
-      logEl.innerHTML='<div style="color:#666;text-align:center;padding:20px;">å°šç„¡å°åŒ…è¨˜éŒ„<br><span style="font-size:9px;">é»æ“Šã€Œé–‹å§‹ç›£æ§ã€å¾ŒåŸ·è¡Œæ“ä½œ</span></div>';
+      logEl.innerHTML='<div style="color:#666;text-align:center;padding:20px;">©|µL«Ê¥]°O¿ı<br><span style="font-size:9px;">ÂIÀ»¡u¶}©lºÊ±±¡v«á°õ¦æ¾Ş§@</span></div>';
     }
   }
 
-  // æ¯ 500ms æ›´æ–° UI
+  // ¨C 500ms §ó·s UI
   setInterval(__pmUpdateUI,500);
 
-  // é–‹å§‹ç›£æ§
+  // ¶}©lºÊ±±
   document.getElementById('__gmp_monitor_start').onclick=function(){
     __pmInitHook();
     window.__pmMonitoring=true;
     console.log('[Monitor] Started, current packets:',(window.__battleStatus.packets||[]).length);
-    // ä¹Ÿè¨˜éŒ„ç¾æœ‰çš„æ­·å²å°åŒ…
+    // ¤]°O¿ı²{¦³ªº¾ú¥v«Ê¥]
     if(window.__battleStatus&&window.__battleStatus.packets){
       window.__battleStatus.packets.forEach(function(pkt){
         try{
@@ -1889,22 +1890,22 @@ function __gmBuildPanel(){
     __pmUpdateUI();
   };
 
-  // åœæ­¢ç›£æ§
+  // °±¤îºÊ±±
   document.getElementById('__gmp_monitor_stop').onclick=function(){
     window.__pmMonitoring=false;
     console.log('[Monitor] Stopped, captured:',window.__pmLog.length);
     __pmUpdateUI();
   };
 
-  // åŒ¯å‡º TXT
+  // ¶×¥X TXT
   document.getElementById('__gmp_monitor_export').onclick=function(){
-    if(!window.__pmLog.length){alert('ç„¡è¨˜éŒ„å¯åŒ¯å‡º');return;}
+    if(!window.__pmLog.length){alert('µL°O¿ı¥i¶×¥X');return;}
     var lines=[];
     lines.push('# ============================================');
-    lines.push('# å°åŒ…ç›£æ§è¨˜éŒ„ (Packet Monitor Log)');
-    lines.push('# è§’è‰²: '+(window.lastState&&window.lastState.char?window.lastState.char.name:'?'));
-    lines.push('# åŒ¯å‡ºæ™‚é–“: '+new Date().toLocaleString('zh-TW'));
-    lines.push('# ç¸½ç­†æ•¸: '+window.__pmLog.length);
+    lines.push('# «Ê¥]ºÊ±±°O¿ı (Packet Monitor Log)');
+    lines.push('# ¨¤¦â: '+(window.lastState&&window.lastState.char?window.lastState.char.name:'?'));
+    lines.push('# ¶×¥X®É¶¡: '+new Date().toLocaleString('zh-TW'));
+    lines.push('# Á`µ§¼Æ: '+window.__pmLog.length);
     lines.push('# SEND: '+window.__pmLog.filter(function(p){return p.dir==='SEND'}).length);
     lines.push('# RECV: '+window.__pmLog.filter(function(p){return p.dir==='RECV'}).length);
     lines.push('# ============================================');
@@ -1931,36 +1932,36 @@ function __gmBuildPanel(){
     console.log('[Monitor] Exported:',window.__pmLog.length,'packets');
   };
 
-  // æ¸…ç©ºè¨˜éŒ„
+  // ²MªÅ°O¿ı
   document.getElementById('__gmp_monitor_clear').onclick=function(){
-    if(!confirm('ç¢ºå®šè¦æ¸…ç©ºæ‰€æœ‰ '+window.__pmLog.length+' ç­†è¨˜éŒ„ï¼Ÿ'))return;
+    if(!confirm('½T©w­n²MªÅ©Ò¦³ '+window.__pmLog.length+' µ§°O¿ı¡H'))return;
     window.__pmLog=[];
     __pmUpdateUI();
     console.log('[Monitor] Cleared');
   };
 
-  // åˆå§‹åŒ– UI
+  // ªì©l¤Æ UI
   __pmUpdateUI();
 
   // ========== Skill Tab Logic ==========
-  // å¾ #panel-scroll .auto-box è®€å–æ‰€æœ‰ data-k / data-skill è¨­å®šï¼Œä¸­æ–‡åç¨± + å³æ™‚åŒæ­¥
+  // ±q #panel-scroll .auto-box Åª¨ú©Ò¦³ data-k / data-skill ³]©w¡A¤¤¤å¦WºÙ + §Y®É¦P¨B
   window.__pmAuto = {boxes: [], all: {}, gameEls: {}};
 
-  // å˜—è©¦å–å¾—æŸå…ƒç´ çš„ä¸­æ–‡æ¨™ç±¤
+  // ¹Á¸Õ¨ú±o¬Y¤¸¯Àªº¤¤¤å¼ĞÅÒ
   function __pmGetLabel(el) {
-    // 1. æ‰¾åŒä¸€çˆ¶å®¹å™¨å…§çš„å‰ä¸€å€‹æœ‰æ–‡å­—çš„å…„å¼Ÿå…ƒç´ 
+    // 1. §ä¦P¤@¤÷®e¾¹¤ºªº«e¤@­Ó¦³¤å¦rªº¥S§Ì¤¸¯À
     var prev = el.previousElementSibling;
     if (prev && prev.textContent.trim()) return prev.textContent.trim();
-    // 2. æ‰¾çˆ¶å±¤çš„ä¸Šä¸€å€‹å…„å¼Ÿ
+    // 2. §ä¤÷¼hªº¤W¤@­Ó¥S§Ì
     var parent = el.parentElement;
     if (parent) {
       var pp = parent.previousElementSibling;
       if (pp && pp.textContent.trim()) return pp.textContent.trim();
     }
-    // 3. data-label å±¬æ€§
+    // 3. data-label Äİ©Ê
     var dl = el.getAttribute('data-label');
     if (dl) return dl;
-    // 4. æ‰¾çˆ¶å®¹å™¨å…§ç¬¬ä¸€å€‹ .lb æˆ– label æ–‡å­—
+    // 4. §ä¤÷®e¾¹¤º²Ä¤@­Ó .lb ©Î label ¤å¦r
     var container = el.closest('.auto-box') || parent;
     if (container) {
       var lb = container.querySelector('.lb');
@@ -1968,12 +1969,12 @@ function __gmBuildPanel(){
       var label = container.querySelector('label');
       if (label && label.textContent.trim()) return label.textContent.trim();
     }
-    return null; // æ‰¾ä¸åˆ°æ™‚å›å‚³ nullï¼Œç”± caller è™•ç†
+    return null; // §ä¤£¨ì®É¦^¶Ç null¡A¥Ñ caller ³B²z
   }
 
-  // è®€å–éŠæˆ²é¢æ¿
+  // Åª¨ú¹CÀ¸­±ªO
   function __pmReadFromGame() {
-    // å…ˆé»æ“ŠéŠæˆ²çš„ã€Œè¨­å®šã€Tabï¼Œç¢ºä¿é¢æ¿å°±ç·’
+    // ¥ıÂIÀ»¹CÀ¸ªº¡u³]©w¡vTab¡A½T«O­±ªO´Nºü
     var gameSetTab = document.querySelector('.tab[data-tab="set"]');
     if (gameSetTab) {
       gameSetTab.click();
@@ -1985,7 +1986,7 @@ function __gmBuildPanel(){
         if (retryPanel) {
           __pmReadFromGameContinue(retryPanel);
         } else {
-          alert('æ‰¾ä¸åˆ°éŠæˆ²è¨­å®šé¢æ¿ (#panel-scroll)ã€‚\nè«‹å…ˆåœ¨éŠæˆ²å…§æ‰“é–‹è‡ªå‹•æ–½æ³•è¨­å®šä»‹é¢ã€‚');
+          alert('§ä¤£¨ì¹CÀ¸³]©w­±ªO (#panel-scroll)¡C\n½Ğ¥ı¦b¹CÀ¸¤º¥´¶}¦Û°Ê¬Iªk³]©w¤¶­±¡C');
         }
       }, 200);
       return;
@@ -1994,9 +1995,9 @@ function __gmBuildPanel(){
   }
   function __pmReadFromGameContinue(panel) {
     var status = document.getElementById('__gmp_skill_status');
-    if (status) { status.textContent = 'è®€å–ä¸­...'; status.style.color = '#fbbf24'; }
+    if (status) { status.textContent = 'Åª¨ú¤¤...'; status.style.color = '#fbbf24'; }
 
-    // è®€å–è§’è‰²åç¨±
+    // Åª¨ú¨¤¦â¦WºÙ
     var charNameEl = document.getElementById('__gmp_name');
     var charName = charNameEl ? charNameEl.textContent.replace('Loading...','').trim() : '?';
     var charEl = document.getElementById('__gmp_skill_char');
@@ -2008,10 +2009,10 @@ function __gmBuildPanel(){
 
     boxes.forEach(function(box, bi) {
       var hdEl = box.querySelector('.hd');
-      var sectionName = hdEl ? hdEl.textContent.trim() : ('å€å¡Š ' + (bi + 1));
+      var sectionName = hdEl ? hdEl.textContent.trim() : ('°Ï¶ô ' + (bi + 1));
       var sectionData = {name: sectionName, items: []};
 
-      // data-k å…ƒç´ ï¼ˆselect / inputï¼‰
+      // data-k ¤¸¯À¡]select / input¡^
       box.querySelectorAll('[data-k]').forEach(function(el) {
         var k = el.getAttribute('data-k');
         var label = __pmGetLabel(el) || k;
@@ -2054,7 +2055,7 @@ function __gmBuildPanel(){
         total++;
       });
 
-      // data-skill å…ƒç´ ï¼ˆæŠ€èƒ½ checkboxï¼‰
+      // data-skill ¤¸¯À¡]§Ş¯à checkbox¡^
       box.querySelectorAll('[data-skill]').forEach(function(el) {
         var k = el.getAttribute('data-skill');
         var label = __pmGetLabel(el) || k;
@@ -2068,35 +2069,35 @@ function __gmBuildPanel(){
       if (sectionData.items.length > 0) window.__pmAuto.boxes.push(sectionData);
     });
 
-    // å»ºç«‹æŠ€èƒ½ ID â†’ ä¸­æ–‡åç¨±æ˜ å°„ï¼ˆé›™ç®¡é½Šä¸‹ï¼‰
+    // «Ø¥ß§Ş¯à ID ¡÷ ¤¤¤å¦WºÙ¬M®g¡]ÂùºŞ»ô¤U¡^
     window.__pmSkillNames={};
-    // ç¬¬ä¸€æ³¢ï¼šéæ­· __pmAuto.boxes æ‰€æœ‰ items
-    //   - checkboxï¼ˆdata-skillï¼‰ï¼škey=æŠ€èƒ½IDï¼Œlabel=ä¸­æ–‡å â†’ ç›´æ¥å»ºç«‹ skillNames[key]=label
-    //   - selectï¼ˆdata-kï¼‰ï¼švalue=ç•¶å‰æŠ€èƒ½IDï¼Œlabel=è¨­å®šå â†’ å»ºç«‹ skillNames[value]=label
+    // ²Ä¤@ªi¡G¹M¾ú __pmAuto.boxes ©Ò¦³ items
+    //   - checkbox¡]data-skill¡^¡Gkey=§Ş¯àID¡Alabel=¤¤¤å¦W ¡÷ ª½±µ«Ø¥ß skillNames[key]=label
+    //   - select¡]data-k¡^¡Gvalue=·í«e§Ş¯àID¡Alabel=³]©w¦W ¡÷ «Ø¥ß skillNames[value]=label
     window.__pmAuto.boxes.forEach(function(sec){
       sec.items.forEach(function(item){
         if(!item.key)return;
-        // checkbox æŠ€èƒ½ï¼škey æ˜¯æŠ€èƒ½ IDï¼ˆå¦‚ sk_fireballï¼‰ï¼Œlabel æ˜¯ä¸­æ–‡å
+        // checkbox §Ş¯à¡Gkey ¬O§Ş¯à ID¡]¦p sk_fireball¡^¡Alabel ¬O¤¤¤å¦W
         if(item.type==='checkbox'&&item.label){
           if(!/^(true|false|on|off|\d+)$/i.test(item.key)){
             window.__pmSkillNames[item.key]=item.label;
           }
           return;
         }
-        // select æŠ€èƒ½ï¼švalue=ç•¶å‰æŠ€èƒ½IDï¼Œlabel=è¨­å®šåï¼ˆéŒ¯ï¼æ”¹ç”¨ç•¶å‰é¸ä¸­ option textï¼‰
+        // select §Ş¯à¡Gvalue=·í«e§Ş¯àID¡Alabel=³]©w¦W¡]¿ù¡I§ï¥Î·í«e¿ï¤¤ option text¡^
         if(item.type==='select'&&item.value&&item.label){
           if(!/^(true|false|on|off|\d+)$/i.test(item.value)){
-            // å¾ item.options æ‰¾ç•¶å‰é¸ä¸­é …çš„ textï¼ˆæŠ€èƒ½ä¸­æ–‡åï¼‰
+            // ±q item.options §ä·í«e¿ï¤¤¶µªº text¡]§Ş¯à¤¤¤å¦W¡^
             var selOpt=(item.options||[]).find(function(o){return o.value===item.value});
             var skillName=selOpt?selOpt.text:item.label;
-            // å»é™¤ MP è¨»è¨˜ï¼šã€Œç‡ƒç‡’çš„ç«çƒï¼ˆMP14ï¼‰ã€â†’ ã€Œç‡ƒç‡’çš„ç«çƒã€
-            skillName=skillName.replace(/ï¼ˆ[^ï¼‰]+ï¼‰$/,'').replace(/\([^)]+\)$/,'').trim();
+            // ¥h°£ MP µù°O¡G¡u¿U¿Nªº¤õ²y¡]MP14¡^¡v¡÷ ¡u¿U¿Nªº¤õ²y¡v
+            skillName=skillName.replace(/¡][^¡^]+¡^$/,'').replace(/\([^)]+\)$/,'').trim();
             window.__pmSkillNames[item.value]=skillName;
           }
         }
       });
     });
-    // ç¬¬äºŒæ³¢ï¼šselect option textï¼Œè£œå……ä¸‹æ‹‰å…§å…¶ä»–å€™é¸æŠ€èƒ½çš„ä¸­æ–‡åï¼ˆä¸¦å»é™¤ MP è¨»è¨˜ï¼‰
+    // ²Ä¤Gªi¡Gselect option text¡A¸É¥R¤U©Ô¤º¨ä¥L­Ô¿ï§Ş¯àªº¤¤¤å¦W¡]¨Ã¥h°£ MP µù°O¡^
     boxes.forEach(function(box){
       [].forEach.call(box.querySelectorAll('[data-k]'),function(el){
         if(el.tagName==='SELECT'){
@@ -2105,7 +2106,7 @@ function __gmBuildPanel(){
             if(!v||/^(true|false|on|off|\d+)$/i.test(v))return;
             if(!/^(sk_|_)/.test(v))return;
             if(!window.__pmSkillNames[v]){
-              var txt=o.textContent.trim().replace(/ï¼ˆ[^ï¼‰]+ï¼‰$/,'').replace(/\([^)]+\)$/,'').trim();
+              var txt=o.textContent.trim().replace(/¡][^¡^]+¡^$/,'').replace(/\([^)]+\)$/,'').trim();
               window.__pmSkillNames[v]=txt||v;
             }
           });
@@ -2115,8 +2116,8 @@ function __gmBuildPanel(){
 
     var cnt = document.getElementById('__gmp_skill_count');
     if (cnt) cnt.textContent = total;
-    if (status) { status.textContent = 'å·²è®€å– ' + total + ' é …'; status.style.color = '#4ade80'; }
-    // åŒæ™‚å¯«å…¥ chrome.storage.localï¼ˆä¾›é€²éšæ¨¡çµ„ä¸‹æ‹‰ä½¿ç”¨ï¼‰
+    if (status) { status.textContent = '¤wÅª¨ú ' + total + ' ¶µ'; status.style.color = '#4ade80'; }
+    // ¦P®É¼g¤J chrome.storage.local¡]¨Ñ¶i¶¥¼Ò²Õ¤U©Ô¨Ï¥Î¡^
     var skillData=JSON.parse(JSON.stringify(window.__pmAuto.all||{}));
     var skillNames=JSON.parse(JSON.stringify(window.__pmSkillNames||{}));
     if(charName&&Object.keys(skillData).length){
@@ -2135,15 +2136,15 @@ function __gmBuildPanel(){
         console.warn('[Skill Sync] storage save error:',e);
       });
     }
-    // è‹¥ advanced-farming.js å·²è¼‰å…¥ï¼ŒåŒæ­¥æ›´æ–°å…¶å¿«å–
+    // ­Y advanced-farming.js ¤w¸ü¤J¡A¦P¨B§ó·s¨ä§Ö¨ú
     if(typeof window.__gmAdvanced!=='undefined'&&window.__gmAdvanced.SkillDB){
       window.__gmAdvanced.SkillDB.save(charName,skillData,skillNames);
     }
     __pmRenderSkillList();
-    console.log('[Skill Sync] Read', total, 'items â€” char:', charName, window.__pmAuto);
+    console.log('[Skill Sync] Read', total, 'items ¡X char:', charName, window.__pmAuto);
   }
 
-  // å³æ™‚å¯«å›éŠæˆ² DOMï¼ˆå–®ä¸€é …ç›®ï¼‰
+  // §Y®É¼g¦^¹CÀ¸ DOM¡]³æ¤@¶µ¥Ø¡^
   function __pmSyncToGame(key, newValue) {
     var el = window.__pmAuto.gameEls[key];
     if (!el) return;
@@ -2167,17 +2168,17 @@ function __gmBuildPanel(){
         }
       }
     }
-    // æ›´æ–°ç‹€æ…‹
+    // §ó·sª¬ºA
     var status = document.getElementById('__gmp_skill_status');
-    if (status) { status.textContent = 'å·²åŒæ­¥ âœ“'; status.style.color = '#4ade80'; }
+    if (status) { status.textContent = '¤w¦P¨B ?'; status.style.color = '#4ade80'; }
     clearTimeout(window.__pmSyncTimer);
     window.__pmSyncTimer = setTimeout(function(){
       var s2 = document.getElementById('__gmp_skill_status');
-      if (s2) { s2.textContent = 'å·²è®€å– ' + Object.keys(window.__pmAuto.all).length + ' é …'; s2.style.color = '#4ade80'; }
+      if (s2) { s2.textContent = '¤wÅª¨ú ' + Object.keys(window.__pmAuto.all).length + ' ¶µ'; s2.style.color = '#4ade80'; }
     }, 1500);
   }
 
-  // æ¸²æŸ“æŠ€èƒ½æ¸…å–®ï¼ˆä¸­æ–‡åç¨± + ä¸‹æ‹‰/æ•¸å€¼/æ ¸å–æ–¹å¡Šï¼‰
+  // ´è¬V§Ş¯à²M³æ¡]¤¤¤å¦WºÙ + ¤U©Ô/¼Æ­È/®Ö¨ú¤è¶ô¡^
   function __pmRenderSkillList() {
     var list = document.getElementById('__gmp_skill_list');
     var empty = document.getElementById('__gmp_skill_empty');
@@ -2193,14 +2194,14 @@ function __gmBuildPanel(){
     var html = '';
     window.__pmAuto.boxes.forEach(function(sec) {
       html += '<div style="margin-bottom:10px;">';
-      html += '<div style="color:#f59e0b;font-size:10px;font-weight:bold;margin-bottom:4px;padding-bottom:3px;border-bottom:1px solid rgba(245,158,11,0.25);">ğŸ“¦ ' + escHtml(sec.name) + '</div>';
+      html += '<div style="color:#f59e0b;font-size:10px;font-weight:bold;margin-bottom:4px;padding-bottom:3px;border-bottom:1px solid rgba(245,158,11,0.25);">?? ' + escHtml(sec.name) + '</div>';
 
       sec.items.forEach(function(item) {
         var k = item.key;
         var v = item.value;
 
         if (item.type === 'select') {
-          // ä¸‹æ‹‰é¸å–®
+          // ¤U©Ô¿ï³æ
           var selOpts = item.options.map(function(o) {
             var sel = (o.value === v) ? 'selected' : '';
             return '<option value="' + escAttr(o.value) + '" ' + sel + '>' + escHtml(o.text) + '</option>';
@@ -2212,7 +2213,7 @@ function __gmBuildPanel(){
             '</div>';
 
         } else if (item.type === 'number') {
-          // æ•¸å€¼è¼¸å…¥
+          // ¼Æ­È¿é¤J
           html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 2px;border-radius:4px;transition:background 0.1s;" onmouseover="this.style.background=\'rgba(255,255,255,0.05)\'" onmouseout="this.style.background=\'\'" data-key="' + escAttr(k) + '">' +
             '<span style="color:#ccc;font-size:11px;flex-shrink:0;margin-right:6px;">' + escHtml(item.label) + '</span>' +
             '<input type="number" class="__gmp_sk_num" data-key="' + escAttr(k) + '" ' +
@@ -2221,7 +2222,7 @@ function __gmBuildPanel(){
             '</div>';
 
         } else if (item.type === 'checkbox') {
-          // æ ¸å–æ–¹å¡Šï¼ˆæŠ€èƒ½é–‹é—œï¼‰
+          // ®Ö¨ú¤è¶ô¡]§Ş¯à¶}Ãö¡^
           var chk = v ? 'checked' : '';
           var chkClr = v ? '#4ade80' : '#555';
           html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 2px;border-radius:4px;transition:background 0.1s;" onmouseover="this.style.background=\'rgba(255,255,255,0.05)\'" onmouseout="this.style.background=\'\'" data-key="' + escAttr(k) + '">' +
@@ -2231,7 +2232,7 @@ function __gmBuildPanel(){
             '</div>';
 
         } else {
-          // æ–‡å­—è¼¸å…¥
+          // ¤å¦r¿é¤J
           html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 2px;" data-key="' + escAttr(k) + '">' +
             '<span style="color:#aaa;font-size:11px;flex-shrink:0;margin-right:6px;">' + escHtml(item.label) + '</span>' +
             '<input type="text" class="__gmp_sk_txt" data-key="' + escAttr(k) + '" ' +
@@ -2245,7 +2246,7 @@ function __gmBuildPanel(){
 
     list.innerHTML = html;
 
-    // ç»‘å®šå³æ—¶åŒæ­¥äº‹ä»¶
+    // ?©w§Y?¦P¨B¨Æ¥ó
     list.querySelectorAll('.__gmp_sk_sel').forEach(function(sel) {
       sel.addEventListener('change', function() { __pmSyncToGame(this.getAttribute('data-key'), this.value); });
     });
@@ -2261,7 +2262,7 @@ function __gmBuildPanel(){
     });
   }
 
-  // HTML è·³è„«
+  // HTML ¸õ²æ
   function escHtml(s) {
     if (!s) return '';
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -2271,7 +2272,7 @@ function __gmBuildPanel(){
     return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
 
-  // æŒ‰éˆ•äº‹ä»¶
+  // «ö¶s¨Æ¥ó
   document.getElementById('__gmp_tab_skill').onclick = function() { switchTab('skill'); };
   document.getElementById('__gmp_tab_status').onclick=function(){ switchTab('status'); };
   document.getElementById('__gmp_tab_friend').onclick=function(){ switchTab('friend'); };
@@ -2279,7 +2280,7 @@ function __gmBuildPanel(){
 
   // === Status tab handlers ===
   function __gmExportAllSettings(){
-    __gmShowIdbStatus('\u{1F4E4} å°å‡ºæ‰€æœ‰è¨­å®šä¸­...','#fbbf24');
+    __gmShowIdbStatus('\u{1F4E4} ¾É¥X©Ò¦³³]©w¤¤...','#fbbf24');
     chrome.storage.local.get(null,function(all){
       var exportData={export_version:'3.18',export_date:new Date().toISOString(),settings:{}};
       ['gmSkillSettings','wb_boss_config','wb_priority_list','wb_boss_entry_settings','wb_boss_history','wb_boss_loot','wb_auto_script_state','wb_boss_auto_loot','wb_min_players'].forEach(function(k){if(all[k]!==undefined)exportData.settings[k]=all[k];});
@@ -2292,34 +2293,34 @@ function __gmBuildPanel(){
     var a=document.createElement('a');a.href=url;a.download='gm-panel-settings-'+(new Date().toISOString().slice(0,10))+'.json';
     document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
     var cnt=Object.keys(data.settings||{}).length;
-    __gmShowIdbStatus('âœ… å°å‡ºæˆåŠŸ: '+cnt+' é …è¨­å®š','#4ade80');
+    __gmShowIdbStatus('? ¾É¥X¦¨¥\: '+cnt+' ¶µ³]©w','#4ade80');
   }
   function __gmImportAllSettings(jsonStr){
     try{
       var data=JSON.parse(jsonStr);
-      if(!data.settings||typeof data.settings!=='object'){__gmShowIdbStatus('âŒ JSON æ ¼å¼éŒ¯èª¤: ç¼ºå°‘ settings å€å¡Š','#e94560');return;}
-      __gmShowIdbStatus('\u{1F4E5} å°å…¥è¨­å®šä¸­...','#fbbf24');
+      if(!data.settings||typeof data.settings!=='object'){__gmShowIdbStatus('? JSON ®æ¦¡¿ù»~: ¯Ê¤Ö settings °Ï¶ô','#e94560');return;}
+      __gmShowIdbStatus('\u{1F4E5} ¾É¤J³]©w¤¤...','#fbbf24');
       chrome.storage.local.set(data.settings,function(){
-        __gmShowIdbStatus('âœ… å°å…¥æˆåŠŸ: '+(Object.keys(data.settings).length)+' é …è¨­å®šå·²å¯«å…¥','#4ade80');
+        __gmShowIdbStatus('? ¾É¤J¦¨¥\: '+(Object.keys(data.settings).length)+' ¶µ³]©w¤w¼g¤J','#4ade80');
         if(window.__wbLoadBossConfig)window.__wbLoadBossConfig();
         if(window.__wbLoadPriorityList)window.__wbLoadPriorityList();
         if(window.__wbLoadEntrySkills)window.__wbLoadEntrySkills();
       });
-    }catch(ex){__gmShowIdbStatus('âŒ JSON è§£æéŒ¯èª¤','#e94560');}
+    }catch(ex){__gmShowIdbStatus('? JSON ¸ÑªR¿ù»~','#e94560');}
   }
   function __gmRefreshStatusView(){
     var el=document.getElementById('__gmp_status_summary');if(!el)return;
     chrome.storage.local.get(null,function(all){
-      var html='<div style="margin-bottom:4px;color:#888;font-size:10px;">å·²å„²å­˜çš„è¨­å®šé …(å…±'+Object.keys(all).length+' é …):</div>';
+      var html='<div style="margin-bottom:4px;color:#888;font-size:10px;">¤wÀx¦sªº³]©w¶µ(¦@'+Object.keys(all).length+' ¶µ):</div>';
       ['gmSkillSettings','wb_boss_config','wb_priority_list','wb_boss_entry_settings','wb_boss_history','wb_boss_loot','wb_auto_script_state','wb_boss_auto_loot','wb_min_players'].forEach(function(k){
         var v=all[k];
-        var labels={gmSkillSettings:'âš¡æŠ€èƒ½è¨­å®š',wb_boss_config:'\u{1F451}BOSS',wb_priority_list:'\u{1F3AF}å„ªå…ˆè©‚ä¼',wb_boss_entry_settings:'\u{1F3E0}BOSSé€²å…¥',wb_boss_history:'\u{1F4DC}æ­·å²',wb_boss_loot:'\u{1F4B0}æ‰è½',wb_auto_script_state:'â–¶è‡ªå‹•é€²å…¥',wb_boss_auto_loot:'\u{1F4E6}æ‰è½è¨˜éŒ„',wb_min_players:'\u{1F465}æœ€å°‘äºº'};
+        var labels={gmSkillSettings:'?§Ş¯à³]©w',wb_boss_config:'\u{1F451}BOSS',wb_priority_list:'\u{1F3AF}Àu¥ı?¥ï',wb_boss_entry_settings:'\u{1F3E0}BOSS¶i¤J',wb_boss_history:'\u{1F4DC}¾ú¥v',wb_boss_loot:'\u{1F4B0}±¼¸¨',wb_auto_script_state:'?¦Û°Ê¶i¤J',wb_boss_auto_loot:'\u{1F4E6}±¼¸¨°O¿ı',wb_min_players:'\u{1F465}³Ì¤Ö¤H'};
         var label=labels[k]||k;
         if(v!==undefined){
           var size=JSON.stringify(v).length+'B';
           html+='<div style="padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;"><span style="color:#4ade80;">'+label+'</span><span style="color:#888;font-size:9px;">'+size+'</span></div>';
         }else{
-          html+='<div style="padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;"><span style="color:#888;">'+label+'</span><span style="color:#555;">æœªè¨­å®š</span></div>';
+          html+='<div style="padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;"><span style="color:#888;">'+label+'</span><span style="color:#555;">¥¼³]©w</span></div>';
         }
       });
       el.innerHTML=html;
@@ -2330,7 +2331,7 @@ function __gmBuildPanel(){
   document.getElementById('__gmp_status_import_file').onchange=function(e){var f=e.target.files[0];if(!f)return;var rd=new FileReader();rd.onload=function(ev){__gmImportAllSettings(ev.target.result);};rd.readAsText(f);};
   var __gmOrigSwitchTab2=window.switchTab;
   if(typeof __gmOrigSwitchTab2==='function'){window.switchTab=function(t){__gmOrigSwitchTab2(t);if(t==='status')setTimeout(__gmRefreshStatusView,50);};}
-  ï»¿  // === Player Viewer v2 (friend list + modal) ===
+  ?  // === Player Viewer v2 (friend list + modal) ===
   window.__gmPlayerHistory=[];
   window.__gmPlayerRefreshTimer=null;
   window.__gmPlayerRefreshing=false;
@@ -2395,7 +2396,7 @@ function __gmBuildPanel(){
         var row=equipRows[k];
         var txt2=(row.textContent||'').trim();
         if(!txt2)continue;
-        var em=txt2.match(/^(.+?)\s*[+ï¼š:]\s*(.+)$|^(.+?)\s+(\d+)\s*$/);
+        var em=txt2.match(/^(.+?)\s*[+¡G:]\s*(.+)$|^(.+?)\s+(\d+)\s*$/);
         if(em){
           var key=(em[1]||em[3]||'').trim();
           var val=(em[2]||em[4]||'').trim();
@@ -2410,10 +2411,10 @@ function __gmBuildPanel(){
       var body=document.getElementById('pp-body');
       if(body){
         var statText=body.textContent||'';
-        var hpM=statText.match(/HP[ï¼š:]\s*(\d+)\s*\/\s*(\d+)/);
-        var mpM=statText.match(/MP[ï¼š:]\s*(\d+)\s*\/\s*(\d+)/);
-        var atkM=statText.match(/(?:æ”»æ“Š|ATK)[ï¼š:]\s*(\d+)/);
-        var defM=statText.match(/(?:é˜²ç¦¦|DEF)[ï¼š:]\s*(\d+)/);
+        var hpM=statText.match(/HP[¡G:]\s*(\d+)\s*\/\s*(\d+)/);
+        var mpM=statText.match(/MP[¡G:]\s*(\d+)\s*\/\s*(\d+)/);
+        var atkM=statText.match(/(?:§ğÀ»|ATK)[¡G:]\s*(\d+)/);
+        var defM=statText.match(/(?:¨¾¿m|DEF)[¡G:]\s*(\d+)/);
         if(hpM)stats.hp=hpM[1]+'/'+hpM[2];
         if(mpM)stats.mp=mpM[1]+'/'+mpM[2];
         if(atkM)stats.atk=atkM[1];
@@ -2704,7 +2705,7 @@ function __gmBuildPanel(){
     var cnt = document.getElementById('__gmp_skill_count');
     if (cnt) cnt.textContent = '0';
     var status = document.getElementById('__gmp_skill_status');
-    if (status) { status.textContent = 'å·²æ¸…ç©º'; status.style.color = '#888'; }
+    if (status) { status.textContent = '¤w²MªÅ'; status.style.color = '#888'; }
     var charEl = document.getElementById('__gmp_skill_char');
     if (charEl) charEl.textContent = '--';
   };
@@ -2712,12 +2713,12 @@ function __gmBuildPanel(){
     var btns = document.querySelectorAll('button, .btn, [class*="setting"], [class*="auto"]');
     var found = false;
     btns.forEach(function(b) {
-      if (b.textContent && /è¨­å®š|setting|auto|è‡ªå‹•|æ–½æ³•/i.test(b.textContent)) {
+      if (b.textContent && /³]©w|setting|auto|¦Û°Ê|¬Iªk/i.test(b.textContent)) {
         console.log('[Skill] Opening panel:', b.textContent.trim().substring(0, 30));
         b.click(); found = true;
       }
     });
-    if (!found) alert('è«‹æ‰‹å‹•æ‰“é–‹éŠæˆ²å…§çš„è‡ªå‹•æ–½æ³•è¨­å®šé¢æ¿');
+    if (!found) alert('½Ğ¤â°Ê¥´¶}¹CÀ¸¤ºªº¦Û°Ê¬Iªk³]©w­±ªO');
   };
 
 
@@ -2729,9 +2730,10 @@ function __gmBuildPanel(){
     isExpanded=!isExpanded;
     var content=document.getElementById('__gmp_content');
     var panel=document.getElementById('__gmp');
-    var headerRow=this.parentElement.parentElement;
+    if(!content||!panel)return;
+    var headerRow=this.parentElement&&this.parentElement.parentElement;
     var controlsDiv=this.parentElement;
-    var tabsDiv=controlsDiv.previousElementSibling;
+    var tabsDiv=headerRow&&headerRow.firstElementChild;
     var zoomIn=document.getElementById('__gmp_zoom_in');
     var zoomOut=document.getElementById('__gmp_zoom_out');
     var closeBtn=document.getElementById('__gmp_close');
@@ -2748,14 +2750,12 @@ function __gmBuildPanel(){
       panel.style.border='2px solid #0f3460';
       panel.style.background='linear-gradient(135deg,#1a1a2e,#16213e)';
       panel.style.cursor='move';
-      headerRow.style.marginBottom='10px';
-      headerRow.style.paddingBottom='8px';
-      headerRow.style.borderBottom='1px solid #0f3460';
-      tabsDiv.style.display='flex';
-      controlsDiv.style.display='flex';
-      zoomIn.style.display='';
-      zoomOut.style.display='';
-      closeBtn.style.display='';
+      if(headerRow){headerRow.style.marginBottom='10px';headerRow.style.paddingBottom='8px';headerRow.style.borderBottom='1px solid #0f3460';}
+      if(tabsDiv)tabsDiv.style.display='flex';
+      if(controlsDiv)controlsDiv.style.display='flex';
+      if(zoomIn)zoomIn.style.display='';
+      if(zoomOut)zoomOut.style.display='';
+      if(closeBtn)closeBtn.style.display='';
       this.style.position='';
       this.style.width='';
       this.style.height='';
@@ -2766,7 +2766,7 @@ function __gmBuildPanel(){
       this.style.display='';
       this.style.alignItems='';
       this.style.justifyContent='';
-      this.textContent='â–¼';
+      this.textContent='¡¿';
     } else {
       content.style.display='none';
       panel.style.width='24px';
@@ -2780,13 +2780,11 @@ function __gmBuildPanel(){
       panel.style.border='none';
       panel.style.background='#0f3460';
       panel.style.cursor='pointer';
-      headerRow.style.marginBottom='0';
-      headerRow.style.paddingBottom='0';
-      headerRow.style.borderBottom='none';
-      tabsDiv.style.display='none';
-      zoomIn.style.display='none';
-      zoomOut.style.display='none';
-      closeBtn.style.display='none';
+      if(headerRow){headerRow.style.marginBottom='0';headerRow.style.paddingBottom='0';headerRow.style.borderBottom='none';}
+      if(tabsDiv)tabsDiv.style.display='none';
+      if(zoomIn)zoomIn.style.display='none';
+      if(zoomOut)zoomOut.style.display='none';
+      if(closeBtn)closeBtn.style.display='none';
       this.style.position='absolute';
       this.style.top='0';
       this.style.left='0';
@@ -2799,7 +2797,7 @@ function __gmBuildPanel(){
       this.style.display='flex';
       this.style.alignItems='center';
       this.style.justifyContent='center';
-      this.textContent='â–¶';
+      this.textContent='?';
     }
   };
   document.getElementById('__gmp_zoom_in').onclick=function(){zoom=Math.min(zoom+0.1,2);p.style.transform='scale('+zoom+')'};
@@ -2824,7 +2822,7 @@ function __gmBuildPanel(){
     // Boss name
     var nameEl=document.getElementById('__gmp_boss_name');
     var lvEl=document.getElementById('__gmp_boss_lv');
-    if(nameEl)nameEl.textContent=boss.name?(boss.name+' (Lv.'+boss.lv+')'):'-- ç„¡ä¸–ç•Œç‹ --';
+    if(nameEl)nameEl.textContent=boss.name?(boss.name+' (Lv.'+boss.lv+')'):'-- µL¥@¬É¤ı --';
     if(lvEl)lvEl.textContent='mode: '+mode;
     // Boss HP bar
     var hpEl=document.getElementById('__gmp_boss_hp_text');
@@ -2839,8 +2837,8 @@ function __gmBuildPanel(){
     var bufEl=document.getElementById('__gmp_boss_buffs');
     if(bufEl){
       var parts=[];
-      if(boss.barrierOn)parts.push('ğŸ›¡ï¸ å±éšœ ON');
-      if(boss.barrierHas)parts.push('ğŸ“¦ æœ‰å±éšœ');
+      if(boss.barrierOn)parts.push('??? «Ì»Ù ON');
+      if(boss.barrierHas)parts.push('?? ¦³«Ì»Ù');
       bufEl.textContent=parts.length?parts.join(' | '):'';
     }
     // Cooldown timers
@@ -2853,13 +2851,13 @@ function __gmBuildPanel(){
         el.textContent=v.toFixed(1)+'s';
         el.style.color='#e94560';
       } else {
-        el.textContent='å°±ç·’';
+        el.textContent='´Nºü';
         el.style.color='#4ade80';
       }
     });
     // Socket status
     var sockEl=document.getElementById('__gmp_sock_status');
-    if(sockEl)sockEl.textContent=window.__wbSocket?'âœ… å·²é€£æ¥':'âŒ æœªé€£æ¥';
+    if(sockEl)sockEl.textContent=window.__wbSocket?'? ¤w³s±µ':'? ¥¼³s±µ';
     if(sockEl)sockEl.style.color=window.__wbSocket?'#4ade80':'#e94560';
     var sentEl=document.getElementById('__gmp_sock_sent');
     if(sentEl)sentEl.textContent=(window.__wbBossEmitLog||[]).length;
@@ -2885,14 +2883,14 @@ function __gmBuildPanel(){
     }
   };
 
-  // === ä¸–ç•Œç‹åˆ—è¡¨ - æŒ‰éˆ•ç›£è½ ===
+  // === ¥@¬É¤ı¦Cªí - «ö¶sºÊÅ¥ ===
   document.getElementById('__gmp_wb_refresh').onclick=function(){
     __wbUpdateWorldBossUI();
     var evtEl=document.getElementById('__gmp_wb_evt_name');
-    if(evtEl){evtEl.textContent='DOM å³æ™‚è®€å–';evtEl.style.color='#4ade80';}
-    this.textContent='å·²åˆ·æ–°!';
+    if(evtEl){evtEl.textContent='DOM §Y®ÉÅª¨ú';evtEl.style.color='#4ade80';}
+    this.textContent='¤w¨ê·s!';
     var _t=this;
-    setTimeout(function(){var b=document.getElementById('__gmp_wb_refresh');if(b)b.textContent='\u2699 åˆ·æ–°';},1500);
+    setTimeout(function(){var b=document.getElementById('__gmp_wb_refresh');if(b)b.textContent='\u2699 ¨ê·s';},1500);
   };
   document.getElementById('__gmp_wb_auto').onchange=function(){
     if(this.checked){
@@ -2916,17 +2914,17 @@ function __gmBuildPanel(){
     console.log('[WB] All event names:',allSorted.slice(0,20));
     var lines=[];
     if(bossSorted.length){
-      lines.push('=== ä¸–ç•Œç‹å€™é¸äº‹ä»¶ ===');
+      lines.push('=== ¥@¬É¤ı­Ô¿ï¨Æ¥ó ===');
       bossSorted.slice(0,10).forEach(function(k,i){lines.push((i+1)+'. '+k+' (x'+bossCandidates[k]+')');});
       lines.push('');
     }
-    lines.push('=== æ‰€æœ‰äº‹ä»¶ (å‰20) ===');
+    lines.push('=== ©Ò¦³¨Æ¥ó («e20) ===');
     allSorted.slice(0,20).forEach(function(k,i){lines.push((i+1)+'. '+k+' (x'+allNames[k]+')');});
     var msg=lines.join('\n');
     console.log('[WB] Events:\n'+msg);
-    alert(msg.length>600?msg.substring(0,600)+'\n...(console æœ‰å®Œæ•´åˆ—è¡¨)':msg);
+    alert(msg.length>600?msg.substring(0,600)+'\n...(console ¦³§¹¾ã¦Cªí)':msg);
   };
-  // ä¸–ç•Œç‹ UI æ›´æ–°è¨‚é–±ï¼ˆcache æ›´æ–°æ™‚å³æ™‚åˆ·æ–°ï¼‰
+  // ¥@¬É¤ı UI §ó·s­q¾\¡]cache §ó·s®É§Y®É¨ê·s¡^
   __wbSubscribeWorldBoss(function(evtName,data){
     __wbUpdateWorldBossUI();
     var evtEl=document.getElementById('__gmp_wb_evt_name');
@@ -2963,19 +2961,19 @@ function __gmBuildPanel(){
       __wbSyncAutoConfig();
       __wbBossAutoStart();
       var btn=document.getElementById('__gmp_boss_auto_btn');
-      if(btn){btn.textContent='\u25A0 åœæ­¢è‡ªå‹•æˆ°é¬¥';btn.style.background='#e94560';}
+      if(btn){btn.textContent='\u25A0 °±¤î¦Û°Ê¾Ô°«';btn.style.background='#e94560';}
       var s=document.getElementById('__gmp_boss_auto_status');
-      if(s){s.textContent='\u26A1 è‡ªå‹•æˆ°é¬¥é‹è¡Œä¸­...';s.style.color='#4ade80';}
+      if(s){s.textContent='\u26A1 ¦Û°Ê¾Ô°«¹B¦æ¤¤...';s.style.color='#4ade80';}
       var ss=document.getElementById('__gmp_boss_auto_status_short');
-      if(ss){ss.textContent='\u26A1 è‡ªå‹•æˆ°é¬¥é‹è¡Œä¸­...';ss.style.color='#4ade80';}
+      if(ss){ss.textContent='\u26A1 ¦Û°Ê¾Ô°«¹B¦æ¤¤...';ss.style.color='#4ade80';}
     } else {
       __wbBossAutoStop();
       var btn=document.getElementById('__gmp_boss_auto_btn');
-      if(btn){btn.textContent='\u25B6 å•Ÿå‹•è‡ªå‹•æˆ°é¬¥';btn.style.background='#0f3460';}
+      if(btn){btn.textContent='\u25B6 ±Ò°Ê¦Û°Ê¾Ô°«';btn.style.background='#0f3460';}
       var s=document.getElementById('__gmp_boss_auto_status');
-      if(s){s.textContent='åœæ­¢ä¸­';s.style.color='#888';}
+      if(s){s.textContent='°±¤î¤¤';s.style.color='#888';}
       var ss=document.getElementById('__gmp_boss_auto_status_short');
-      if(ss){ss.textContent='åœæ­¢ä¸­';ss.style.color='#888';}
+      if(ss){ss.textContent='°±¤î¤¤';ss.style.color='#888';}
     }
   };
   document.getElementById('__gmp_boss_auto_config_btn').onclick=function(){
@@ -3055,7 +3053,7 @@ function __gmBuildPanel(){
       'attack':'\u2694 \u653b\u51fb'
     };
 
-  // === BOSS æ‰è½è¨˜éŒ„ Modal ===
+  // === BOSS ±¼¸¨°O¿ı Modal ===
   var __gmp_boss_loot_modal = null;
 
   function __wbOpenLootModal(){
@@ -3199,7 +3197,7 @@ function __gmBuildPanel(){
     if(__gmp_boss_loot_modal) __gmp_boss_loot_modal.style.display='none';
   }
 
-  // === BOSS æ‰è½è¨˜éŒ„é–‹é—œ ===
+  // === BOSS ±¼¸¨°O¿ı¶}Ãö ===
   function __wbSaveLootSetting(){
     var chk=document.getElementById('__gmp_boss_auto_loot');
     if(chk) chrome.storage.local.set({ wb_boss_auto_loot: chk.checked });
@@ -3256,7 +3254,7 @@ function __gmBuildPanel(){
     }
   };
   
-  // === BOSS æ­·å²è¨˜éŒ„ Modal ===
+  // === BOSS ¾ú¥v°O¿ı Modal ===
   var historyModal=document.createElement('div');
   historyModal.id='__gmp_boss_history_modal';
   historyModal.style.cssText='display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9999;justify-content:center;align-items:center;';
@@ -3269,7 +3267,7 @@ function __gmBuildPanel(){
       '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">'+
         '<input id="__gmp_boss_history_search" type="text" placeholder="\u641c\u7d22 BOSS \u540d\u79f0 / \u4e8b\u4ef6..." style="flex:1;padding:5px 8px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;">'+
         '<button id="__gmp_boss_history_search_btn" style="padding:5px 10px;background:#1a3a6e;border:1px solid #0f3460;color:#86c5ff;border-radius:4px;cursor:pointer;font-size:10px;">\uD83D\uDD0D</button>'+
-        '<button id="__gmp_boss_history_clear" style="padding:5px 10px;background:#4a1a1a;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:10px;">ğŸ—‘ \u5168\u90e8\u6e05\u7a7a</button>'+
+        '<button id="__gmp_boss_history_clear" style="padding:5px 10px;background:#4a1a1a;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:10px;">?? \u5168\u90e8\u6e05\u7a7a</button>'+
       '</div>'+
       '<div id="__gmp_boss_history_count" style="font-size:9px;color:#888;margin-bottom:6px;"></div>'+
       '<div id="__gmp_boss_history_list" style="flex:1;overflow-y:auto;font-size:10px;"></div>'+
@@ -3302,7 +3300,7 @@ function __gmBuildPanel(){
   // === BOSS config save/load ===
 
 
-  // === BOSS é€²å…¥è¨­å®š handler ===
+  // === BOSS ¶i¤J³]©w handler ===
   function checkEntryField(field){
     var el=document.getElementById('__gmp_boss_entry_'+field);
     var chk=document.getElementById('__gmp_boss_entry_'+field+'_chk');
@@ -3333,7 +3331,7 @@ function __gmBuildPanel(){
       checkEntryField('potType');
       checkEntryField('healSkill');
       var btn=document.getElementById('__gmp_boss_entry_save');
-      if(btn){btn.textContent='\u2714\uFE0F å·²å„²å­˜!';btn.style.border='none';btn.style.background='#0a3a0a';setTimeout(function(){btn.textContent='å„²å­˜è¨­å®š';btn.style.border='1px solid #4ade80';btn.style.background='#1a4a1a';},2000);}
+      if(btn){btn.textContent='\u2714\uFE0F ¤wÀx¦s!';btn.style.border='none';btn.style.background='#0a3a0a';setTimeout(function(){btn.textContent='Àx¦s³]©w';btn.style.border='1px solid #4ade80';btn.style.background='#1a4a1a';},2000);}
     }).catch(function(){});
   }
 
@@ -3360,17 +3358,17 @@ function __gmBuildPanel(){
       var healSel=document.getElementById('__gmp_boss_entry_healSkill');
       if(!atkSel&&!healSel)return;
 
-      // å„ªå…ˆä½¿ç”¨ runtime çš„ __gmSkillMapï¼ˆç”± refreshSkillDatalist å¾ DOM æƒæï¼‰
+      // Àu¥ı¨Ï¥Î runtime ªº __gmSkillMap¡]¥Ñ refreshSkillDatalist ±q DOM ±½´y¡^
       var skillMap=window.__gmSkillMap||{};
       var skillKeys=Object.keys(skillMap);
 
       if(skillKeys.length>0){
-        // ç›´æ¥ä½¿ç”¨ __gmSkillMapï¼ˆæœ€å³æ™‚ï¼Œæœ‰ä¸­æ–‡åï¼‰
+        // ª½±µ¨Ï¥Î __gmSkillMap¡]³Ì§Y®É¡A¦³¤¤¤å¦W¡^
         buildDropdowns(skillKeys, function(id){ return skillMap[id] || id; });
         return;
       }
 
-      // Fallback 1: å¾ __pmSkillNames runtime ç‰©ä»¶
+      // Fallback 1: ±q __pmSkillNames runtime ª«¥ó
       if(window.__pmSkillNames && typeof window.__pmSkillNames === 'object'){
         var names=window.__pmSkillNames;
         var keys=Object.keys(names);
@@ -3380,7 +3378,7 @@ function __gmBuildPanel(){
         }
       }
 
-      // Fallback 2: å¾ gmSkillSettings (chrome.storage)
+      // Fallback 2: ±q gmSkillSettings (chrome.storage)
       var charName=window.__gmCharName||(window.lastState&&window.lastState.charName)||'';
       __gmStorageGet(['gmSkillSettings']).then(function(result){
         var arr=result&&result.gmSkillSettings||[];
@@ -3401,20 +3399,20 @@ function __gmBuildPanel(){
         var healSel=document.getElementById('__gmp_boss_entry_healSkill');
         if(!atkSel||!healSel)return;
 
-        // éæ¿¾æ‰æ•¸å€¼é¡ keyï¼Œåªç•™æŠ€èƒ½
+        // ¹LÂo±¼¼Æ­ÈÃş key¡A¥u¯d§Ş¯à
         var valid=ids.filter(function(id){
           return id.indexOf('sk_')===0;
         });
-        if(valid.length<3)valid=ids; // éæ¿¾å¤ªå°‘å°±ç”¨å…¨éƒ¨
+        if(valid.length<3)valid=ids; // ¹LÂo¤Ó¤Ö´N¥Î¥ş³¡
 
-        // æ’é™¤éæŠ€èƒ½ key (å¦‚ hpThreshold, mpThreshold ç­‰)
+        // ±Æ°£«D§Ş¯à key (¦p hpThreshold, mpThreshold µ¥)
         var skip=/^(hpThreshold|mpThreshold|hp_|mp_|target_|monster_|delay_|auto_|farm_|timeout_|scroll_)/;
         valid=valid.filter(function(id){ return !skip.test(id); });
 
         if(valid.length<3)valid=ids;
 
-        var atkOpts='<option value="">-- è«‹é¸æ“‡ --</option>';
-        var healOpts='<option value="">-- è«‹é¸æ“‡ --</option>';
+        var atkOpts='<option value="">-- ½Ğ¿ï¾Ü --</option>';
+        var healOpts='<option value="">-- ½Ğ¿ï¾Ü --</option>';
         for(var i=0;i<valid.length;i++){
           var id=valid[i];
           var label=labelFn(id);
@@ -3425,7 +3423,7 @@ function __gmBuildPanel(){
         atkSel.innerHTML=atkOpts;
         healSel.innerHTML=healOpts;
 
-        // è¼‰å…¥å·²å„²å­˜çš„è¨­å®š
+        // ¸ü¤J¤wÀx¦sªº³]©w
         __gmStorageGet(['wb_boss_entry_settings']).then(function(r2){
           if(r2&&r2.wb_boss_entry_settings){
             var s=r2.wb_boss_entry_settings;
@@ -3440,7 +3438,7 @@ function __gmBuildPanel(){
     }
   }
 
-  // ç›£è½æŒ‰éˆ•èˆ‡ä¸‹æ‹‰è®Šæ›´
+  // ºÊÅ¥«ö¶s»P¤U©ÔÅÜ§ó
   setTimeout(function(){
     var atkS=document.getElementById('__gmp_boss_entry_atkSkill');
     var potS=document.getElementById('__gmp_boss_entry_potType');
@@ -3535,16 +3533,16 @@ function __gmBuildPanel(){
   document.getElementById('__gmp_boss_auto_btn').onclick=function(){
     if(window.__wbBossAuto.running){
       __wbBossAutoStop();
-      this.textContent='â–¶ å•Ÿå‹•è‡ªå‹•æˆ°é¬¥';
+      this.textContent='? ±Ò°Ê¦Û°Ê¾Ô°«';
       this.style.background='#0f3460';
       var s=document.getElementById('__gmp_boss_auto_status');
-      if(s){s.textContent='åœæ­¢ä¸­';s.style.color='#888';}var ce=document.getElementById('__gmp_boss_auto_enable');if(ce)ce.checked=false;var ss=document.getElementById('__gmp_boss_auto_status_short');if(ss){ss.textContent='åœæ­¢ä¸­';ss.style.color='#888';}
+      if(s){s.textContent='°±¤î¤¤';s.style.color='#888';}var ce=document.getElementById('__gmp_boss_auto_enable');if(ce)ce.checked=false;var ss=document.getElementById('__gmp_boss_auto_status_short');if(ss){ss.textContent='°±¤î¤¤';ss.style.color='#888';}
     } else {
       __wbSyncAutoConfig();
       __wbSaveBossConfig();
       __wbBossAutoStart();
-      this.textContent='â–  åœæ­¢è‡ªå‹•æˆ°é¬¥';
-      this.style.background='#e94560';var ce=document.getElementById('__gmp_boss_auto_enable');if(ce)ce.checked=true;var ss=document.getElementById('__gmp_boss_auto_status_short');if(ss){ss.textContent='âš¡ è‡ªå‹•æˆ°é¬¥é‹è¡Œä¸­...';ss.style.color='#4ade80';}
+      this.textContent='¡½ °±¤î¦Û°Ê¾Ô°«';
+      this.style.background='#e94560';var ce=document.getElementById('__gmp_boss_auto_enable');if(ce)ce.checked=true;var ss=document.getElementById('__gmp_boss_auto_status_short');if(ss){ss.textContent='? ¦Û°Ê¾Ô°«¹B¦æ¤¤...';ss.style.color='#4ade80';}
     }
   };
 
@@ -3558,7 +3556,7 @@ function __gmBuildPanel(){
           window.__wbUpdateHuntListUI();
     },500);
   }
-  // æ¯60ç§’åˆ·æ–° DOM ä¸–ç•Œç‹ç¥åƒè³‡è¨Šï¼ˆäººæ•¸è®ŠåŒ–ã€é‡ç”Ÿç‹€æ…‹ï¼‰
+  // ¨C60¬í¨ê·s DOM ¥@¬É¤ı¯«¹³¸ê°T¡]¤H¼ÆÅÜ¤Æ¡B­«¥Íª¬ºA¡^
   function __wbBossStartRefresher(){
     var _refInt=setInterval(function(){
       if(activeTab=='boss'){
@@ -3573,7 +3571,7 @@ function __gmBuildPanel(){
   __wbBossStartRefresher();
   __wbBossStartUpdater();
 
-  // === IDB å…¨åŸŸåŒ¯å‡º/åŒ¯å…¥ ===
+  // === IDB ¥ş°ì¶×¥X/¶×¤J ===
   function __gmShowIdbStatus(msg,color){
     var el=document.getElementById('__gmp_idb_status');
     if(!el)return;
@@ -3589,10 +3587,10 @@ function __gmBuildPanel(){
 
   document.getElementById('__gmp_import_all').onclick=function(){
     if(!window.__gmAdvanced){
-      __gmShowIdbStatus('âš ï¸ é€²éšæ¨¡çµ„å°šæœªè¼‰å…¥ï¼Œè«‹ç¨å€™å†è©¦','#fbbf24');
+      __gmShowIdbStatus('?? ¶i¶¥¼Ò²Õ©|¥¼¸ü¤J¡A½Ğµy­Ô¦A¸Õ','#fbbf24');
       return;
     }
-    // åŒæ™‚åŒ¯å‡ºé€²éšè³‡æ–™ + ç™»å‡ºæ­·å²
+    // ¦P®É¶×¥X¶i¶¥¸ê®Æ + µn¥X¾ú¥v
     Promise.all([
       window.__gmAdvanced.exportAll(),
       LogoutDB.exportCache()
@@ -3606,9 +3604,9 @@ function __gmBuildPanel(){
       document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
       var ruleCount=data.advanced_rules?data.advanced_rules.length:0;
       var monsterCount=data.monsters?data.monsters.length:0;
-      __gmShowIdbStatus('âœ… åŒ¯å‡ºæˆåŠŸï¼š'+ruleCount+' è¦å‰‡ / '+monsterCount+' æ€ªç‰© / æŠ€èƒ½è¨­å®š / '+data.logout_history.length+' ç™»å…¥ç´€éŒ„','#4ade80');
+      __gmShowIdbStatus('? ¶×¥X¦¨¥\¡G'+ruleCount+' ³W«h / '+monsterCount+' ©Çª« / §Ş¯à³]©w / '+data.logout_history.length+' µn¤J¬ö¿ı','#4ade80');
     }).catch(function(e){
-      __gmShowIdbStatus('âŒ åŒ¯å‡ºå¤±æ•—ï¼š'+e.message,'#e94560');
+      __gmShowIdbStatus('? ¶×¥X¥¢±Ñ¡G'+e.message,'#e94560');
     });
   };
 
@@ -3625,22 +3623,22 @@ function __gmBuildPanel(){
       try{
         var data=JSON.parse(ev.target.result);
         if(!window.__gmAdvanced){
-          __gmShowIdbStatus('âš ï¸ é€²éšæ¨¡çµ„å°šæœªè¼‰å…¥ï¼Œè«‹ç¨å€™å†è©¦','#fbbf24');
+          __gmShowIdbStatus('?? ¶i¶¥¼Ò²Õ©|¥¼¸ü¤J¡A½Ğµy­Ô¦A¸Õ','#fbbf24');
           return;
         }
         window.__gmAdvanced.importAll(data).then(function(){
-          __gmShowIdbStatus('âœ… åŒ¯å…¥æˆåŠŸï¼Œè«‹é‡æ–°é–‹å•Ÿé€²éšè¨­å®šæŸ¥çœ‹','#4ade80');
+          __gmShowIdbStatus('? ¶×¤J¦¨¥\¡A½Ğ­«·s¶}±Ò¶i¶¥³]©w¬d¬İ','#4ade80');
           if(window.__gmAdvanced.refreshMonsterDatalist)window.__gmAdvanced.refreshMonsterDatalist();
           if(window.__gmAdvanced.refreshSkillDatalist)window.__gmAdvanced.refreshSkillDatalist();
-          // åŒ¯å…¥ç™»å‡ºæ­·å²
+          // ¶×¤Jµn¥X¾ú¥v
           if(data.logout_history&&Array.isArray(data.logout_history)){
             LogoutDB.importCache(data.logout_history);
           }
         }).catch(function(err){
-          __gmShowIdbStatus('âŒ åŒ¯å…¥å¤±æ•—ï¼š'+err.message,'#e94560');
+          __gmShowIdbStatus('? ¶×¤J¥¢±Ñ¡G'+err.message,'#e94560');
         });
       }catch(ex){
-        __gmShowIdbStatus('âŒ JSON æ ¼å¼éŒ¯èª¤','#e94560');
+        __gmShowIdbStatus('? JSON ®æ¦¡¿ù»~','#e94560');
       }
     };
     reader.readAsText(file);
@@ -3656,19 +3654,19 @@ function __gmBuildPanel(){
         window.__gmAdvanced.openModal();
       }catch(e){
         console.warn('[GM] openModal error:',e);
-        alert('âŒ é€²éšæ¨¡çµ„ç™¼ç”ŸéŒ¯èª¤:\n'+e.message+'\n\nè«‹é‡æ–°æ•´ç†é é¢é‡è©¦ã€‚');
+        alert('? ¶i¶¥¼Ò²Õµo¥Í¿ù»~:\n'+e.message+'\n\n½Ğ­«·s¾ã²z­¶­±­«¸Õ¡C');
       }
     } else if(window.__gmAdvanced){
-      // window.__gmAdvanced å·²è¼‰å…¥ä½†æ²’æœ‰ openModal
+      // window.__gmAdvanced ¤w¸ü¤J¦ı¨S¦³ openModal
       console.warn('[GM] openModal not available, __gmAdvanced keys:',Object.keys(window.__gmAdvanced));
-      alert('âš ï¸ é€²éšæ¨¡çµ„è¼‰å…¥ä¸å®Œå…¨ï¼ˆopenModal æ–¹æ³•éºå¤±ï¼‰\n\nè«‹é‡æ–°æ•´ç†é é¢é‡è©¦ã€‚');
+      alert('?? ¶i¶¥¼Ò²Õ¸ü¤J¤£§¹¥ş¡]openModal ¤èªk¿ò¥¢¡^\n\n½Ğ­«·s¾ã²z­¶­±­«¸Õ¡C');
     } else {
-      // æª¢æŸ¥é€²éšæ¨¡çµ„æ˜¯å¦æ­£åœ¨è¼‰å…¥ä¸­
+      // ÀË¬d¶i¶¥¼Ò²Õ¬O§_¥¿¦b¸ü¤J¤¤
       var waitDialog=document.getElementById('__gmAdvModal');
       if(!waitDialog){
-        // é¡¯ç¤ºè¼‰å…¥ä¸­æç¤ºï¼Œå†ç­‰ 5 ç§’é‡è©¦
-        alert('ğŸ”„ é€²éšæ¨¡çµ„è¼‰å…¥ä¸­...\n\nè«‹ç¨å€™å†é»ä¸€æ¬¡ã€‚\nè‹¥æŒçºŒç„¡æ³•è¼‰å…¥ï¼Œè«‹é‡æ–°æ•´ç†é é¢ã€‚');
-        // å»¶æ™‚é‡è©¦ä¸€æ¬¡
+        // Åã¥Ü¸ü¤J¤¤´£¥Ü¡A¦Aµ¥ 5 ¬í­«¸Õ
+        alert('?? ¶i¶¥¼Ò²Õ¸ü¤J¤¤...\n\n½Ğµy­Ô¦AÂI¤@¦¸¡C\n­Y«ùÄòµLªk¸ü¤J¡A½Ğ­«·s¾ã²z­¶­±¡C');
+        // ©µ®É­«¸Õ¤@¦¸
         setTimeout(function(){
           if(window.__gmAdvanced&&typeof window.__gmAdvanced.openModal==='function'){
             try{window.__gmAdvanced.openModal();}catch(e){}
@@ -3683,52 +3681,52 @@ function __gmBuildPanel(){
     var charName=charNameInput.value.trim()||'';
     
     if(!charName){
-      status.textContent='âŒ è«‹å…ˆè¼¸å…¥è§’è‰²åç¨±';
+      status.textContent='? ½Ğ¥ı¿é¤J¨¤¦â¦WºÙ';
       status.style.color='#e94560';
       return;
     }
     
-    status.textContent='ğŸ” æ¸¬è©¦ä¸­...';
+    status.textContent='?? ´ú¸Õ¤¤...';
     status.style.color='#ffd700';
     
-    // æª¢æ¸¬æ˜¯å¦åœ¨è§’è‰²é¸æ“‡ç•«é¢ï¼ˆæª¢æ¸¬ #slots æˆ– .char-slot æ˜¯å¦å­˜åœ¨ï¼‰
+    // ÀË´ú¬O§_¦b¨¤¦â¿ï¾Üµe­±¡]ÀË´ú #slots ©Î .char-slot ¬O§_¦s¦b¡^
     var slotsDiv=document.getElementById('slots');
     var charSlots=document.querySelectorAll('.char-slot');
     var isOnCharSelect=slotsDiv!==null||charSlots.length>0;
     
-    console.log('[GM] æ¸¬è©¦æ–·ç·šé‡é€£ï¼šè§’è‰²åç¨± "'+charName+'"');
-    console.log('[GM] æ˜¯å¦åœ¨è§’è‰²é¸æ“‡ç•«é¢ï¼š', isOnCharSelect);
-    console.log('[GM] æ‰¾åˆ°', charSlots.length, 'å€‹è§’è‰²æ§½');
+    console.log('[GM] ´ú¸ÕÂ_½u­«³s¡G¨¤¦â¦WºÙ "'+charName+'"');
+    console.log('[GM] ¬O§_¦b¨¤¦â¿ï¾Üµe­±¡G', isOnCharSelect);
+    console.log('[GM] §ä¨ì', charSlots.length, '­Ó¨¤¦â¼Ñ');
     
     if(isOnCharSelect){
-      status.textContent='âš ï¸ æª¢æ¸¬åˆ°è§’è‰²é¸æ“‡ç•«é¢ï¼Œå˜—è©¦é»æ“Š...';
+      status.textContent='?? ÀË´ú¨ì¨¤¦â¿ï¾Üµe­±¡A¹Á¸ÕÂIÀ»...';
       status.style.color='#fbbf24';
       
-      // å˜—è©¦æ‰¾åˆ°åŒ…å«è§’è‰²åç¨±çš„ .char-slot ä¸¦é»æ“Š
+      // ¹Á¸Õ§ä¨ì¥]§t¨¤¦â¦WºÙªº .char-slot ¨ÃÂIÀ»
       var clicked=false;
       charSlots.forEach(function(slot, index){
-        console.log('[GM] è§’è‰²æ§½', index, 'HTML:', slot.innerHTML.substring(0, 200));
+        console.log('[GM] ¨¤¦â¼Ñ', index, 'HTML:', slot.innerHTML.substring(0, 200));
         if(slot.innerHTML.indexOf(charName)>-1){
           var emptyDiv=slot.querySelector('.empty');
           if(!emptyDiv){
-            console.log('[GM] æ‰¾åˆ°è§’è‰²æ§½', index, 'ï¼Œé»æ“Šé€²å…¥...');
+            console.log('[GM] §ä¨ì¨¤¦â¼Ñ', index, '¡AÂIÀ»¶i¤J...');
             slot.click();
             clicked=true;
-            status.textContent='âœ… å·²é»æ“Šè§’è‰²æ§½ '+index+'ï¼';
+            status.textContent='? ¤wÂIÀ»¨¤¦â¼Ñ '+index+'¡I';
             status.style.color='#4ade80';
           }
         }
       });
       
       if(!clicked){
-        status.textContent='âŒ æœªæ‰¾åˆ°è§’è‰² "'+charName+'" çš„æ§½ä½';
+        status.textContent='? ¥¼§ä¨ì¨¤¦â "'+charName+'" ªº¼Ñ¦ì';
         status.style.color='#e94560';
-        console.log('[GM] æœªæ‰¾åˆ°è§’è‰²æ§½');
+        console.log('[GM] ¥¼§ä¨ì¨¤¦â¼Ñ');
       }
     } else {
-      status.textContent='âœ… ä¸åœ¨è§’è‰²é¸æ“‡ç•«é¢ï¼Œæ¸¸æˆ²æ­£å¸¸ä¸­';
+      status.textContent='? ¤£¦b¨¤¦â¿ï¾Üµe­±¡A´åÀ¸¥¿±`¤¤';
       status.style.color='#4ade80';
-      console.log('[GM] ä¸åœ¨è§’è‰²é¸æ“‡ç•«é¢ï¼Œæ¸¸æˆ²æ­£å¸¸');
+      console.log('[GM] ¤£¦b¨¤¦â¿ï¾Üµe­±¡A´åÀ¸¥¿±`');
     }
   };
 
@@ -3759,7 +3757,7 @@ function __gmBuildPanel(){
         document.getElementById('__gmp_exp_text').textContent=Math.round((c.exp||0)/(c.expToNext||1)*100)+'%';
         document.getElementById('__gmp_exp_bar').style.width=Math.round((c.exp||0)/(c.expToNext||1)*100)+'%';
         document.getElementById('__gmp_gold').textContent=(c.gold||0).toLocaleString();
-        document.getElementById('__gmp_online').textContent=window.__gmOnlineCount?(window.__gmOnlineCount+'äºº'):'--';
+        document.getElementById('__gmp_online').textContent=window.__gmOnlineCount?(window.__gmOnlineCount+'¤H'):'--';
         var h='';
         if(d.monsters)d.monsters.forEach(function(m,i){if(m){var pct=Math.round(m.hp/m.maxHp*100);var col=pct>50?'#4ade80':pct>25?'#fbbf24':'#e94560';h+='<div>['+i+'] '+(m.n||'?')+' <span style="color:'+col+';">'+(m.hp||0)+'/'+(m.maxHp||0)+'</span></div>'}});
         document.getElementById('__gmp_mobs').innerHTML=h||'<span style="color:#888;">none</span>';
@@ -3787,14 +3785,14 @@ function __gmBuildPanel(){
     if(data.logicOp)document.getElementById('__gmp_farm_logic').value=data.logicOp;
     document.getElementById('__gmp_farm_logic_chk').checked=data.logicEnabled!==false;
     document.getElementById('__gmp_farm_atk').checked=data.autoAtk!==false;
-    // æ–°å¢ï¼šæŒ‡å®šç›®æ¨™ + æ”»æ“Šå…¨éƒ¨
+    // ·s¼W¡G«ü©w¥Ø¼Ğ + §ğÀ»¥ş³¡
     var elSpecify=document.getElementById('__gmp_farm_specify_target');
     var elTargetIdx=document.getElementById('__gmp_farm_target_index');
     var elAttackAll=document.getElementById('__gmp_farm_attack_all');
     if(elSpecify)elSpecify.checked=data.specifyTarget||false;
     if(elTargetIdx)elTargetIdx.value=data.targetIndex||1;
     if(elAttackAll)elAttackAll.checked=data.attackAll||false;
-    // æ–°å¢ï¼šè¼‰å…¥æ–·ç·šé‡é€£è¨­å®š
+    // ·s¼W¡G¸ü¤JÂ_½u­«³s³]©w
     if(data.charName)document.getElementById('__gmp_farm_char_name').value=data.charName;
     document.getElementById('__gmp_farm_reconnect').checked=data.reconnectEnabled!==false;
     if(data.reconnectInterval)document.getElementById('__gmp_farm_reconnect_interval').value=data.reconnectInterval;
@@ -3802,7 +3800,7 @@ function __gmBuildPanel(){
     if(data.charSlot!==undefined)document.getElementById('__gmp_farm_char_slot').value=data.charSlot;
     if(data.charSlot!==undefined)document.getElementById('__gmp_farm_char_slot').value=data.charSlot;
     if(data.charSlot!==undefined)document.getElementById('__gmp_farm_char_slot').value=data.charSlot;
-    // æ–°å¢ï¼šMP reconnect
+    // ·s¼W¡GMP reconnect
     if(data.mpReconnectEnabled!==undefined)document.getElementById('__gmp_farm_mp_reconnect').checked=data.mpReconnectEnabled;
     if(data.mpReconnectThresh)document.getElementById('__gmp_farm_mp_reconnect_thresh').value=data.mpReconnectThresh;
   });
@@ -3845,14 +3843,14 @@ debugChk.onchange = function() {
 var debugLabel = document.createElement('label');
 debugLabel.htmlFor = '__gmp_debug_log';
 debugLabel.style.cssText = 'font-size:10px;color:#aaa;cursor:pointer;';
-debugLabel.textContent = 'é¡¯ç¤ºä¸»æ§å°åµæ¸¬æ—¥èªŒ';
+debugLabel.textContent = 'Åã¥Ü¥D±±¥x°»´ú¤é»x';
 debugContainer.appendChild(debugChk);
 debugContainer.appendChild(debugLabel);
 
 // Add export button to game tab
 var exportBtn = document.createElement('button');
 exportBtn.id = '__gmp_export_log';
-exportBtn.textContent = 'ğŸ“¥ åŒ¯å‡ºå°åŒ…ç›£æ§.log';
+exportBtn.textContent = '?? ¶×¥X«Ê¥]ºÊ±±.log';
 exportBtn.style.cssText = 'width:100%;padding:6px;background:#0f3460;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;margin-bottom:8px;';
 exportBtn.onclick = function() {
   // Export packet logs
@@ -3867,12 +3865,12 @@ exportBtn.onclick = function() {
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a');
   a.href = url;
-  a.download = 'å°åŒ…ç›£æ§_' + new Date().toISOString().slice(0,10) + '.log';
+  a.download = '«Ê¥]ºÊ±±_' + new Date().toISOString().slice(0,10) + '.log';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  alert('å·²åŒ¯å‡º ' + logs.length + ' ç­†å°åŒ…è¨˜éŒ„');
+  alert('¤w¶×¥X ' + logs.length + ' µ§«Ê¥]°O¿ı');
 };
 
 // Append to game tab
@@ -3895,16 +3893,16 @@ document.addEventListener('__gm_show_panel',function(){__gmBuildPanel()});
   modal.id='__gmp_autostart_modal';
   modal.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.82);z-index:10000000;display:flex;align-items:center;justify-content:center;';
   modal.innerHTML='<div style="background:#1a1a2e;border:1px solid #0f3460;border-radius:14px;padding:28px 36px;text-align:center;max-width:400px;box-shadow:0 4px 30px rgba(0,0,0,0.7);">'+
-    '<div style="font-size:18px;color:#4ade80;font-weight:bold;margin-bottom:18px;">â± è‡ªå‹•å•Ÿå‹•å€’æ•¸</div>'+
+    '<div style="font-size:18px;color:#4ade80;font-weight:bold;margin-bottom:18px;">? ¦Û°Ê±Ò°Ê­Ë¼Æ</div>'+
     '<div id="__gmp_autostart_countdown" style="font-size:52px;color:#ffd700;font-weight:bold;margin-bottom:14px;">'+sec+'</div>'+
     '<div style="font-size:11px;color:#aaa;margin-bottom:18px;line-height:2;">'+
-      'âœ… æ›æ©Ÿè…³æœ¬<br>'+
-      'âœ… BOSS è‡ªå‹•é€²å…¥<br>'+
-      'âœ… BOSS è‡ªå‹•åµæ¸¬æˆ°é¬¥'+
+      '? ±¾¾÷¸}¥»<br>'+
+      '? BOSS ¦Û°Ê¶i¤J<br>'+
+      '? BOSS ¦Û°Ê°»´ú¾Ô°«'+
     '</div>'+
     '<div style="display:flex;gap:10px;justify-content:center;">'+
-      '<button id="__gmp_autostart_cancel" style="padding:10px 28px;background:#e94560;border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:14px;font-weight:bold;">å–æ¶ˆ</button>'+
-      '<button id="__gmp_autostart_now" style="padding:10px 28px;background:#4ade80;border:none;color:#000;border-radius:8px;cursor:pointer;font-size:14px;font-weight:bold;">ç«‹å³å•Ÿå‹•</button>'+
+      '<button id="__gmp_autostart_cancel" style="padding:10px 28px;background:#e94560;border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:14px;font-weight:bold;">¨ú®ø</button>'+
+      '<button id="__gmp_autostart_now" style="padding:10px 28px;background:#4ade80;border:none;color:#000;border-radius:8px;cursor:pointer;font-size:14px;font-weight:bold;">¥ß§Y±Ò°Ê</button>'+
     '</div>'+
   '</div>';
   document.body.appendChild(modal);
@@ -3939,17 +3937,17 @@ document.addEventListener('__gm_show_panel',function(){__gmBuildPanel()});
   },1000);
 })();
 
-  // è‡ªå‹•é€²å…¥æ¨¡å¼ä¸‹æ‹‰ï¼šç›£è½è®Šæ›´ä¸¦å„²å­˜/å»£æ’­
+  // ¦Û°Ê¶i¤J¼Ò¦¡¤U©Ô¡GºÊÅ¥ÅÜ§ó¨ÃÀx¦s/¼s¼½
 document.addEventListener('change',function(e){
     var t=e.target;
     if(t && t.id==='__gmp_boss_script_mode'){
   var _mode=t.value;console.log('[BossScript] Mode changed to:'+_mode);
-      // å¯«å…¥ runtime state
+      // ¼g¤J runtime state
       if(window.__wbBossAutoScript)window.__wbBossAutoScript.mode=_mode;
-      // é¡¯ç¤º/éš±è—å®šæ™‚è¨­å®š
+      // Åã¥Ü/ÁôÂÃ©w®É³]©w
       var cronDiv=document.getElementById('__gmp_cron_config');
       if(cronDiv)cronDiv.style.display=(_mode==='cron')?'block':'none';
-      // å„²å­˜åˆ° chrome.storage
+      // Àx¦s¨ì chrome.storage
       if(typeof __wbSaveBossScriptMode==='function')__wbSaveBossScriptMode(_mode);
     }
   });
@@ -3969,7 +3967,7 @@ console.log('[GM] Monitor injected '+ver);
 
     function updateHistSummary(){
       var el = document.getElementById('__gmp_gacha_hist_summary');
-      if (el) { el.textContent = gachaHistory.length ? 'ğŸ“‹ '+gachaHistory.length+' ç­†æ­·å²è¨˜éŒ„' : ''; }
+      if (el) { el.textContent = gachaHistory.length ? '?? '+gachaHistory.length+' µ§¾ú¥v°O¿ı' : ''; }
     }
 
     function gachaHistSave(){
@@ -4025,8 +4023,8 @@ console.log('[GM] Monitor injected '+ver);
         var span = msgEl.querySelector('span');
         if (!span) {
           var text = msgEl.textContent.trim();
-          if (text && text.indexOf('æ­å–œç²å¾—') > -1) {
-            var m = text.match(/æ­å–œç²å¾—\s*(.+?)\s*[ï¼!]?\s*$/);
+          if (text && text.indexOf('®¥³ßÀò±o') > -1) {
+            var m = text.match(/®¥³ßÀò±o\s*(.+?)\s*[¡I!]?\s*$/);
             if (m && m[1]) addGachaItem(m[1].trim());
           }
           return;
@@ -4051,13 +4049,13 @@ console.log('[GM] Monitor injected '+ver);
       }).join('');
       m.innerHTML = '<div style="pointer-events:auto;background:#0f0f23;border:2px solid #22d3ee;border-radius:10px;width:380px;max-height:85vh;display:flex;flex-direction:column;color:#fff;font-family:sans-serif;">'+
         '<div style="display:flex;align-items:center;padding:8px 12px;border-bottom:1px solid #22d3ee;background:rgba(34,211,238,0.1);border-radius:8px 8px 0 0;">'+
-          '<span style="flex:1;font-size:14px;font-weight:bold;color:#22d3ee;">ğŸ æŠ½çæ­·å²</span>'+
-          '<button id="__gmp_gacha_export" style="padding:2px 8px;background:#2a2a4a;border:1px solid #fbbf24;color:#fbbf24;border-radius:4px;cursor:pointer;font-size:10px;margin-right:6px;">ğŸ“¤ åŒ¯å‡º</button>'+
-          '<button id="__gmp_gacha_clear" style="padding:2px 8px;background:#2a2a4a;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:10px;margin-right:6px;">ğŸ—‘ æ¸…ç©º</button>'+
-          '<span id="__gmp_gacha_modal_close" style="cursor:pointer;font-size:20px;color:#e94560;font-weight:bold;line-height:1;">âœ•</span>'+
+          '<span style="flex:1;font-size:14px;font-weight:bold;color:#22d3ee;">?? ©â¼ú¾ú¥v</span>'+
+          '<button id="__gmp_gacha_export" style="padding:2px 8px;background:#2a2a4a;border:1px solid #fbbf24;color:#fbbf24;border-radius:4px;cursor:pointer;font-size:10px;margin-right:6px;">?? ¶×¥X</button>'+
+          '<button id="__gmp_gacha_clear" style="padding:2px 8px;background:#2a2a4a;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:10px;margin-right:6px;">?? ²MªÅ</button>'+
+          '<span id="__gmp_gacha_modal_close" style="cursor:pointer;font-size:20px;color:#e94560;font-weight:bold;line-height:1;">?</span>'+
         '</div>'+
-        '<div id="__gmp_gacha_list" style="padding:8px 12px;overflow-y:auto;flex:1;max-height:500px;">'+(items||'<div style="color:#666;text-align:center;padding:20px;">å°šç„¡è¨˜éŒ„</div>')+'</div>'+
-        '<div style="padding:4px 12px;border-top:1px solid rgba(34,211,238,0.1);font-size:9px;color:#666;text-align:right;">å…± '+gachaHistory.length+' ç­†</div>'+
+        '<div id="__gmp_gacha_list" style="padding:8px 12px;overflow-y:auto;flex:1;max-height:500px;">'+(items||'<div style="color:#666;text-align:center;padding:20px;">©|µL°O¿ı</div>')+'</div>'+
+        '<div style="padding:4px 12px;border-top:1px solid rgba(34,211,238,0.1);font-size:9px;color:#666;text-align:right;">¦@ '+gachaHistory.length+' µ§</div>'+
       '</div>';
       document.body.appendChild(m);
       var closeFn = function(){ m.remove(); };
@@ -4069,7 +4067,7 @@ console.log('[GM] Monitor injected '+ver);
         var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'gacha_history.csv'; a.click();
       };
       document.getElementById('__gmp_gacha_clear').onclick = function(){
-        if (!confirm('ç¢ºå®šè¦æ¸…ç©ºæ‰€æœ‰æŠ½çæ­·å²è¨˜éŒ„ï¼Ÿ')) return;
+        if (!confirm('½T©w­n²MªÅ©Ò¦³©â¼ú¾ú¥v°O¿ı¡H')) return;
         gachaHistory = [];
         updateHistSummary();
         gachaHistSave();
@@ -4079,7 +4077,7 @@ console.log('[GM] Monitor injected '+ver);
 
     function sendGacha(){
       if (!gachaEnabled) { stopGacha(); return; }
-      if (gachaCount >= gachaMax) { stopGacha(); updateStatus('å·²å®Œæˆ'); return; }
+      if (gachaCount >= gachaMax) { stopGacha(); updateStatus('¤w§¹¦¨'); return; }
       try {
         if (window.__wbEmit) {
           window.__wbEmit('wbGacha', []);
@@ -4088,7 +4086,7 @@ console.log('[GM] Monitor injected '+ver);
         }
       } catch(e) { console.error('[Gacha] error:', e.message); }
       gachaCount++;
-      updateStatus('ç™¼é€ä¸­ ' + gachaCount + '/' + gachaMax);
+      updateStatus('µo°e¤¤ ' + gachaCount + '/' + gachaMax);
     }
 
     function startGacha(){
@@ -4098,7 +4096,7 @@ console.log('[GM] Monitor injected '+ver);
       gachaCount = 0;
       if (gachaTimer) clearInterval(gachaTimer);
       gachaTimer = setInterval(sendGacha, 2000);
-      updateStatus('é–‹å§‹ ' + gachaMax + ' æ¬¡');
+      updateStatus('¶}©l ' + gachaMax + ' ¦¸');
       startObservingGachaMsg();
     }
 
@@ -4107,7 +4105,7 @@ console.log('[GM] Monitor injected '+ver);
       if (gachaTimer) { clearInterval(gachaTimer); gachaTimer = null; }
       var chk = document.getElementById('__gmp_gacha_enable');
       if (chk) chk.checked = false;
-      updateStatus('å·²åœæ­¢');
+      updateStatus('¤w°±¤î');
     }
 
     function updateStatus(msg){
@@ -4135,7 +4133,7 @@ console.log('[GM] Monitor injected '+ver);
         gachaMax = Math.max(1, parseInt(t.value)||30);
         if (gachaEnabled) {
           gachaCount = 0;
-          updateStatus('ç™¼é€ä¸­ ' + gachaCount + '/' + gachaMax);
+          updateStatus('µo°e¤¤ ' + gachaCount + '/' + gachaMax);
         }
       }
     });
@@ -4195,7 +4193,7 @@ console.log('[GM] Monitor injected '+ver);
 
     function startFocusTest(){
       focusOn=true;
-      if(stEl){stEl.textContent='é‹è¡Œä¸­';stEl.style.color='#4ade80';}
+      if(stEl){stEl.textContent='¹B¦æ¤¤';stEl.style.color='#4ade80';}
       if(logEl)logEl.innerHTML='';
       logLines=[];
       addLog('STARTED','#22d3ee');
@@ -4207,7 +4205,7 @@ console.log('[GM] Monitor injected '+ver);
       focusOn=false;
       if(focusTimer){clearInterval(focusTimer);focusTimer=null;}
       if(minimizeTimer){clearTimeout(minimizeTimer);minimizeTimer=null;}
-      if(stEl){stEl.textContent='å·²åœæ­¢';stEl.style.color='#888';}
+      if(stEl){stEl.textContent='¤w°±¤î';stEl.style.color='#888';}
       if(chk)chk.checked=false;
       addLog('STOPPED','#e94560');
     }
@@ -4235,16 +4233,16 @@ console.log('[GM] Monitor injected '+ver);
         var bossId=inp?inp.value.trim()||'wb_casper':'wb_casper';
         var resEl=document.getElementById('__gmp_socket_result');
         if(!window.__wbEmit){
-          if(resEl){resEl.textContent='âŒ __wbEmit ä¸å¯ç”¨';resEl.style.color='#e94560';}
+          if(resEl){resEl.textContent='? __wbEmit ¤£¥i¥Î';resEl.style.color='#e94560';}
           return;
         }
         try{
           window.__wbEmit('joinBoss',[bossId]);
-          if(resEl){resEl.textContent='âœ… joinBoss["'+bossId+'"] å·²ç™¼é€';resEl.style.color='#4ade80';}
+          if(resEl){resEl.textContent='? joinBoss["'+bossId+'"] ¤wµo°e';resEl.style.color='#4ade80';}
         }catch(er){
-          if(resEl){resEl.textContent='âŒ '+er.message;resEl.style.color='#e94560';}
+          if(resEl){resEl.textContent='? '+er.message;resEl.style.color='#e94560';}
         }
-        // 2ç§’å¾Œæ¸…é™¤çµæœ
+        // 2¬í«á²M°£µ²ªG
         setTimeout(function(){if(resEl)resEl.textContent='';},3000);
       }
     });
