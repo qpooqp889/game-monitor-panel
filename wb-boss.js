@@ -315,9 +315,9 @@ function __wbBossAutoScriptStop(){
 }
 
 
-// ====== Cron 快速進入模式：略過優先列表，直接照 DOM 世界王卡片順序逐一搶房 ======
+// ====== Cron 快速進入模式：略過優先列表，直接用 Socket joinBoss 逐一進房 ======
 // 流程：整點 startMin 分觸發 → 停掛機 → 確保 WB tab → 掃全部 .wb-card 照順序
-// → 對當前目標狂點 3 次 → 進場攻擊 → 擊敗後回大廳 → 標記已點過 → 跳下一位
+// → 對當前目標發 joinBoss 封包 → 進場攻擊 → 擊敗後回大廳 → 標記 done → 跳下一位
 // → 全部點過或 stopMin 到 → 恢復掛機
 window.__wbCronQuick={done:{},currentIdx:0,targets:[],phase:'idle',timer:null};
 // done: { "wb_sema": true, ... }  已點過的名單
@@ -450,45 +450,23 @@ function __wbCronQuickProcess(idx){
     as.timer=setTimeout(__wbCronQuickEnter,5000); return;
   }
   window.__wbCronQuick.currentIdx=idx;
-  window.__wbCronQuick.phase='spamming';
+  window.__wbCronQuick.phase='entering';
   var stEl=document.getElementById('__gmp_boss_script_status');
-  if(stEl)stEl.textContent='⚡ 狂點: '+tgt.name+' ('+(idx+1)+'/'+window.__wbCronQuick.targets.length+')';
-  console.log('[WB-CronQuick] Spamming '+tgt.name+' (id='+tgt.id+')...');
-  // 確保 card 還在 DOM
-  var card=document.querySelector('.wb-card[data-boss="'+tgt.id+'"]');
-  if(!card){
-    console.log('[WB-CronQuick] Card gone for '+tgt.name+', marking done & skipping');
+  if(stEl)stEl.textContent='📨 joinBoss: '+tgt.name+' ('+(idx+1)+'/'+window.__wbCronQuick.targets.length+')';
+  console.log('[WB-CronQuick] Sending joinBoss for '+tgt.name+' (id='+tgt.id+')...');
+  // 用 Socket 封包直接進場
+  if(window.__wbEmit){
+    window.__wbEmit('joinBoss',[tgt.id]);
+  } else if(window.__wbSocket&&window.__wbSocket.emit){
+    window.__wbSocket.emit('joinBoss',[tgt.id]);
+  } else {
+    console.log('[WB-CronQuick] No socket available for '+tgt.name+', skipping');
     window.__wbCronQuick.done[tgt.id]=true;
     as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},300);
     return;
   }
-  // 狂點 3 次，每次間隔 ~300ms，點前確保卡片可見+頁面前台
-  var clicks=0;
-  function spamClick(){
-    clicks++;
-    // 確保卡片在 viewport 內 + 頁面前台
-    try{card.scrollIntoView({block:'center',behavior:'instant'});}catch(e){}
-    if(document.visibilityState!=='visible'){
-      console.log('[WB-CronQuick] Page hidden, retrying click '+clicks+' in 500ms');
-      setTimeout(spamClick,500); return;
-    }
-    try{card.click();}catch(e){}
-    console.log('[WB-CronQuick] Click '+clicks+' on '+tgt.name+' vis='+document.visibilityState);
-    // 檢查是否已出現 msg-ok（BOSS 未重生）
-    var msgOk=document.getElementById('msg-ok');
-    if(msgOk){
-      console.log('[WB-CronQuick] msg-ok on click #'+clicks+', boss '+tgt.name+' not respawned, skipping');
-      try{msgOk.click();}catch(e){}
-      window.__wbCronQuick.done[tgt.id]=true;
-      as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},300);
-      return;
-    }
-    if(clicks<3){setTimeout(spamClick,300); return;}
-    // 點完後等待進場
-    console.log('[WB-CronQuick] Done spamming, waiting for boss combat...');
-    __wbCronQuickWaitCombat(tgt,idx);
-  }
-  spamClick();
+  // 等待進場
+  __wbCronQuickWaitCombat(tgt,idx);
 }
 
 function __wbCronQuickWaitCombat(tgt,idx){
@@ -538,10 +516,16 @@ function __wbCronQuickWaitCombat(tgt,idx){
       as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},500);
       return;
     }
+    if(waited>=15000){
+      console.log('[WB-CronQuick] 15s timeout waiting for combat, marking '+tgt.name+' done & next');
+      window.__wbCronQuick.done[tgt.id]=true;
+      as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},500);
+      return;
+    }
     setTimeout(check,500);
   }
-  // 等 2s 讓遊戲載入戰鬥畫面再開始檢查
-  setTimeout(check,2000);
+  // 立即開始檢查，socket joinBoss 進場很快
+  check();
 }
 
 
