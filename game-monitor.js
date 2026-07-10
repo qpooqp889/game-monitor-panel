@@ -459,7 +459,8 @@ function saveFarmSettings(){
     specifyTarget: document.getElementById('__gmp_farm_specify_target')?document.getElementById('__gmp_farm_specify_target').checked:false,
     targetIndex: document.getElementById('__gmp_farm_target_index')?parseInt(document.getElementById('__gmp_farm_target_index').value)||1:1,
     attackAll: document.getElementById('__gmp_farm_attack_all')?document.getElementById('__gmp_farm_attack_all').checked:false,
-    teleportDelay: parseFloat(document.getElementById('__gmp_farm_teleport_delay')?document.getElementById('__gmp_farm_teleport_delay').value:'0')||0
+    teleportDelayMin: parseFloat(document.getElementById('__gmp_farm_teleport_delay_min')?document.getElementById('__gmp_farm_teleport_delay_min').value:'0')||0,
+    teleportDelayMax: parseFloat(document.getElementById('__gmp_farm_teleport_delay_max')?document.getElementById('__gmp_farm_teleport_delay_max').value:'0')||0
   };
   window.postMessage({type:'GM_SAVE_SETTINGS',data:data},'*');
 }
@@ -882,11 +883,15 @@ function startFarming(){
         var mpGtOk=mpGtEnabled&&mpPct>(mpGtThresh/100);
         console.log('[GM] In town, HP:',Math.round(hpPct*100)+'%, MP:',Math.round(mpPct*100)+'%, hpGtOk:',hpGtOk,'mpGtOk:',mpGtOk);
         if(hpGtOk||mpGtOk){
-          var tpdEl=document.getElementById('__gmp_farm_teleport_delay');
-          var delayMax=parseFloat(tpdEl?tpdEl.value:'0')||0;
-          var delayMs=delayMax>0?Math.floor(Math.random()*delayMax*1000):0;
+          var tpdMinEl=document.getElementById('__gmp_farm_teleport_delay_min');
+          var tpdMaxEl=document.getElementById('__gmp_farm_teleport_delay_max');
+          var delayMin=parseFloat(tpdMinEl?tpdMinEl.value:'0')||0;
+          var delayMax=parseFloat(tpdMaxEl?tpdMaxEl.value:'0')||0;
+          if(delayMax<delayMin)delayMax=delayMin;
+          var delayS=delayMin+(delayMax>delayMin?Math.random()*(delayMax-delayMin):0);
+          var delayMs=Math.floor(delayS*1000);
           if(delayMs>0){
-            console.log('[GM] Teleport scheduled in '+(delayMs/1000).toFixed(1)+'s (random 0~'+delayMax.toFixed(1)+'s)');
+            console.log('[GM] Teleport scheduled in '+(delayMs/1000).toFixed(1)+'s (random '+delayMin.toFixed(1)+'~'+delayMax.toFixed(1)+'s)');
             status.textContent='HP/MP充足，'+delayMs/1000+'s後傳送掛機...';
             status.style.color='#ffd700';
             window.__gmFarming._teleportScheduled=true;
@@ -1538,9 +1543,11 @@ function __gmBuildPanel(){
     '</div>'+    // Delay slider for HP/MP teleport
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding-left:70px;">'+
       '<span style="font-size:9px;color:#888;">隨機延遲</span>'+
-      '<input id="__gmp_farm_teleport_delay" type="range" value="0" min="0" max="10" step="0.5" style="width:80px;accent-color:#4ade80;">'+
-      '<span id="__gmp_farm_teleport_delay_label" style="font-size:9px;color:#4ade80;min-width:28px;">0s</span>'+
-      '<span style="font-size:9px;color:#666;">區間隨機</span>'+
+      '<input id="__gmp_farm_teleport_delay_min" type="range" value="0" min="0" max="10" step="0.5" style="width:70px;accent-color:#4ade80;">'+
+      '<span id="__gmp_farm_teleport_delay_min_label" style="font-size:9px;color:#4ade80;min-width:24px;">0s</span>'+
+      '<span style="font-size:9px;color:#666;">~</span>'+
+      '<input id="__gmp_farm_teleport_delay_max" type="range" value="0" min="0" max="10" step="0.5" style="width:70px;accent-color:#4ade80;">'+
+      '<span id="__gmp_farm_teleport_delay_max_label" style="font-size:9px;color:#4ade80;min-width:24px;">0s</span>'+
     '</div>'+
 
     // 被登出次數計數器
@@ -3875,12 +3882,25 @@ function __gmBuildPanel(){
     if(data.mpReconnectThresh)document.getElementById('__gmp_farm_mp_reconnect_thresh').value=data.mpReconnectThresh;
   });
 
-  // 載入傳送延遲
-  if(data.teleportDelay!==undefined){
-    var tpdEl2=document.getElementById('__gmp_farm_teleport_delay');
-    if(tpdEl2){tpdEl2.value=data.teleportDelay;}
-    var tpdLabel2=document.getElementById('__gmp_farm_teleport_delay_label');
-    if(tpdLabel2){tpdLabel2.textContent=parseFloat(data.teleportDelay).toFixed(1)+'s';}
+  // 載入傳送延遲（雙拉條）
+  if(data.teleportDelayMin!==undefined){
+    var minEl=document.getElementById('__gmp_farm_teleport_delay_min');
+    if(minEl){minEl.value=data.teleportDelayMin;}
+    var minLbl=document.getElementById('__gmp_farm_teleport_delay_min_label');
+    if(minLbl){minLbl.textContent=parseFloat(data.teleportDelayMin).toFixed(1)+'s';}
+  }
+  if(data.teleportDelayMax!==undefined){
+    var maxEl=document.getElementById('__gmp_farm_teleport_delay_max');
+    if(maxEl){maxEl.value=data.teleportDelayMax;}
+    var maxLbl=document.getElementById('__gmp_farm_teleport_delay_max_label');
+    if(maxLbl){maxLbl.textContent=parseFloat(data.teleportDelayMax).toFixed(1)+'s';}
+  }
+  // 向後相容：舊 key teleportDelay → 載入為 max
+  if(data.teleportDelay!==undefined&&data.teleportDelayMax===undefined){
+    var maxEl2=document.getElementById('__gmp_farm_teleport_delay_max');
+    if(maxEl2){maxEl2.value=data.teleportDelay;}
+    var maxLbl2=document.getElementById('__gmp_farm_teleport_delay_max_label');
+    if(maxLbl2){maxLbl2.textContent=parseFloat(data.teleportDelay).toFixed(1)+'s';}
   }
 
   // === Auto-save on change ===
@@ -3890,12 +3910,27 @@ function __gmBuildPanel(){
     '__gmp_farm_specify_target','__gmp_farm_target_index','__gmp_farm_attack_all',
     '__gmp_farm_char_name','__gmp_farm_reconnect','__gmp_farm_reconnect_interval',
     '__gmp_farm_mp_reconnect','__gmp_farm_mp_reconnect_thresh','__gmp_farm_char_slot',
-    '__gmp_farm_teleport_delay'];
-  // 傳送延遲 slider label 更新
-  var tpd=document.getElementById('__gmp_farm_teleport_delay');
-  var tpdl=document.getElementById('__gmp_farm_teleport_delay_label');
-  if(tpd&&tpdl){
-    tpd.addEventListener('input',function(){tpdl.textContent=parseFloat(tpd.value).toFixed(1)+'s';});
+    '__gmp_farm_teleport_delay_min','__gmp_farm_teleport_delay_max'];
+  // 傳送延遲雙拉條 label 更新
+  var tpdMin=document.getElementById('__gmp_farm_teleport_delay_min');
+  var tpdMinLbl=document.getElementById('__gmp_farm_teleport_delay_min_label');
+  var tpdMax=document.getElementById('__gmp_farm_teleport_delay_max');
+  var tpdMaxLbl=document.getElementById('__gmp_farm_teleport_delay_max_label');
+  if(tpdMin&&tpdMinLbl){
+    tpdMin.addEventListener('input',function(){
+      var minV=parseFloat(tpdMin.value)||0;
+      var maxV=parseFloat(tpdMax.value)||0;
+      if(minV>maxV){tpdMax.value=tpdMin.value;tpdMaxLbl.textContent=minV.toFixed(1)+'s';}
+      tpdMinLbl.textContent=minV.toFixed(1)+'s';
+    });
+  }
+  if(tpdMax&&tpdMaxLbl){
+    tpdMax.addEventListener('input',function(){
+      var minV=parseFloat(tpdMin.value)||0;
+      var maxV=parseFloat(tpdMax.value)||0;
+      if(maxV<minV){tpdMin.value=tpdMax.value;tpdMinLbl.textContent=maxV.toFixed(1)+'s';}
+      tpdMaxLbl.textContent=maxV.toFixed(1)+'s';
+    });
   }
 
   farmInputs.forEach(function(id){
@@ -3972,7 +4007,8 @@ __gmBuildPanel();
 document.addEventListener('__gm_show_panel',function(){__gmBuildPanel()});
 
 // === Auto-start countdown modal (10s) ===
-(function(){
+(function initAutoStart(){
+  if(!document.body||!document.body.appendChild){setTimeout(initAutoStart,100);return;}
   var sec=10;
   var timer=null;
   var modal=document.createElement('div');

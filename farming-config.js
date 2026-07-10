@@ -28,7 +28,8 @@
       specifyTarget: document.getElementById('__gmp_farm_specify_target')?document.getElementById('__gmp_farm_specify_target').checked:false,
       targetIndex: document.getElementById('__gmp_farm_target_index')?parseInt(document.getElementById('__gmp_farm_target_index').value)||1:1,
       attackAll: document.getElementById('__gmp_farm_attack_all')?document.getElementById('__gmp_farm_attack_all').checked:false,
-      teleportDelay: parseFloat(document.getElementById('__gmp_farm_teleport_delay')?document.getElementById('__gmp_farm_teleport_delay').value:'0')||0
+      teleportDelayMin: parseFloat(document.getElementById('__gmp_farm_teleport_delay_min')?document.getElementById('__gmp_farm_teleport_delay_min').value:'0')||0,
+      teleportDelayMax: parseFloat(document.getElementById('__gmp_farm_teleport_delay_max')?document.getElementById('__gmp_farm_teleport_delay_max').value:'0')||0
     };
     window.postMessage({type:'GM_SAVE_SETTINGS',data:data},'*');
   };
