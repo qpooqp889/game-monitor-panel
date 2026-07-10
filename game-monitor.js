@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v4.15';
+var ver='v4.16';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -1013,6 +1013,9 @@ function stopFarming(){
   if(btn){btn.textContent='▶ 開啟腳本';btn.style.background='#0f3460'}
   if(status){status.textContent='已停止';status.style.color='#888'}
 }
+// Export to window for cross-IIFE access (cron mode in wb-boss.js)
+window.startFarming=startFarming;
+window.stopFarming=stopFarming;
 
 // Main panel build
 function __gmBuildPanel(){
