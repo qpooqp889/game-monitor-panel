@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v4.22';
+var ver='v4.23';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -41,6 +41,10 @@ window.lastState=null;  // 初始化全域 lastState
           var args=packet.data&&packet.data.slice(1)||[];
           window.__wbBossEmitLog.push({t:Date.now(),dir:'SEND',evt:ev,args:JSON.stringify(args).slice(0,300)});
           console.log('[WB-SEND]',ev,JSON.stringify(args).slice(0,150));
+          // Socket 封包即時 log
+          window.__gmPacketLog=window.__gmPacketLog||[];
+          window.__gmPacketLog.push({t:Date.now(),dir:'SEND',evt:ev,args:JSON.stringify(args).slice(0,300)});
+          if(window.__gmPacketLog.length>500)window.__gmPacketLog.shift();
         }
         return _origPkt&&_origPkt.call(this,packet);
       };
@@ -55,6 +59,10 @@ window.lastState=null;  // 初始化全域 lastState
           var payload=JSON.stringify(p.data).slice(0,2000);
           window.__sioPackets=window.__sioPackets||[];
           window.__sioPackets.push({t:Date.now(),dir:'EVENT',evt:evtName,args:payload});
+          // Socket 封包即時 log
+          window.__gmPacketLog=window.__gmPacketLog||[];
+          window.__gmPacketLog.push({t:Date.now(),dir:'RECV',evt:evtName,args:payload});
+          if(window.__gmPacketLog.length>500)window.__gmPacketLog.shift();
           // 解析 state 事件並更新 window.lastState
           if(evtName==='state'&&p.data[1]){
             window.lastState=p.data[1];
@@ -1163,7 +1171,25 @@ function __gmBuildPanel(){
 '<div style="display:flex;align-items:center;gap:2px;margin-top:4px;margin-bottom:4px;">'+
 '<input type="checkbox" id="__gmp_boss_auto_reenter" style="width:13px;height:13px;cursor:pointer;">'+
 '<label for="__gmp_boss_auto_reenter" style="font-size:11px;color:#86c5ff;cursor:pointer;">\u2620 \u6b7b\u4ea1\u81ea\u52a8\u56de\u5927\u5385\u91cd\u8fdb\u672c\u6b21\u4e16\u754c\u738b</label>'+
-'</div>'+    // === 定時模式 BOSS 紀錄（摺疊區塊） ===
+'</div>'+    // === Socket 封包即時 Log（摺疊區塊） ===
+    '<div id="__gmp_packet_log_section" style="margin-bottom:4px;">'+
+      '<div id="__gmp_packet_log_toggle" style="display:flex;justify-content:space-between;align-items:center;padding:3px 8px;background:rgba(0,150,255,0.08);border-radius:4px;cursor:pointer;user-select:none;font-size:10px;color:#64b5f6;">'+
+        '<span>&#x1F4E1; Socket&#x5c01;&#x5305; <span id="__gmp_packet_log_count" style="color:#888;">(0)</span></span>'+
+        '<div style="display:flex;gap:8px;align-items:center;">'+
+          '<label style="cursor:pointer;font-size:9px;color:#888;"><input type="checkbox" id="__gmp_pkt_send_chk" checked style="width:11px;height:11px;vertical-align:middle;margin-right:2px;">&#x50B3;&#x9001;</label>'+
+          '<label style="cursor:pointer;font-size:9px;color:#888;"><input type="checkbox" id="__gmp_pkt_recv_chk" checked style="width:11px;height:11px;vertical-align:middle;margin-right:2px;">&#x63A5;&#x6536;</label>'+
+          '<span id="__gmp_packet_log_arrow" style="font-size:10px;">&#x25B6;</span>'+
+        '</div>'+
+      '</div>'+
+      '<div id="__gmp_packet_log_body" style="display:none;max-height:250px;overflow-y:auto;padding:4px 6px;background:rgba(0,0,0,0.3);border-radius:0 0 4px 4px;font-family:Consolas,monospace;">'+
+        '<div id="__gmp_packet_log_list" style="font-size:9px;color:#aaa;line-height:1.45;word-break:break-all;"></div>'+
+        '<div style="display:flex;gap:4px;margin-top:4px;">'+
+          '<button id="__gmp_packet_log_clear" style="padding:1px 8px;background:#3a1a1a;border:1px solid #e94560;color:#e94560;border-radius:3px;cursor:pointer;font-size:9px;">&#x6E05;&#x7A7A;</button>'+
+          '<button id="__gmp_packet_log_pause" style="padding:1px 8px;background:#2a2a4a;border:1px solid #64b5f6;color:#64b5f6;border-radius:3px;cursor:pointer;font-size:9px;">&#x66AB;&#x505C;</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>'+
+    // === 定時模式 BOSS 紀錄（摺疊區塊） ===
     '<div id="__gmp_cron_log_section" style="display:none;margin-bottom:4px;">'+
       '<div id="__gmp_cron_log_toggle" style="display:flex;justify-content:space-between;align-items:center;padding:3px 8px;background:rgba(255,215,0,0.08);border-radius:4px;cursor:pointer;user-select:none;font-size:10px;color:#ffd700;">'+
         '<span>&#x1F4CB; 定時紀錄 <span id="__gmp_cron_log_count" style="color:#888;">(0)</span></span>'+
@@ -4081,8 +4107,84 @@ document.addEventListener('change',function(e){
     alert('已匯出 '+filtered.length+' 筆紀錄到 Console (F12)');
   };
 
-console.log('[GM] Monitor injected '+ver);
+  // === Socket 封包即時 Log 面板 ===
+  var _pktLogPaused=false;
+  var _pktLogPoolInterval=null;
 
+  window.__gmRenderPacketLog=function(){
+    var listEl=document.getElementById('__gmp_packet_log_list');
+    var countEl=document.getElementById('__gmp_packet_log_count');
+    if(!listEl)return;
+    var logs=window.__gmPacketLog||[];
+    var sendChk=document.getElementById('__gmp_pkt_send_chk');
+    var recvChk=document.getElementById('__gmp_pkt_recv_chk');
+    var showSend=sendChk?sendChk.checked:true;
+    var showRecv=recvChk?recvChk.checked:true;
+    var filtered=logs.filter(function(l){
+      if(l.dir==='SEND')return showSend;
+      if(l.dir==='RECV')return showRecv;
+      return false;
+    });
+    if(countEl)countEl.textContent='('+filtered.length+')';
+    var html='';
+    for(var i=filtered.length-1;i>=Math.max(0,filtered.length-80);i--){
+      var l=filtered[i];
+      var time=new Date(l.t).toTimeString().slice(0,8);
+      var dirColor=l.dir==='SEND'?'#4ade80':'#60a5fa';
+      var dirLabel=l.dir==='SEND'?'\u2191':'\u2193';
+      html+='<div style="margin-bottom:1px;font-size:9px;"><span style="color:#888;">'+time+'</span> <span style="color:'+dirColor+';">'+dirLabel+'</span> <span style="color:#fbbf24;">'+__gmEscapeHtml(l.evt||'?')+'</span> <span style="color:#aaa;">'+__gmEscapeHtml((l.args||'').substring(0,120))+'</span></div>';
+    }
+    listEl.innerHTML=html||'<div style="color:#555;font-style:italic;">尚無封包...</div>';
+  };
+
+  function __gmEscapeHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+  if(!window.__gmPacketLogInit){
+    window.__gmPacketLogInit=true;
+    // 摺疊開關
+    var _pktToggle=document.getElementById('__gmp_packet_log_toggle');
+    var _pktBody=document.getElementById('__gmp_packet_log_body');
+    var _pktArrow=document.getElementById('__gmp_packet_log_arrow');
+    if(_pktToggle&&_pktBody&&_pktArrow){
+      _pktToggle.onclick=function(e){
+        if(e.target.tagName==='INPUT')return;
+        var vis=_pktBody.style.display!=='block';
+        _pktBody.style.display=vis?'block':'none';
+        _pktArrow.textContent=vis?'\u25BC':'\u25B6';
+        if(vis&&typeof window.__gmRenderPacketLog==='function'){
+          window.__gmRenderPacketLog();
+        }
+      };
+    }
+    // 篩選 checkbox 變更即時刷新
+    var _pktSend=document.getElementById('__gmp_pkt_send_chk');
+    var _pktRecv=document.getElementById('__gmp_pkt_recv_chk');
+    if(_pktSend)_pktSend.onchange=function(){if(typeof window.__gmRenderPacketLog==='function')window.__gmRenderPacketLog();};
+    if(_pktRecv)_pktRecv.onchange=function(){if(typeof window.__gmRenderPacketLog==='function')window.__gmRenderPacketLog();};
+    // 清空按鈕
+    var _pktClear=document.getElementById('__gmp_packet_log_clear');
+    if(_pktClear)_pktClear.onclick=function(){
+      window.__gmPacketLog=[];
+      if(typeof window.__gmRenderPacketLog==='function')window.__gmRenderPacketLog();
+    };
+    // 暫停/繼續按鈕
+    var _pktPause=document.getElementById('__gmp_packet_log_pause');
+    if(_pktPause)_pktPause.onclick=function(){
+      _pktLogPaused=!_pktLogPaused;
+      this.textContent=_pktLogPaused?'\u25B6 繼續':'暫停';
+      this.style.color=_pktLogPaused?'#fbbf24':'#64b5f6';
+    };
+    // 定時刷新（每 500ms）
+    _pktLogPoolInterval=setInterval(function(){
+      if(_pktLogPaused)return;
+      var body=document.getElementById('__gmp_packet_log_body');
+      if(body&&body.style.display==='block'){
+        if(typeof window.__gmRenderPacketLog==='function')window.__gmRenderPacketLog();
+      }
+    },500);
+  }
+
+console.log('[GM] Monitor injected '+ver);
 
 
   // === Gacha auto-send + history ===
