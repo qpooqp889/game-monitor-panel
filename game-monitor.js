@@ -2331,7 +2331,7 @@ function __gmBuildPanel(){
   document.getElementById('__gmp_status_import_file').onchange=function(e){var f=e.target.files[0];if(!f)return;var rd=new FileReader();rd.onload=function(ev){__gmImportAllSettings(ev.target.result);};rd.readAsText(f);};
   var __gmOrigSwitchTab2=window.switchTab;
   if(typeof __gmOrigSwitchTab2==='function'){window.switchTab=function(t){__gmOrigSwitchTab2(t);if(t==='status')setTimeout(__gmRefreshStatusView,50);};}
-  ?  // === Player Viewer v2 (friend list + modal) ===
+  // === Player Viewer v2 (friend list + modal) ===
   window.__gmPlayerHistory=[];
   window.__gmPlayerRefreshTimer=null;
   window.__gmPlayerRefreshing=false;
