@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v4.25';
+var ver='v4.26';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -2827,10 +2827,11 @@ function __gmBuildPanel(){
       headerRow.style.paddingBottom='8px';
       headerRow.style.borderBottom='1px solid #0f3460';
       tabsDiv.style.display='flex';
-      controlsDiv.style.display='flex';
+      // show all controls
       zoomIn.style.display='';
       zoomOut.style.display='';
       closeBtn.style.display='';
+      controlsDiv.style.display='';
       this.style.position='';
       this.style.width='';
       this.style.height='';
@@ -2841,7 +2842,7 @@ function __gmBuildPanel(){
       this.style.display='';
       this.style.alignItems='';
       this.style.justifyContent='';
-      this.textContent='▼';
+      this.textContent='\u25BC';
     } else {
       content.style.display='none';
       panel.style.width='24px';
@@ -2859,9 +2860,11 @@ function __gmBuildPanel(){
       headerRow.style.paddingBottom='0';
       headerRow.style.borderBottom='none';
       tabsDiv.style.display='none';
+      // hide zoom+close, keep expand visible
       zoomIn.style.display='none';
       zoomOut.style.display='none';
       closeBtn.style.display='none';
+      controlsDiv.style.display=''; // DON'T hide parent or expand btn disappears
       this.style.position='absolute';
       this.style.top='0';
       this.style.left='0';
@@ -2874,7 +2877,7 @@ function __gmBuildPanel(){
       this.style.display='flex';
       this.style.alignItems='center';
       this.style.justifyContent='center';
-      this.textContent='▶';
+      this.textContent='\u25B6';
     }
   };
   document.getElementById('__gmp_zoom_in').onclick=function(){zoom=Math.min(zoom+0.1,2);p.style.transform='scale('+zoom+')'};
