@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v4.28';
+var ver='v4.29';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -3535,6 +3535,7 @@ function __gmBuildPanel(){
 
   function __wbSaveBossConfig(){
     if(typeof window.__gmStorageSet==='undefined')return;
+    __wbSyncAutoConfig(); // 先把 UI 同步到 runtime 再儲存
     var cfg=window.__wbBossAuto;
     window.__gmStorageSet('wb_boss_config',JSON.parse(JSON.stringify(cfg))).catch(function(){});
   }
@@ -3571,7 +3572,8 @@ function __gmBuildPanel(){
   }
   // Auto-save on any change
   ['__gmp_boss_auto_atk','__gmp_boss_auto_atk_hp_pct','__gmp_boss_auto_atk_logic','__gmp_boss_auto_atk_online',
-   '__gmp_boss_auto_stop','__gmp_boss_auto_stop_hp',
+   '__gmp_boss_auto_stop','__gmp_boss_auto_stop_hp','__gmp_boss_auto_stop_hp_enable',
+   '__gmp_boss_auto_stop_mp','__gmp_boss_auto_stop_mp_enable',
    '__gmp_boss_auto_pot','__gmp_boss_auto_pot_hp',
    '__gmp_boss_auto_atk_skill',
    '__gmp_boss_auto_heal','__gmp_boss_auto_heal_hp',
@@ -3880,28 +3882,30 @@ function __gmBuildPanel(){
     // MP reconnect
     if(data.mpReconnectEnabled!==undefined)document.getElementById('__gmp_farm_mp_reconnect').checked=data.mpReconnectEnabled;
     if(data.mpReconnectThresh)document.getElementById('__gmp_farm_mp_reconnect_thresh').value=data.mpReconnectThresh;
+    // HP/MP 動作下拉
+    if(data.hpAction!==undefined){var ha=document.getElementById('__gmp_farm_hp_action');if(ha)ha.value=data.hpAction;}
+    if(data.mpAction!==undefined){var ma=document.getElementById('__gmp_farm_mp_action');if(ma)ma.value=data.mpAction;}
+    // 傳送延遲（雙拉條）
+    if(data.teleportDelayMin!==undefined){
+      var minEl=document.getElementById('__gmp_farm_teleport_delay_min');
+      if(minEl){minEl.value=data.teleportDelayMin;}
+      var minLbl=document.getElementById('__gmp_farm_teleport_delay_min_label');
+      if(minLbl){minLbl.textContent=parseFloat(data.teleportDelayMin).toFixed(1)+'s';}
+    }
+    if(data.teleportDelayMax!==undefined){
+      var maxEl=document.getElementById('__gmp_farm_teleport_delay_max');
+      if(maxEl){maxEl.value=data.teleportDelayMax;}
+      var maxLbl=document.getElementById('__gmp_farm_teleport_delay_max_label');
+      if(maxLbl){maxLbl.textContent=parseFloat(data.teleportDelayMax).toFixed(1)+'s';}
+    }
+    // 向後相容：舊 key teleportDelay → 載入為 max
+    if(data.teleportDelay!==undefined&&data.teleportDelayMax===undefined){
+      var maxEl2=document.getElementById('__gmp_farm_teleport_delay_max');
+      if(maxEl2){maxEl2.value=data.teleportDelay;}
+      var maxLbl2=document.getElementById('__gmp_farm_teleport_delay_max_label');
+      if(maxLbl2){maxLbl2.textContent=parseFloat(data.teleportDelay).toFixed(1)+'s';}
+    }
   });
-
-  // 載入傳送延遲（雙拉條）
-  if(data.teleportDelayMin!==undefined){
-    var minEl=document.getElementById('__gmp_farm_teleport_delay_min');
-    if(minEl){minEl.value=data.teleportDelayMin;}
-    var minLbl=document.getElementById('__gmp_farm_teleport_delay_min_label');
-    if(minLbl){minLbl.textContent=parseFloat(data.teleportDelayMin).toFixed(1)+'s';}
-  }
-  if(data.teleportDelayMax!==undefined){
-    var maxEl=document.getElementById('__gmp_farm_teleport_delay_max');
-    if(maxEl){maxEl.value=data.teleportDelayMax;}
-    var maxLbl=document.getElementById('__gmp_farm_teleport_delay_max_label');
-    if(maxLbl){maxLbl.textContent=parseFloat(data.teleportDelayMax).toFixed(1)+'s';}
-  }
-  // 向後相容：舊 key teleportDelay → 載入為 max
-  if(data.teleportDelay!==undefined&&data.teleportDelayMax===undefined){
-    var maxEl2=document.getElementById('__gmp_farm_teleport_delay_max');
-    if(maxEl2){maxEl2.value=data.teleportDelay;}
-    var maxLbl2=document.getElementById('__gmp_farm_teleport_delay_max_label');
-    if(maxLbl2){maxLbl2.textContent=parseFloat(data.teleportDelay).toFixed(1)+'s';}
-  }
 
   // === Auto-save on change ===
   var farmInputs=['__gmp_farm_zone','__gmp_farm_hp','__gmp_farm_mp','__gmp_farm_hp_chk','__gmp_farm_mp_chk',
