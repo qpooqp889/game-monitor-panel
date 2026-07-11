@@ -14,13 +14,23 @@ chrome.tabs.onCreated.addListener(function(tab) {
   }
 });
 
-// 當分頁 URL 更新時，檢查是否為遊戲分頁
+// 當分頁 URL 更新時，檢查是否為遊戲分頁，並自動注入腳本
 chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
   if (changeInfo.status === 'complete' && tab.url && /linh5web/i.test(tab.url)) {
-    if (!gameTabId) {
-      gameTabId = tabId;
-      console.log('[GM Background] Game tab registered from onUpdated:', tabId);
-    }
+    gameTabId = tabId;
+    console.log('[GM Background] Game tab loaded:', tabId, 'auto-injecting scripts...');
+    // 自動注入所有 MAIN world 腳本
+    chrome.scripting.executeScript({
+      target: { tabId: tabId },
+      files: ['storage.js', 'farming-config.js', 'game-monitor.js', 'wb-boss.js', 'advanced-farming.js'],
+      world: 'MAIN'
+    }, function(results) {
+      if (chrome.runtime.lastError) {
+        console.error('[GM Background] Auto-inject failed:', chrome.runtime.lastError.message);
+      } else {
+        console.log('[GM Background] All scripts auto-injected into tab', tabId);
+      }
+    });
   }
 });
 
