@@ -1,4 +1,4 @@
-﻿/* wb-boss.js v3.26 - BOSS Auto Script */
+﻿/* wb-boss.js v3.27 - BOSS Auto Script */
 
 // ====== Debug Logger (觸發條件: 偵測到重生 < 30s) ======
 // 儲存至 chrome.storage.local key: __gmp_debug_log
@@ -215,9 +215,12 @@ function __wbLoadBossScriptMode(){
           var t=document.getElementById('__gmp_cron_stop_min');
           if(t&&cfg.stopMin!=null)t.value=cfg.stopMin;
         }
-        // 顯示/隱藏 cron panel
+        // 顯示/隱藏 cron panel + log section
         var cd=document.getElementById('__gmp_cron_config');
         if(cd)cd.style.display=(window.__wbBossAutoScript.mode==='cron')?'block':'none';
+        var cl=document.getElementById('__gmp_cron_log_section');
+        if(cl)cl.style.display=(window.__wbBossAutoScript.mode==='cron')?'block':'none';
+        if(window.__wbBossAutoScript.mode==='cron'&&typeof window.__wbRenderCronLog==='function'){setTimeout(window.__wbRenderCronLog,200);}
       });
     }
   });
@@ -451,36 +454,38 @@ function __wbCronQuickProcess(idx){
   }
   window.__wbCronQuick.currentIdx=idx;
   window.__wbCronQuick.phase='entering';
+  var retry=tgt._retry||0;
   var stEl=document.getElementById('__gmp_boss_script_status');
-  if(stEl)stEl.textContent='📨 joinBoss: '+tgt.name+' ('+(idx+1)+'/'+window.__wbCronQuick.targets.length+')';
-  console.log('[WB-CronQuick] Sending joinBoss for '+tgt.name+' (id='+tgt.id+')...');
-  // 用 Socket 封包直接進場
+  if(stEl)stEl.textContent='📨 joinBoss: '+tgt.name+' ('+(idx+1)+'/'+window.__wbCronQuick.targets.length+')'+(retry>0?' [重試'+retry+'/3]':'');
+  console.log('[WB-CronQuick] Sending joinBoss for '+tgt.name+' (id='+tgt.id+') retry='+retry);
   if(window.__wbEmit){
     window.__wbEmit('joinBoss',[tgt.id]);
   } else if(window.__wbSocket&&window.__wbSocket.emit){
     window.__wbSocket.emit('joinBoss',[tgt.id]);
   } else {
-    console.log('[WB-CronQuick] No socket available for '+tgt.name+', skipping');
+    console.log('[WB-CronQuick] No socket available, skipping '+tgt.name);
     window.__wbCronQuick.done[tgt.id]=true;
+    tgt._retry=0;
     as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},300);
     return;
   }
-  // 等待進場
   __wbCronQuickWaitCombat(tgt,idx);
 }
 
 function __wbCronQuickWaitCombat(tgt,idx){
   var as=window.__wbBossAutoScript;
   var waited=0;
+  var t0=Date.now();
   function check(){
-    waited+=500;
+    waited=(Date.now()-t0);
 
     // 檢查 msg-ok（未重生對話框 → 點確定 → 跳下一位）
     var msgOk=document.getElementById('msg-ok');
     if(msgOk){
-      console.log('[WB-CronQuick] msg-ok found, boss '+tgt.name+' not respawned, skipping');
+      console.log('[WB-CronQuick] msg-ok, '+tgt.name+' not respawned, skipping');
       try{msgOk.click();}catch(e){}
       window.__wbCronQuick.done[tgt.id]=true;
+      tgt._retry=0;
       as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},300);
       return;
     }
@@ -488,43 +493,44 @@ function __wbCronQuickWaitCombat(tgt,idx){
     // 檢查 br-lobby（擊敗結算畫面 → 觸發離開流程 → 跳下一位）
     var lobbyBtn=document.getElementById('br-lobby');
     if(lobbyBtn){
-      console.log('[WB-CronQuick] br-lobby found during wait, triggering defeat flow for '+tgt.name);
+      console.log('[WB-CronQuick] br-lobby, triggering defeat flow for '+tgt.name);
       window.__wbCronQuick.currentTarget=tgt;
       __wbCronQuickHandleDefeat(tgt, idx, null);
       return;
     }
 
-    // 檢查是否已進入戰鬥 (lastState.mode === 'boss' 或 'bosscombat')
+    // 檢查是否已進入戰鬥
     var ls=window.lastState||{};
     if(ls.mode==='boss'||ls.mode==='bosscombat'){
-      console.log('[WB-CronQuick] In combat with '+tgt.name+'! Starting auto-attack');
-      // 標記已進入（不算完成，等擊敗才標記 done）
+      console.log('[WB-CronQuick] In combat with '+tgt.name+'!');
+      tgt._retry=0;
       window.__wbCronQuick.currentTarget=tgt;
       window.__wbCronQuick.phase='combat';
-      // 確保自動攻擊中
       if(window.__wbBossAuto&&!window.__wbBossAuto.running){
         __wbBossAutoStart();
       }
       __wbDebugStart(tgt.name,'cron-quick');
-      // ★ 自行輪詢 br-lobby/msg-ok/lastState HP=0，獨立於 MonitorBossHP
       __wbCronQuickCombatPoll(tgt,idx);
       return;
     }
-    if(waited>=10000){
-      console.log('[WB-CronQuick] 10s timeout waiting for combat, marking '+tgt.name+' done & next');
-      window.__wbCronQuick.done[tgt.id]=true;
-      as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},500);
+
+    // 15s 沒進入戰鬥 → 重試（最多3次）
+    var retry=tgt._retry||0;
+    if(retry<3&&waited>=15000){
+      console.log('[WB-CronQuick] 15s no combat, retry '+(retry+1)+'/3 for '+tgt.name);
+      tgt._retry=retry+1;
+      as.timer=setTimeout(function(){__wbCronQuickProcess(idx);},1000);
       return;
     }
-    if(waited>=15000){
-      console.log('[WB-CronQuick] 15s timeout waiting for combat, marking '+tgt.name+' done & next');
+    if(retry>=3&&waited>=15000){
+      console.log('[WB-CronQuick] 3 retries exhausted for '+tgt.name+', skipping');
       window.__wbCronQuick.done[tgt.id]=true;
+      tgt._retry=0;
       as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},500);
       return;
     }
     setTimeout(check,500);
   }
-  // 立即開始檢查，socket joinBoss 進場很快
   check();
 }
 
