@@ -1,4 +1,4 @@
-﻿/* wb-boss.js v3.27 - BOSS Auto Script */
+﻿/* wb-boss.js v3.28 - BOSS Auto Script */
 
 // ====== Debug Logger (觸發條件: 偵測到重生 < 30s) ======
 // 儲存至 chrome.storage.local key: __gmp_debug_log
@@ -202,36 +202,45 @@ function __wbSetBossScriptMode(mode){
 
 function __wbLoadBossScriptMode(){
   if(!window.__gmStorageGet)return;
-  __gmStorageGet('wb_script_mode',function(v){
+  window.__gmStorageGet(['wb_script_mode']).then(function(r){
+    var v=r&&r.wb_script_mode?r.wb_script_mode.mode:null;
     var el=document.getElementById('__gmp_boss_script_mode');
     if(el&&v)el.value=v;
     window.__wbBossAutoScript.mode=v||'cron';
     // 載入 cron 設定
-    if(window.__gmStorageGet){
-      window.__gmStorageGet('wb_cron_config',function(cfg){
-        if(cfg){
-          var s=document.getElementById('__gmp_cron_start_min');
-          if(s&&cfg.startMin!=null)s.value=cfg.startMin;
-          var t=document.getElementById('__gmp_cron_stop_min');
-          if(t&&cfg.stopMin!=null)t.value=cfg.stopMin;
-        }
-        // 顯示/隱藏 cron panel + log section
-        var cd=document.getElementById('__gmp_cron_config');
-        if(cd)cd.style.display=(window.__wbBossAutoScript.mode==='cron')?'block':'none';
-        var cl=document.getElementById('__gmp_cron_log_section');
-        if(cl)cl.style.display=(window.__wbBossAutoScript.mode==='cron')?'block':'none';
-        if(window.__wbBossAutoScript.mode==='cron'&&typeof window.__wbRenderCronLog==='function'){setTimeout(window.__wbRenderCronLog,200);}
-      });
-    }
+    return window.__gmStorageGet(['wb_cron_config']);
+  }).then(function(cr){
+    var cfg=cr&&cr.wb_cron_config||{};
+    var s=document.getElementById('__gmp_cron_start_min');
+    if(s&&cfg.startMin!=null)s.value=cfg.startMin;
+    var t=document.getElementById('__gmp_cron_stop_min');
+    if(t&&cfg.stopMin!=null)t.value=cfg.stopMin;
+    var qe=document.getElementById('__gmp_cron_quick_enter');
+    if(qe&&cfg.quickEnter!=null)qe.checked=cfg.quickEnter;
+    // 顯示/隱藏 cron panel + log section
+    var cd=document.getElementById('__gmp_cron_config');
+    if(cd)cd.style.display=(window.__wbBossAutoScript.mode==='cron')?'block':'none';
+    var cl=document.getElementById('__gmp_cron_log_section');
+    if(cl)cl.style.display=(window.__wbBossAutoScript.mode==='cron')?'block':'none';
+    if(window.__wbBossAutoScript.mode==='cron'&&typeof window.__wbRenderCronLog==='function'){setTimeout(window.__wbRenderCronLog,200);}
   });
 }
 function __wbSaveBossScriptMode(m){
   window.__wbBossAutoScript.mode=m;
   if(window.__gmStorageSet)window.__gmStorageSet('wb_script_mode',{mode:m});
-  // 同時儲存 cron 參數
+  __wbSaveCronConfig();
+}
+
+function __wbSaveCronConfig(){
+  if(!window.__gmStorageSet)return;
   var s=document.getElementById('__gmp_cron_start_min');
   var t=document.getElementById('__gmp_cron_stop_min');
-  if(window.__gmStorageSet)window.__gmStorageSet('wb_cron_config',{startMin:parseInt(s?s.value:'0')||0, stopMin:parseInt(t?t.value:'2')||2});
+  var qe=document.getElementById('__gmp_cron_quick_enter');
+  window.__gmStorageSet('wb_cron_config',{
+    startMin:parseInt(s&&s.value!=''?s.value:'0')||0,
+    stopMin:parseInt(t&&t.value!=''?t.value:'2')||2,
+    quickEnter:qe?qe.checked:true
+  });
 }
 
 

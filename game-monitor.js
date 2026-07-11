@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v4.27';
+var ver='v4.28';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -4060,10 +4060,16 @@ function __gmBindTeleportSliders(){
   if(tpdMinLbl){var mv=parseFloat(tpdMin&&tpdMin.value!=null?tpdMin.value:'0')||0;tpdMinLbl.textContent=mv.toFixed(1)+'s';}
   if(tpdMaxLbl){var xv=parseFloat(tpdMax&&tpdMax.value!=null?tpdMax.value:'0')||0;tpdMaxLbl.textContent=xv.toFixed(1)+'s';}
   function __gmDoSaveTeleportDelay(){
-    if(typeof window.__gmStorageSet!=='function')return;
+    if(typeof window.__gmStorageGet!=='function')return;
     var minV=parseFloat(tpdMin&&tpdMin.value!=null?tpdMin.value:'0')||0;
     var maxV=parseFloat(tpdMax&&tpdMax.value!=null?tpdMax.value:'0')||0;
-    window.__gmStorageSet('gmFarmSettings',{teleportDelayMin:minV,teleportDelayMax:maxV}).catch(function(){});
+    // 讀取現有設定，只更新 delay 欄位，保留其他欄位
+    window.__gmStorageGet(['gmFarmSettings']).then(function(r){
+      var existing=r&&r.gmFarmSettings||{};
+      existing.teleportDelayMin=minV;
+      existing.teleportDelayMax=maxV;
+      return window.__gmStorageSet('gmFarmSettings',existing);
+    }).catch(function(){});
   }
   if(tpdMin){
     tpdMin.oninput=function(){
@@ -4104,6 +4110,10 @@ document.addEventListener('change',function(e){
       if(_mode==='cron'&&typeof __wbRenderCronLog==='function'){setTimeout(__wbRenderCronLog,100);}
       // 儲存到 chrome.storage
       if(typeof __wbSaveBossScriptMode==='function')__wbSaveBossScriptMode(_mode);
+    }
+    // cron 參數變更時自動儲存
+    if(t && (t.id==='__gmp_cron_start_min'||t.id==='__gmp_cron_stop_min'||t.id==='__gmp_cron_quick_enter')){
+      if(typeof __wbSaveCronConfig==='function')__wbSaveCronConfig();
     }
   });
 
