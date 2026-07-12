@@ -34,7 +34,60 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
   }
 });
 
+// ========== 健康監控後端 (v4.32) ==========
+(function(){
+  var HEARTBEAT_TIMEOUT = 60000;    // 60秒沒心跳 → content script 掛了
+  var HEARTBEAT_CHECK_MS = 15000;   // 每 15 秒檢查一次
+  var _lastHeartbeat = 0;
+  var _lastHeartbeatWarned = false;
 
+  function reloadGameTab(reason){
+    console.warn('[GM Health BG] Reloading game tab:', reason);
+    if(!gameTabId){
+      console.warn('[GM Health BG] No gameTabId, skip reload');
+      return;
+    }
+    chrome.tabs.reload(gameTabId, { bypassCache: true }, function(){
+      if(chrome.runtime.lastError){
+        console.error('[GM Health BG] Reload failed:', chrome.runtime.lastError.message);
+        gameTabId = null;
+      } else {
+        console.log('[GM Health BG] Tab', gameTabId, 'reloaded');
+      }
+    });
+  }
+
+  setInterval(function(){
+    if(!_lastHeartbeat) return;
+    var gap = Date.now() - _lastHeartbeat;
+    if(gap > HEARTBEAT_TIMEOUT && !_lastHeartbeatWarned){
+      console.warn('[GM Health BG] Heartbeat lost! Last:', gap/1000, 's ago');
+      _lastHeartbeatWarned = true;
+      reloadGameTab('heartbeat_lost_' + Math.round(gap/1000) + 's');
+    } else if(gap <= HEARTBEAT_TIMEOUT){
+      _lastHeartbeatWarned = false;
+    }
+  }, HEARTBEAT_CHECK_MS);
+
+  chrome.alarms.create('gmHealthCheck', { periodInMinutes: 1 });
+  chrome.alarms.onAlarm.addListener(function(alarm){
+    if(alarm.name !== 'gmHealthCheck') return;
+    if(!_lastHeartbeat) return;
+    var gap = Date.now() - _lastHeartbeat;
+    if(gap > HEARTBEAT_TIMEOUT && !_lastHeartbeatWarned){
+      console.warn('[GM Health BG] Alarm trigger: heartbeat lost', gap/1000, 's');
+      _lastHeartbeatWarned = true;
+      reloadGameTab('heartbeat_lost_alarm_' + Math.round(gap/1000) + 's');
+    }
+  });
+
+  window.__gmHealthBG = {
+    setHeartbeat: function(){ _lastHeartbeat = Date.now(); _lastHeartbeatWarned = false; },
+    reloadGameTab: reloadGameTab
+  };
+
+  console.log('[GM Health BG] Monitor backend started');
+})();
 
 function doWindowAction(sender, gameTabId, sendResponse, targetState) {
   var tabId = (sender && sender.tab && sender.tab.id) || gameTabId;
@@ -80,12 +133,22 @@ function doWindowAction(sender, gameTabId, sendResponse, targetState) {
 }
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   if (request.action === 'registerGameTab') {
-    // 來自 content script：註冊遊戲分頁 ID
     if (sender.tab && sender.tab.id) {
       gameTabId = sender.tab.id;
       console.log('[GM Background] Game tab registered:', gameTabId);
     }
     sendResponse({registered: true});
+    return true;
+
+  } else if (request.action === 'gmHeartbeat') {
+    if(window.__gmHealthBG) window.__gmHealthBG.setHeartbeat();
+    sendResponse({ok: true});
+    return true;
+
+  } else if (request.action === 'gmHealthReload') {
+    console.warn('[GM Background] Health reload request:', request.reason);
+    if(window.__gmHealthBG) window.__gmHealthBG.reloadGameTab(request.reason||'health_request');
+    sendResponse({ok: true});
     return true;
 
   } else if (request.action === 'getGameTabId') {

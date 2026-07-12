@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Game Monitor Panel",
-  "version": "4.31",
+  "version": "4.32",
   "description": "Game Monitor Panel",
   "permissions": [
     "activeTab",
     "scripting",
     "tabs",
     "storage",
-    "windows"
+    "windows",
+    "alarms"
   ],
   "host_permissions": [
     "https://linh5web.win/*"
