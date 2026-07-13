@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v4.32';
+var ver='v4.29';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -460,10 +460,7 @@ function saveFarmSettings(){
     targetIndex: document.getElementById('__gmp_farm_target_index')?parseInt(document.getElementById('__gmp_farm_target_index').value)||1:1,
     attackAll: document.getElementById('__gmp_farm_attack_all')?document.getElementById('__gmp_farm_attack_all').checked:false,
     teleportDelayMin: parseFloat(document.getElementById('__gmp_farm_teleport_delay_min')?document.getElementById('__gmp_farm_teleport_delay_min').value:'0')||0,
-    teleportDelayMax: parseFloat(document.getElementById('__gmp_farm_teleport_delay_max')?document.getElementById('__gmp_farm_teleport_delay_max').value:'0')||0,
-    autoLoginEnabled: document.getElementById('__gmp_auto_login_enable')?document.getElementById('__gmp_auto_login_enable').checked:false,
-    autoLoginUser: document.getElementById('__gmp_auto_login_user')?document.getElementById('__gmp_auto_login_user').value:'',
-    autoLoginPass: document.getElementById('__gmp_auto_login_pass')?document.getElementById('__gmp_auto_login_pass').value:''
+    teleportDelayMax: parseFloat(document.getElementById('__gmp_farm_teleport_delay_max')?document.getElementById('__gmp_farm_teleport_delay_max').value:'0')||0
   };
   window.postMessage({type:'GM_SAVE_SETTINGS',data:data},'*');
 }
@@ -1652,22 +1649,6 @@ function __gmBuildPanel(){
     '      <button id="__gmp_socket_send" style="padding:3px 10px;background:#e94560;border:none;color:#fff;border-radius:4px;cursor:pointer;font-size:10px;font-weight:bold;">發送</button>'+
     '      <span id="__gmp_socket_result" style="font-size:10px;color:#888;"></span>'+
     '    </div>'+
-    '  </div>'+
-    '  <div style="background:rgba(255,255,255,0.04);padding:10px;border-radius:6px;margin-bottom:8px;">'+
-    '    <div style="font-size:11px;color:#ffd700;font-weight:bold;margin-bottom:6px;">🔐 自動登入</div>'+
-    '    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;">'+
-    '      <label style="display:flex;align-items:center;gap:3px;cursor:pointer;font-size:10px;color:#aaa;">'+
-    '        <input type="checkbox" id="__gmp_auto_login_enable" style="width:14px;height:14px;cursor:pointer;">'+
-    '        <span>重整/斷線後自動登入</span>'+
-    '      </label>'+
-    '    </div>'+
-    '    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'+
-    '      <span style="font-size:10px;color:#aaa;">帳號:</span>'+
-    '      <input id="__gmp_auto_login_user" type="text" placeholder="遊戲帳號" style="flex:1;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;outline:none;">'+
-    '      <span style="font-size:10px;color:#aaa;">密碼:</span>'+
-    '      <input id="__gmp_auto_login_pass" type="password" placeholder="遊戲密碼" style="flex:1;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;outline:none;">'+
-    '    </div>'+
-    '    <div id="__gmp_auto_login_status" style="font-size:9px;color:#888;margin-top:4px;"></div>'+
     '  </div>'+
     '</div>'+
     '</div>'; // closes __gmp_content wrapper
@@ -3924,19 +3905,6 @@ function __gmBuildPanel(){
       var maxLbl2=document.getElementById('__gmp_farm_teleport_delay_max_label');
       if(maxLbl2){maxLbl2.textContent=parseFloat(data.teleportDelay).toFixed(1)+'s';}
     }
-    // 載入自動登入設定
-    if(data.autoLoginEnabled!==undefined){
-      var ale=document.getElementById('__gmp_auto_login_enable');
-      if(ale)ale.checked=data.autoLoginEnabled;
-    }
-    if(data.autoLoginUser!==undefined){
-      var alu=document.getElementById('__gmp_auto_login_user');
-      if(alu)alu.value=data.autoLoginUser;
-    }
-    if(data.autoLoginPass!==undefined){
-      var alp=document.getElementById('__gmp_auto_login_pass');
-      if(alp)alp.value=data.autoLoginPass;
-    }
   });
 
   // === Auto-save on change ===
@@ -3946,8 +3914,7 @@ function __gmBuildPanel(){
     '__gmp_farm_specify_target','__gmp_farm_target_index','__gmp_farm_attack_all',
     '__gmp_farm_char_name','__gmp_farm_reconnect','__gmp_farm_reconnect_interval',
     '__gmp_farm_mp_reconnect','__gmp_farm_mp_reconnect_thresh','__gmp_farm_char_slot',
-    '__gmp_farm_teleport_delay_min','__gmp_farm_teleport_delay_max',
-    '__gmp_auto_login_enable','__gmp_auto_login_user','__gmp_auto_login_pass'];
+    '__gmp_farm_teleport_delay_min','__gmp_farm_teleport_delay_max'];
   farmInputs.forEach(function(id){
     var el=document.getElementById(id);
     if(el){
@@ -4591,162 +4558,6 @@ console.log('[GM] Monitor injected '+ver);
         setTimeout(function(){if(resEl)resEl.textContent='';},3000);
       }
     });
-  })();
-
-  // === Auto Login: watch for login page #login and auto-submit ===
-  (function(){
-    if(window.__gmAutoLoginPatch)return;
-    window.__gmAutoLoginPatch=true;
-    var _loginTried=false; // 只嘗試一次，直到下次重整
-    var _loginFail=0;   // 連續失敗次數
-    var _loginCheckTimer=null;
-    var _loginRetryTimer=null;
-    var _loginSuccessTimer=null;
-    var _loginSuccessPending=false;
-    var MAX_FAIL=5;
-    var CHECK_INTERVAL=1500;
-    var RETRY_DELAY=4000;
-
-    function getLoginSettings(){
-      return new Promise(function(resolve){
-        if(typeof window.__gmStorageGet==='function'){
-          window.__gmStorageGet(['gmFarmSettings']).then(function(r){
-            var d=r&&r.gmFarmSettings||{};
-            resolve({enabled:d.autoLoginEnabled||false,user:d.autoLoginUser||'',pass:d.autoLoginPass||''});
-          }).catch(function(){resolve({enabled:false,user:'',pass:''});});
-        }else{
-          resolve({enabled:false,user:'',pass:''});
-        }
-      });
-    }
-
-    function tryLogin(user,pass){
-      var loginEl=document.getElementById('login');
-      if(!loginEl)return false;
-      if(loginEl.style.display==='none'||loginEl.offsetParent===null)return false;
-      var userInp=document.getElementById('in-user');
-      var passInp=document.getElementById('in-pass');
-      var loginBtn=document.getElementById('btn-login');
-      if(!userInp||!passInp||!loginBtn)return false;
-      // 填寫帳密
-      try{
-        var nativeSetter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value');
-        if(nativeSetter&&nativeSetter.set){
-          nativeSetter.set.call(userInp,user);
-          nativeSetter.set.call(passInp,pass);
-        }else{
-          userInp.value=user;
-          passInp.value=pass;
-        }
-        userInp.dispatchEvent(new Event('input',{bubbles:true}));
-        passInp.dispatchEvent(new Event('input',{bubbles:true}));
-        userInp.dispatchEvent(new Event('change',{bubbles:true}));
-        passInp.dispatchEvent(new Event('change',{bubbles:true}));
-      }catch(e){console.warn('[AutoLogin] Fill error:',e.message);}
-      // 點登入
-      try{loginBtn.click();}catch(e){console.warn('[AutoLogin] Click error:',e.message);}
-      return true;
-    }
-
-    function doCheck(){
-      getLoginSettings().then(function(cfg){
-        if(!cfg.enabled||!_loginTried)return;
-        var loginEl=document.getElementById('login');
-        if(!loginEl||loginEl.style.display==='none'||loginEl.offsetParent===null)return;
-        if(_loginFail>=MAX_FAIL){
-          console.log('[AutoLogin] Max retries ('+MAX_FAIL+') reached, stopping');
-          _loginTried=false;
-          updateStatus('❌ 已放棄（達最大重試次數）');
-          return;
-        }
-        updateStatus('🔄 重試登入 #'+(_loginFail+1)+'...');
-        if(tryLogin(cfg.user,cfg.pass)){
-          _loginFail++;
-          if(_loginRetryTimer)clearTimeout(_loginRetryTimer);
-          _loginRetryTimer=setTimeout(doCheck,_loginFail===1?2000:RETRY_DELAY);
-        }
-      });
-    }
-
-    function updateStatus(msg){
-      var el2=document.getElementById('__gmp_auto_login_status');
-      if(el2)el2.textContent=msg;
-    }
-
-    function watchLogin(){
-      getLoginSettings().then(function(cfg){
-        if(!cfg.enabled||!cfg.user||!cfg.pass){
-          updateStatus('⚙️ 未設定帳密或未啟用');
-          if(_loginCheckTimer){clearInterval(_loginCheckTimer);_loginCheckTimer=null;}
-          return;
-        }
-        // 檢查是否在登入畫面
-        var loginEl=document.getElementById('login');
-        if(loginEl&&loginEl.style.display!=='none'&&loginEl.offsetParent!==null&&!_loginTried){
-          _loginTried=true;
-          _loginFail=0;
-          updateStatus('🔑 偵測到登入畫面，自動登入...');
-          console.log('[AutoLogin] Login screen detected, auto-logging in...');
-          if(!tryLogin(cfg.user,cfg.pass)){
-            _loginTried=false;
-            updateStatus('⚠️ 帳密欄位未就緒，等待中...');
-            return;
-          }
-          _loginFail++;
-          // 設重試計時器
-          if(_loginRetryTimer)clearTimeout(_loginRetryTimer);
-          _loginRetryTimer=setTimeout(doCheck,2500);
-        }else if(!loginEl||loginEl.style.display==='none'||loginEl.offsetParent===null){
-          // 登入畫面消失了 → 可能已登入
-          if(_loginTried&&_loginFail>0&&!_loginSuccessPending){
-            _loginSuccessPending=true;
-            _loginSuccessTimer=setTimeout(function(){
-              var stillGone=!document.getElementById('login')||document.getElementById('login').style.display==='none'||document.getElementById('login').offsetParent===null;
-              if(stillGone){
-                _loginTried=false;
-                _loginFail=0;
-                _loginSuccessPending=false;
-                updateStatus('✅ 登入成功，自動啟動中...');
-                console.log('[AutoLogin] Login appears successful, auto-starting scripts');
-                // 自動啟動掛機 + BOSS
-                try{
-                  setTimeout(function(){
-                    if(typeof startFarming==='function'){
-                      startFarming();
-                      console.log('[AutoLogin] Farming started');
-                    }
-                    setTimeout(function(){
-                      var cb=document.getElementById('__gmp_boss_auto_enable');
-                      if(cb&&!cb.checked){cb.checked=true;cb.dispatchEvent(new Event('change',{bubbles:true}));}
-                      if(typeof __wbBossAutoScriptStart==='function')__wbBossAutoScriptStart();
-                      if(typeof __wbBossAutoStart==='function')__wbBossAutoStart();
-                      console.log('[AutoLogin] Boss auto started');
-                    },1500);
-                  },800);
-                }catch(e){console.warn('[AutoLogin] Auto-start error:',e.message);}
-              }
-            },3000);
-          }
-        }
-      });
-    }
-
-    // DOM 監測：監聽 DOM 變化來偵測登入畫面出現/消失
-    var _loginCheckTimer=setInterval(watchLogin,CHECK_INTERVAL);
-    
-    // 也可以透過 MutationObserver 加強偵測速度
-    var _loginObs=new MutationObserver(function(){
-      watchLogin();
-    });
-    if(document.body){
-      _loginObs.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['style','class']});
-    }else{
-      var _bodyWait=setInterval(function(){
-        if(document.body){_loginObs.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['style','class']});clearInterval(_bodyWait);}
-      },200);
-    }
-
-    console.log('[AutoLogin] Module loaded. Watching for login screen...');
   })();
 
 })();
