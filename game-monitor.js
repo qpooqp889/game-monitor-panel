@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v4.21';
+var ver='v4.22';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
