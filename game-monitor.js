@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v4.23';
+var ver='v4.24';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -4119,6 +4119,10 @@ document.addEventListener('change',function(e){
     }
     // cron 參數變更時自動儲存
     if(t && (t.id==='__gmp_cron_start_min'||t.id==='__gmp_cron_stop_min'||t.id==='__gmp_cron_quick_enter')){
+      if(typeof __wbSaveCronConfig==='function')__wbSaveCronConfig();
+    }
+    // 腳本下拉變更時也儲存
+    if(t && t.id==='__gmp_cron_script_ver'){
       if(typeof __wbSaveCronConfig==='function')__wbSaveCronConfig();
     }
   });

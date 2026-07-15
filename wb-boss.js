@@ -217,6 +217,8 @@ function __wbLoadBossScriptMode(){
     if(t&&cfg.stopMin!=null)t.value=cfg.stopMin;
     var qe=document.getElementById('__gmp_cron_quick_enter');
     if(qe&&cfg.quickEnter!=null)qe.checked=cfg.quickEnter;
+    var sv=document.getElementById('__gmp_cron_script_ver');
+    if(sv&&cfg.scriptVer!=null)sv.value=cfg.scriptVer;
     // 顯示/隱藏 cron panel + log section
     var cd=document.getElementById('__gmp_cron_config');
     if(cd)cd.style.display=(window.__wbBossAutoScript.mode==='cron')?'block':'none';
@@ -236,10 +238,12 @@ function __wbSaveCronConfig(){
   var s=document.getElementById('__gmp_cron_start_min');
   var t=document.getElementById('__gmp_cron_stop_min');
   var qe=document.getElementById('__gmp_cron_quick_enter');
+  var sv=document.getElementById('__gmp_cron_script_ver');
   window.__gmStorageSet('wb_cron_config',{
     startMin:parseInt(s&&s.value!=''?s.value:'0')||0,
     stopMin:parseInt(t&&t.value!=''?t.value:'2')||2,
-    quickEnter:qe?qe.checked:true
+    quickEnter:qe?qe.checked:true,
+    scriptVer:parseInt(sv&&sv.value?sv.value:'1')||1
   });
 }
 
