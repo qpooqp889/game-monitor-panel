@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v4.25';
+var ver='v4.26';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -4099,6 +4099,8 @@ function __gmBindTeleportSliders(){
 setTimeout(__gmBindTeleportSliders,300);
 
 try { __gmBuildPanel(); } catch(e) { console.error('[GM] __gmBuildPanel failed:',e.message); }
+// 載入 cron 設定（含腳本下拉），timer 確保 DOM 已產生
+try { if(typeof __wbLoadBossScriptMode==='function')setTimeout(__wbLoadBossScriptMode,400); } catch(e){}
 document.addEventListener('__gm_show_panel',function(){ try{__gmBuildPanel()}catch(e){console.error(e)}; setTimeout(__gmBindTeleportSliders,100); });
 
   // 自動進入模式下拉：監聽變更並儲存/廣播
