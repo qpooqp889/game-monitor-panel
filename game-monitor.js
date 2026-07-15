@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v4.27';
+var ver='v4.28';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -1565,7 +1565,7 @@ function __gmBuildPanel(){
       '<input id="__gmp_farm_char_name" type="text" placeholder="角色名稱" style="flex:1;padding:4px 6px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:11px;outline:none;">'+
     '</div>'+
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:10px;color:#888;">'+
-      '檢測間隔 <input id="__gmp_farm_reconnect_interval" type="number" value="600" min="10" max="900" style="width:50px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;outline:none;text-align:center;"> 秒'+
+      '檢測間隔 <input id="__gmp_farm_reconnect_interval" type="number" value="300" min="10" max="900" style="width:50px;padding:3px 5px;background:#2a2a4a;border:1px solid #0f3460;border-radius:4px;color:#fff;font-size:10px;outline:none;text-align:center;"> 秒'+
     '</div>'+
     // Character slot — right below reconnect settings
     '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding:6px;background:#1a1a2e;border:1px solid #0f3460;border-radius:6px;">'+
