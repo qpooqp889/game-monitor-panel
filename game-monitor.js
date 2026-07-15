@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v4.22';
+var ver='v4.23';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -1173,7 +1173,7 @@ function __gmBuildPanel(){
   '<span> 分開始偵測BOSS & 戰鬥， </span><input id="__gmp_cron_stop_min" type="number" value="2" min="0" max="59" style="width:36px;padding:2px 4px;background:#2a2a4a;border:1px solid #0f3460;border-radius:3px;color:#fff;font-size:10px;outline:none;text-align:center;">'+
   '<span> 分停止並恢復掛機</span>'+
   '<label style="margin-left:8px;cursor:pointer;font-size:10px;color:#ffd700;"><input type="checkbox" id="__gmp_cron_quick_enter" checked style="width:12px;height:12px;vertical-align:middle;margin-right:2px;">快速進入</label>'+
-  '<select id="__gmp_cron_script_ver" style="margin-left:6px;padding:1px 3px;background:#1a1a3a;color:#4ade80;border:1px solid #0f3460;border-radius:3px;font-size:9px;cursor:pointer;"><option value="1">腳本1</option><option value="2">腳本2</option><option value="3">腳本3</option><option value="4">腳本4</option><option value="5">腳本5</option><option value="6">腳本6</option><option value="7">腳本7</option><option value="8">腳本8</option><option value="9">腳本9</option><option value="10">腳本10</option></select>'+
+  '<select id="__gmp_cron_script_ver" style="margin-left:6px;padding:1px 3px;background:#1a1a3a;color:#4ade80;border:1px solid #0f3460;border-radius:3px;font-size:9px;cursor:pointer;"><option value="1">腳本1</option><option value="2">腳本2</option><option value="3">腳本3</option><option value="4">腳本4</option><option value="5">腳本5</option><option value="6">腳本6</option><option value="7">腳本7</option><option value="8">腳本8</option><option value="9">腳本9</option><option value="10">腳本10</option></select>'+ '<button id="__gmp_script_help_btn" style="margin-left:3px;padding:0px 5px;background:#1a1a3a;color:#fbbf24;border:1px solid #fbbf24;border-radius:3px;font-size:9px;cursor:pointer;font-weight:bold;line-height:16px;" title="查看腳本說明">?</button>'+
 '</div>'+
 '<div style="display:flex;align-items:center;gap:2px;margin-top:4px;margin-bottom:4px;">'+
 '<input type="checkbox" id="__gmp_boss_auto_reenter" style="width:13px;height:13px;cursor:pointer;">'+
@@ -4122,6 +4122,97 @@ document.addEventListener('change',function(e){
       if(typeof __wbSaveCronConfig==='function')__wbSaveCronConfig();
     }
   });
+
+  // === 腳本說明 ? 按鈕 ===
+  document.getElementById('__gmp_script_help_btn').onclick=function(e){
+    e.stopPropagation();
+    __gmOpenScriptHelp();
+  };
+
+  window.__gmOpenScriptHelp=function(){
+    var old=document.getElementById('__gmp_script_help_modal');if(old)old.remove();
+    var ver=document.getElementById('__gmp_cron_script_ver');
+    var curVal=ver?ver.value:'1';
+    var descs={
+      1: ['🧪 腳本1 — joinBoss 封包','使用 joinBoss Socket 封包快速進場。每 500ms 輪詢 lastState，每 5s 補發一次封包。',
+        '✅ 進場快（一發入場）','✅ 30s 逾時自動跳下位','⚠️ 依賴 Socket 連線','⚠️ 卡片 lazy-load 可能失效'],
+      2: ['🖱️ 腳本2 — 點擊卡片','點擊 DOM .wb-card 進場，進場後共用 S1Poll 輪詢。',
+        '✅ 不依賴 Socket','✅ 模擬真實點擊','⚠️ 卡片須已渲染到 DOM','⚠️ 需確保卡片在可見區域'],
+      3: ['🎯 腳本3 — 優先討伐清單','僅處理「優先討伐清單」中的 BOSS，不做全 DOM 掃描。',
+        '→ 進入時間窗口','→ 停止掛機，切世界王 Tab','→ 讀取優先討伐清單','→ 逐一: 找卡片→click→輪詢每500ms','  ├ msg-ok? → 點掉，跳下位','  ├ br-lobby? → 擊敗流程→回大廳→下位','  ├ HP=0? → 輪詢 br-lobby(15s)→擊敗流程','  ├ mode=boss/bosscombat? → 攻擊+監控HP','  ├ 逾時60s? → 跳下位','  └ 繼續輪詢','→ 全打完→重置done→再掃一次','✅ 只打想打的 BOSS','✅ 不浪費時間在低優先級','⚠️ 需先設定優先討伐清單','⚠️ 不在清單中的 BOSS 不會被處理'],
+      4: ['🔄 腳本4 — 待定義','尚未客製化，目前同腳本1。',
+        '💡 可自行在 wb-boss.js 中修改 __wbCronQuickScript4'],
+      5: ['🔄 腳本5 — 待定義','尚未客製化，目前同腳本1。',
+        '💡 可自行在 wb-boss.js 中修改 __wbCronQuickScript5'],
+      6: ['🔄 腳本6 — 待定義','尚未客製化，目前同腳本1。',
+        '💡 可自行在 wb-boss.js 中修改 __wbCronQuickScript6'],
+      7: ['🔄 腳本7 — 待定義','尚未客製化，目前同腳本1。',
+        '💡 可自行在 wb-boss.js 中修改 __wbCronQuickScript7'],
+      8: ['🔄 腳本8 — 待定義','尚未客製化，目前同腳本1。',
+        '💡 可自行在 wb-boss.js 中修改 __wbCronQuickScript8'],
+      9: ['🔄 腳本9 — 待定義','尚未客製化，目前同腳本1。',
+        '💡 可自行在 wb-boss.js 中修改 __wbCronQuickScript9'],
+      10: ['🔄 腳本10 — 待定義','尚未客製化，目前同腳本1。',
+        '💡 可自行在 wb-boss.js 中修改 __wbCronQuickScript10']
+    };
+    // 生成選項列表
+    var optsHtml='';
+    for(var i=1;i<=10;i++){
+      var d=descs[i]||['🔄 腳本'+i+' — 待定義','尚無說明。'];
+      var act=i===parseInt(curVal)?'active':'inactive';
+      optsHtml+='<div class="__gmp_sh_opt" data-sh-ver="'+i+'" style="padding:8px 12px;cursor:pointer;font-size:11px;color:#aaa;border-left:2px solid transparent;transition:all 0.15s;'+(act==='active'?'background:rgba(255,215,0,0.08);border-left-color:#fbbf24;color:#fbbf24;':'')+'">'+d[0]+'</div>';
+    }
+    var sel=descs[curVal]||['',''];
+    var modal=document.createElement('div');
+    modal.id='__gmp_script_help_modal';
+    modal.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:99999;display:flex;align-items:center;justify-content:center;font-family:Consolas,monospace;';
+    modal.innerHTML=
+      '<div style="background:#0f0f23;border:2px solid #fbbf24;border-radius:10px;width:620px;max-height:80vh;display:flex;flex-direction:column;color:#fff;">'+
+        '<div style="padding:12px 16px;border-bottom:1px solid #0f3460;display:flex;justify-content:space-between;align-items:center;">'+
+          '<div style="font-size:14px;font-weight:bold;color:#fbbf24;">📖 腳本說明</div>'+
+          '<button id="__gmp_sh_close" style="background:#e94560;border:none;color:#fff;width:24px;height:24px;border-radius:4px;cursor:pointer;font-size:14px;font-weight:bold;">×</button>'+
+        '</div>'+
+        '<div style="display:flex;flex:1;min-height:0;">'+
+          '<div id="__gmp_sh_sidebar" style="width:160px;border-right:1px solid #0f3460;overflow-y:auto;">'+optsHtml+'</div>'+
+          '<div id="__gmp_sh_content" style="flex:1;padding:16px;overflow-y:auto;font-size:11px;line-height:1.7;"></div>'+
+        '</div>'+
+      '</div>';
+    document.body.appendChild(modal);
+    modal.onclick=function(e){if(e.target===modal)__gmCloseScriptHelp();};
+    document.getElementById('__gmp_sh_close').onclick=__gmCloseScriptHelp;
+    // 顯示當前腳本說明
+    window.__gmShUpdateContent=function(v){
+      var d=descs[v]||['🔄 腳本'+v,'尚無說明。'];
+      var h='<div style="font-size:13px;font-weight:bold;color:#fbbf24;margin-bottom:8px;">'+d[0]+'</div>';
+      for(var i=1;i<d.length;i++){
+        var line=d[i];
+        if(line.indexOf('✅')===0)h+='<div style="color:#4ade80;padding:2px 0;">'+line+'</div>';
+        else if(line.indexOf('⚠️')===0)h+='<div style="color:#fbbf24;padding:2px 0;">'+line+'</div>';
+        else if(line.indexOf('💡')===0)h+='<div style="color:#00d9ff;padding:2px 0;">'+line+'</div>';
+        else if(line.indexOf('├')===0||line.indexOf('└')===0||line.indexOf('→')===0)h+='<div style="color:#aaa;padding:1px 0;padding-left:8px;font-size:10px;">'+line+'</div>';
+        else h+='<div style="color:#ccc;padding:2px 0;">'+line+'</div>';
+      }
+      document.getElementById('__gmp_sh_content').innerHTML=h;
+      // highlight active sidebar
+      document.querySelectorAll('.__gmp_sh_opt').forEach(function(el){
+        var ver=el.getAttribute('data-sh-ver');
+        el.style.background=ver===v?'rgba(255,215,0,0.08)':'transparent';
+        el.style.borderLeftColor=ver===v?'#fbbf24':'transparent';
+        el.style.color=ver===v?'#fbbf24':'#aaa';
+      });
+    };
+    __gmShUpdateContent(curVal);
+    // sidebar click
+    document.getElementById('__gmp_sh_sidebar').onclick=function(e){
+      var el=e.target.closest('.__gmp_sh_opt');
+      if(el){var v=el.getAttribute('data-sh-ver');__gmShUpdateContent(v);}
+    };
+  };
+
+  window.__gmCloseScriptHelp=function(){
+    var m=document.getElementById('__gmp_script_help_modal');
+    if(m)m.remove();
+  };
 
   // === 定時模式 BOSS 紀錄面板 ===
   window.__wbRenderCronLog=function(){
