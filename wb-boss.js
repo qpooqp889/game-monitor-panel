@@ -201,7 +201,13 @@ function __wbSetBossScriptMode(mode){
 }
 
 function __wbLoadBossScriptMode(){
-  if(!window.__gmStorageGet)return;
+  if(!window.__gmStorageGet){
+    // storage relay 尚未就緒，200ms 後重試，最多 30 次 (6 秒)
+    var retries=__wbLoadBossScriptMode._retries||0;
+    if(retries<30){__wbLoadBossScriptMode._retries=retries+1;setTimeout(__wbLoadBossScriptMode,200);}
+    return;
+  }
+  __wbLoadBossScriptMode._retries=0;
   window.__gmStorageGet(['wb_script_mode']).then(function(r){
     var v=r&&r.wb_script_mode?r.wb_script_mode.mode:null;
     var el=document.getElementById('__gmp_boss_script_mode');
@@ -746,19 +752,19 @@ function __wbCronQuickScript3Poll(tgt,idx){
     }
     var stEl=document.getElementById('__gmp_boss_script_status');
     if(stEl)stEl.textContent='⚔S3 '+tgt.name+' HP:'+hpPct+'%';
-    as.timer=setTimeout(function(){__wbCronQuickScript3Poll(tgt,idx);},500);
+    as.timer=setTimeout(function(){__wbCronQuickScript3Poll(tgt,idx);},300);
     return;
   }
-  // 逾時 60s（等進場）
-  if(elapsed>=60000){
-    console.log('[WB-CronQuick][S3] 60s timeout for '+tgt.name+', mode='+mode+', skip');
+  // 逾時 20s（等進場）
+  if(elapsed>=20000){
+    console.log('[WB-CronQuick][S3] 20s timeout for '+tgt.name+', mode='+mode+', skip');
     window.__wbCronQuick.done[tgt.id]=true;
     as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},300);
     return;
   }
   var stEl2=document.getElementById('__gmp_boss_script_status');
   if(stEl2)stEl2.textContent='⏳S3 '+tgt.name+' '+Math.floor(elapsed/1000)+'s';
-  as.timer=setTimeout(function(){__wbCronQuickScript3Poll(tgt,idx);},500);
+  as.timer=setTimeout(function(){__wbCronQuickScript3Poll(tgt,idx);},300);
 }
 // S3 等待重生倒數（每秒檢查一次直到重生或逾時）
 function __wbCronQuickScript3WaitRespawn(tgt,idx,timeoutMs){
@@ -810,7 +816,7 @@ function __wbCronQuickScript3Defeat(tgt,idx){
       console.log('[WB-CronQuick][S3] br-lobby gone, toLobby+selectChar');
       try{var ws=window.__ws||window.__wbSocket;if(ws&&ws.readyState===WebSocket.OPEN){ws.send('42["toLobby",[]]');setTimeout(function(){try{if(ws&&ws.readyState===WebSocket.OPEN)ws.send('42["selectChar",0]');}catch(e){} },500);}}catch(e){}
       // 跳下一位
-      as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},3000);
+      as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},1500);
     },600);
   }
   clickLobby();
@@ -2967,7 +2973,41 @@ function __wbRemoveFromHuntList(bossId){
 }
 
 // 更新討伐清單 UI（含上移/下移/刪除按鈕及各項目的 minPlayers 輸入框）
-function __wbUpdateHuntListUI(){
+
+// 從 DOM 讀取優先討伐清單中某 BOSS 的重生時間文字
+function __wbGetHuntRespawn(bossId){
+  var subEl=document.querySelector('.wb-sub[data-boss="'+bossId+'"]');
+  if(!subEl)return '--';
+  var t=subEl.textContent.trim();
+  if(t.indexOf('存續')!==-1||t.indexOf('戰鬥')!==-1||t.indexOf('HP')!==-1)return '⚔️存活';
+  var m=t.match(/(\d{1,2})\/(\d{1,2})\s*(\d{1,2}):(\d{2})/);
+  if(m){
+    var mo=parseInt(m[1]),d=parseInt(m[2]),h=parseInt(m[3]),mi=parseInt(m[4]);
+    var now=new Date(),target=new Date(now.getFullYear(),mo-1,d,h,mi,0);
+    if(target<=now)target.setDate(target.getDate()+1);
+    var s=Math.round((target-now)/1000);
+    if(s<=0)return '--';
+    if(s<60)return s+'s';
+    return Math.floor(s/60)+'m'+s%60+'s';
+  }
+  if(t.indexOf('已被')!==-1)return '💀已死';
+  return t.substring(0,20);
+}
+// 每秒更新一次優先討伐清單中的重生時間
+window.__wbHuntRespawnUpdater=null;
+function __wbStartHuntRespawnUpdater(){
+  if(window.__wbHuntRespawnUpdater)return;
+  window.__wbHuntRespawnUpdater=setInterval(function(){
+    var els=document.querySelectorAll('.__gmp_hunt_respawn');
+    var updated=false;
+    els.forEach(function(el){
+      var id=el.getAttribute('data-boss');
+      if(!id)return;
+      var newText=__wbGetHuntRespawn(id);
+      if(el.textContent!==newText){el.textContent=newText;updated=true;}
+    });
+  },1000);
+}function __wbUpdateHuntListUI(){
   var el=document.getElementById('__gmp_hunt_list');
   var countEl=document.getElementById('__gmp_hunt_count');
   if(!el)return;
