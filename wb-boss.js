@@ -453,6 +453,11 @@ function __wbCronQuickScanCards(){
   __wbCronQuickProcess(0);
 }
 
+function __wbCronQuickGetScriptVer(){
+  var sel=document.getElementById('__gmp_cron_script_ver');
+  return sel ? parseInt(sel.value)||1 : 1;
+}
+
 function __wbCronQuickProcess(idx){
   var as=window.__wbBossAutoScript;
   if(!as||!as.running)return;
@@ -464,21 +469,79 @@ function __wbCronQuickProcess(idx){
   window.__wbCronQuick.currentIdx=idx;
   window.__wbCronQuick.phase='entering';
   var retry=tgt._retry||0;
+  var ver=__wbCronQuickGetScriptVer();
   var stEl=document.getElementById('__gmp_boss_script_status');
-  if(stEl)stEl.textContent='📨 joinBoss: '+tgt.name+' ('+(idx+1)+'/'+window.__wbCronQuick.targets.length+')'+(retry>0?' [重試'+retry+'/3]':'');
-  console.log('[WB-CronQuick] Sending joinBoss for '+tgt.name+' (id='+tgt.id+') retry='+retry);
+  if(stEl)stEl.textContent='📨 S'+ver+' joinBoss: '+tgt.name+' ('+(idx+1)+'/'+window.__wbCronQuick.targets.length+')'+(retry>0?' [重試'+retry+'/3]':'');
+  console.log('[WB-CronQuick][S'+ver+'] Sending joinBoss for '+tgt.name+' (id='+tgt.id+') retry='+retry);
+  // Dispatch to script version
+  switch(ver){
+    case 1: __wbCronQuickScript1(tgt,idx,retry); break;
+    case 2: __wbCronQuickScript1(tgt,idx,retry); break; // 尚未客製化，先用S1
+    case 3: __wbCronQuickScript1(tgt,idx,retry); break;
+    case 4: __wbCronQuickScript1(tgt,idx,retry); break;
+    case 5: __wbCronQuickScript1(tgt,idx,retry); break;
+    case 6: __wbCronQuickScript1(tgt,idx,retry); break;
+    case 7: __wbCronQuickScript1(tgt,idx,retry); break;
+    case 8: __wbCronQuickScript1(tgt,idx,retry); break;
+    case 9: __wbCronQuickScript1(tgt,idx,retry); break;
+    case 10: __wbCronQuickScript1(tgt,idx,retry); break;
+    default: __wbCronQuickScript1(tgt,idx,retry); break;
+  }
+}
+
+// ====== 腳本1：發 joinBoss → 等1秒 → 檢查 BOSS HP → 攻擊 → 擊敗 → 回大廳 → 下一位 ======
+function __wbCronQuickScript1(tgt,idx,retry){
+  var as=window.__wbBossAutoScript;
+  // 發送 joinBoss
   if(window.__wbEmit){
     window.__wbEmit('joinBoss',[tgt.id]);
-  } else if(window.__wbSocket&&window.__wbSocket.emit){
+  }else if(window.__wbSocket&&window.__wbSocket.emit){
     window.__wbSocket.emit('joinBoss',[tgt.id]);
-  } else {
-    console.log('[WB-CronQuick] No socket available, skipping '+tgt.name);
-    window.__wbCronQuick.done[tgt.id]=true;
-    tgt._retry=0;
+  }else{
+    console.log('[WB-CronQuick] No socket, skipping '+tgt.name);
+    window.__wbCronQuick.done[tgt.id]=true; tgt._retry=0;
     as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},300);
     return;
   }
-  __wbCronQuickWaitCombat(tgt,idx);
+  // 等1秒後檢查 BOSS 狀態
+  setTimeout(function(){
+    if(!as||!as.running)return;
+    var ls=window.lastState||{};
+    var boss=ls.boss||{};
+    var hp=boss.hp||0;
+    var maxHp=boss.maxHp||0;
+    console.log('[WB-CronQuick][S1] 1s check for '+tgt.name+': mode='+(ls.mode||'?')+' hp='+hp+'/'+maxHp);
+    // 檢查 msg-ok（未重生）
+    var msgOk=document.getElementById('msg-ok');
+    if(msgOk){
+      console.log('[WB-CronQuick][S1] msg-ok, '+tgt.name+' not respawned');
+      try{msgOk.click();}catch(e){}
+      window.__wbCronQuick.done[tgt.id]=true; tgt._retry=0;
+      as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},500);
+      return;
+    }
+    // 檢查是否已進入戰鬥 / BOSS 存在
+    if((ls.mode==='boss'||ls.mode==='bosscombat')&&hp>0){
+      console.log('[WB-CronQuick][S1] Boss '+tgt.name+' loaded! HP='+hp+'/'+maxHp);
+      tgt._retry=0;
+      window.__wbCronQuick.currentTarget=tgt;
+      window.__wbCronQuick.phase='combat';
+      if(window.__wbBossAuto&&!window.__wbBossAuto.running)__wbBossAutoStart();
+      __wbDebugStart(tgt.name,'cron-quick');
+      __wbCronQuickCombatPoll(tgt,idx);
+      return;
+    }
+    // BOSS 未載入 → 重試或跳過
+    if(retry<3){
+      console.log('[WB-CronQuick][S1] Boss not loaded, retry '+(retry+1)+'/3 in 2s');
+      tgt._retry=retry+1;
+      as.timer=setTimeout(function(){__wbCronQuickProcess(idx);},2000);
+    }else{
+      console.log('[WB-CronQuick][S1] 3 retries exhausted for '+tgt.name+', skipping');
+      window.__wbCronQuick.done[tgt.id]=true; tgt._retry=0;
+      as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},300);
+    }
+  },1000);
 }
 
 function __wbCronQuickWaitCombat(tgt,idx){

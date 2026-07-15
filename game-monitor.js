@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v4.29';
+var ver='v4.20';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -545,6 +545,7 @@ var ZONES={
     {id:'town_witon',name:'威頓村',sub:'安全區'},
   ],
   wild:[
+    {id:'twilight_mt',name:'黃昏山脈',sub:'建議 Lv.55'},
     {id:'training',name:'新兵修練場',sub:'建議 Lv.3'},
     {id:'silver_knight',name:'銀騎士地區',sub:'建議 Lv.10'},
     {id:'talking_island',name:'說話之島周邊',sub:'建議 Lv.6'},
@@ -1172,6 +1173,7 @@ function __gmBuildPanel(){
   '<span> 分開始偵測BOSS & 戰鬥， </span><input id="__gmp_cron_stop_min" type="number" value="2" min="0" max="59" style="width:36px;padding:2px 4px;background:#2a2a4a;border:1px solid #0f3460;border-radius:3px;color:#fff;font-size:10px;outline:none;text-align:center;">'+
   '<span> 分停止並恢復掛機</span>'+
   '<label style="margin-left:8px;cursor:pointer;font-size:10px;color:#ffd700;"><input type="checkbox" id="__gmp_cron_quick_enter" checked style="width:12px;height:12px;vertical-align:middle;margin-right:2px;">快速進入</label>'+
+  '<select id="__gmp_cron_script_ver" style="margin-left:6px;padding:1px 3px;background:#1a1a3a;color:#4ade80;border:1px solid #0f3460;border-radius:3px;font-size:9px;cursor:pointer;"><option value="1">腳本1</option><option value="2">腳本2</option><option value="3">腳本3</option><option value="4">腳本4</option><option value="5">腳本5</option><option value="6">腳本6</option><option value="7">腳本7</option><option value="8">腳本8</option><option value="9">腳本9</option><option value="10">腳本10</option></select>'+
 '</div>'+
 '<div style="display:flex;align-items:center;gap:2px;margin-top:4px;margin-bottom:4px;">'+
 '<input type="checkbox" id="__gmp_boss_auto_reenter" style="width:13px;height:13px;cursor:pointer;">'+
