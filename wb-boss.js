@@ -475,73 +475,115 @@ function __wbCronQuickProcess(idx){
   console.log('[WB-CronQuick][S'+ver+'] Sending joinBoss for '+tgt.name+' (id='+tgt.id+') retry='+retry);
   // Dispatch to script version
   switch(ver){
-    case 1: __wbCronQuickScript1(tgt,idx,retry); break;
-    case 2: __wbCronQuickScript1(tgt,idx,retry); break; // 尚未客製化，先用S1
-    case 3: __wbCronQuickScript1(tgt,idx,retry); break;
-    case 4: __wbCronQuickScript1(tgt,idx,retry); break;
-    case 5: __wbCronQuickScript1(tgt,idx,retry); break;
-    case 6: __wbCronQuickScript1(tgt,idx,retry); break;
-    case 7: __wbCronQuickScript1(tgt,idx,retry); break;
-    case 8: __wbCronQuickScript1(tgt,idx,retry); break;
-    case 9: __wbCronQuickScript1(tgt,idx,retry); break;
-    case 10: __wbCronQuickScript1(tgt,idx,retry); break;
-    default: __wbCronQuickScript1(tgt,idx,retry); break;
+    case 1: __wbCronQuickScript1(tgt,idx); break;
+    case 2: __wbCronQuickScript2(tgt,idx); break;
+    case 3: __wbCronQuickScript1(tgt,idx); break;
+    case 4: __wbCronQuickScript1(tgt,idx); break;
+    case 5: __wbCronQuickScript1(tgt,idx); break;
+    case 6: __wbCronQuickScript1(tgt,idx); break;
+    case 7: __wbCronQuickScript1(tgt,idx); break;
+    case 8: __wbCronQuickScript1(tgt,idx); break;
+    case 9: __wbCronQuickScript1(tgt,idx); break;
+    case 10: __wbCronQuickScript1(tgt,idx); break;
+    default: __wbCronQuickScript1(tgt,idx); break;
   }
 }
 
-// ====== 腳本1：發 joinBoss → 等1秒 → 檢查 BOSS HP → 攻擊 → 擊敗 → 回大廳 → 下一位 ======
-function __wbCronQuickScript1(tgt,idx,retry){
+// ====== 腳本1：joinBoss 封包 → 每500ms輪詢 lastState 直到進戰鬥/msg-ok → 攻擊 → 擊敗 → 回大廳 ======
+function __wbCronQuickScript1(tgt,idx){
   var as=window.__wbBossAutoScript;
+  if(!as||!as.running)return;
+  console.log('[WB-CronQuick][S1] joinBoss: '+tgt.name+' ('+tgt.id+')');
   // 發送 joinBoss
   if(window.__wbEmit){
     window.__wbEmit('joinBoss',[tgt.id]);
   }else if(window.__wbSocket&&window.__wbSocket.emit){
     window.__wbSocket.emit('joinBoss',[tgt.id]);
   }else{
-    console.log('[WB-CronQuick] No socket, skipping '+tgt.name);
-    window.__wbCronQuick.done[tgt.id]=true; tgt._retry=0;
+    console.log('[WB-CronQuick][S1] No socket, skipping '+tgt.name);
+    window.__wbCronQuick.done[tgt.id]=true;
     as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},300);
     return;
   }
-  // 等1秒後檢查 BOSS 狀態
-  setTimeout(function(){
-    if(!as||!as.running)return;
-    var ls=window.lastState||{};
-    var boss=ls.boss||{};
-    var hp=boss.hp||0;
-    var maxHp=boss.maxHp||0;
-    console.log('[WB-CronQuick][S1] 1s check for '+tgt.name+': mode='+(ls.mode||'?')+' hp='+hp+'/'+maxHp);
-    // 檢查 msg-ok（未重生）
-    var msgOk=document.getElementById('msg-ok');
-    if(msgOk){
-      console.log('[WB-CronQuick][S1] msg-ok, '+tgt.name+' not respawned');
-      try{msgOk.click();}catch(e){}
-      window.__wbCronQuick.done[tgt.id]=true; tgt._retry=0;
-      as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},500);
-      return;
-    }
-    // 檢查是否已進入戰鬥 / BOSS 存在
-    if((ls.mode==='boss'||ls.mode==='bosscombat')&&hp>0){
-      console.log('[WB-CronQuick][S1] Boss '+tgt.name+' loaded! HP='+hp+'/'+maxHp);
-      tgt._retry=0;
-      window.__wbCronQuick.currentTarget=tgt;
-      window.__wbCronQuick.phase='combat';
-      if(window.__wbBossAuto&&!window.__wbBossAuto.running)__wbBossAutoStart();
-      __wbDebugStart(tgt.name,'cron-quick');
-      __wbCronQuickCombatPoll(tgt,idx);
-      return;
-    }
-    // BOSS 未載入 → 重試或跳過
-    if(retry<3){
-      console.log('[WB-CronQuick][S1] Boss not loaded, retry '+(retry+1)+'/3 in 2s');
-      tgt._retry=retry+1;
-      as.timer=setTimeout(function(){__wbCronQuickProcess(idx);},2000);
-    }else{
-      console.log('[WB-CronQuick][S1] 3 retries exhausted for '+tgt.name+', skipping');
-      window.__wbCronQuick.done[tgt.id]=true; tgt._retry=0;
-      as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},300);
-    }
-  },1000);
+  // 持續輪詢：每500ms檢查是否進戰鬥 / msg-ok / br-lobby，最多30s
+  tgt._pollStart=Date.now();
+  tgt._pollCount=0;
+  __wbCronQuickScript1Poll(tgt,idx);
+}
+function __wbCronQuickScript1Poll(tgt,idx){
+  var as=window.__wbBossAutoScript;
+  if(!as||!as.running){__wbCronQuickReset();return;}
+  var elapsed=Date.now()-(tgt._pollStart||Date.now());
+  tgt._pollCount=(tgt._pollCount||0)+1;
+  var ls=window.lastState||{};
+  var boss=ls.boss||{};
+  var mode=ls.mode||'';
+  var hp=boss.hp||0;
+  // msg-ok → 未重生
+  var msgOk=document.getElementById('msg-ok');
+  if(msgOk){
+    console.log('[WB-CronQuick][S1] msg-ok: '+tgt.name+' not spawned, skip');
+    try{msgOk.click();}catch(e){}
+    window.__wbCronQuick.done[tgt.id]=true;
+    as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},500);
+    return;
+  }
+  // br-lobby → 結算畫面(擊敗)
+  var lobbyBtn=document.getElementById('br-lobby');
+  if(lobbyBtn){
+    console.log('[WB-CronQuick][S1] br-lobby: '+tgt.name+' defeated!');
+    window.__wbCronQuick.currentTarget=tgt;
+    __wbCronQuickHandleDefeatNow(tgt,idx);
+    return;
+  }
+  // 進戰鬥了→開始戰鬥輪詢
+  if(mode==='boss'||mode==='bosscombat'){
+    console.log('[WB-CronQuick][S1] '+tgt.name+' in combat! mode='+mode+' hp='+hp+'/'+(boss.maxHp||0));
+    window.__wbCronQuick.currentTarget=tgt;
+    window.__wbCronQuick.phase='combat';
+    if(window.__wbBossAuto&&!window.__wbBossAuto.running)__wbBossAutoStart();
+    __wbDebugStart(tgt.name,'cron-s1');
+    __wbCronQuickCombatPoll(tgt,idx);
+    return;
+  }
+  // 逾時
+  if(elapsed>=30000){
+    console.log('[WB-CronQuick][S1] 30s timeout for '+tgt.name+', mode='+mode+', skip');
+    window.__wbCronQuick.done[tgt.id]=true;
+    as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},300);
+    return;
+  }
+  // 每10次(5s)補發一次 joinBoss
+  if(tgt._pollCount%10===0){
+    if(window.__wbEmit)window.__wbEmit('joinBoss',[tgt.id]);
+    else if(window.__wbSocket&&window.__wbSocket.emit)window.__wbSocket.emit('joinBoss',[tgt.id]);
+  }
+  var stEl=document.getElementById('__gmp_boss_script_status');
+  if(stEl)stEl.textContent='🔍S1 '+tgt.name+' '+Math.floor(elapsed/1000)+'s';
+  as.timer=setTimeout(function(){__wbCronQuickScript1Poll(tgt,idx);},500);
+}
+
+// ====== 腳本2：點擊 DOM 卡片進場 → 輪詢 → 攻擊 → 擊敗 → 回大廳 ======
+function __wbCronQuickScript2(tgt,idx){
+  var as=window.__wbBossAutoScript;
+  if(!as||!as.running)return;
+  console.log('[WB-CronQuick][S2] Click card: '+tgt.name+' ('+tgt.id+')');
+  // 找卡片
+  var card=document.querySelector('.wb-card[data-boss="'+tgt.id+'"]');
+  if(!card){
+    console.log('[WB-CronQuick][S2] No card for '+tgt.name+', skip');
+    window.__wbCronQuick.done[tgt.id]=true;
+    as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},300);
+    return;
+  }
+  // 確保可見
+  try{card.scrollIntoView({block:'center',behavior:'instant'});}catch(e){}
+  // 點擊
+  try{card.click();}catch(e){}
+  // 走 Script1 同樣的輪詢
+  tgt._pollStart=Date.now();
+  tgt._pollCount=0;
+  __wbCronQuickScript1Poll(tgt,idx);
 }
 
 function __wbCronQuickWaitCombat(tgt,idx){
