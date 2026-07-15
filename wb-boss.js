@@ -633,7 +633,7 @@ function __wbCronQuickScript2(tgt,idx){
 function __wbCronQuickScript3(tgt,idx){
   var as=window.__wbBossAutoScript;
   if(!as||!as.running)return;
-  console.log('[WB-CronQuick][S3] Card click: '+tgt.name+' ('+tgt.id+')');
+  console.log('[WB-CronQuick][S3] '+tgt.name+' ('+tgt.id+')');
   var card=document.querySelector('.wb-card[data-boss="'+tgt.id+'"]');
   if(!card){
     console.log('[WB-CronQuick][S3] No card for '+tgt.name+', skip');
@@ -641,9 +641,50 @@ function __wbCronQuickScript3(tgt,idx){
     as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},300);
     return;
   }
+  // 檢查 BOSS 重生時間：讀取 .wb-sub 判斷存活/死亡/重生倒數
+  var subEl=document.querySelector('.wb-sub[data-boss="'+tgt.id+'"]');
+  var subText=subEl?subEl.textContent.trim():'';
+  var isAlive=subText.indexOf('\u5B58\u6D3B')!==-1||subText.indexOf('\u6230\u9B25\u4E2D')!==-1||subText.indexOf('HP')!==-1||subText.indexOf('\u5728\u5834')!==-1||subText==='';
+  var isDead=subText.indexOf('\u5DF2\u88AB\u64CA\u6557')!==-1||subText.indexOf('\u5DF2\u88AB\u5FB4\u670D')!==-1;
+  if(isDead){
+    var now=new Date();
+    var m=subText.match(/(\d{1,2})\/(\d{1,2})\s*(\d{1,2}):(\d{2})/);
+    if(m){
+      var mo=parseInt(m[1]), d=parseInt(m[2]), h=parseInt(m[3]), mi=parseInt(m[4]);
+      var targetTime=new Date(now.getFullYear(),mo-1,d,h,mi,0);
+      if(targetTime<=now)targetTime.setDate(targetTime.getDate()+1);
+      var secondsLeft=Math.round((targetTime-now)/1000);
+      console.log('[WB-CronQuick][S3] '+tgt.name+' respawn: '+m[0]+' ('+secondsLeft+'s left)');
+      // 重生時間 > 5分鐘 → 記錄並略過
+      if(secondsLeft>300){
+        console.log('[WB-CronQuick][S3] SKIP '+tgt.name+' (respawn >5min: '+secondsLeft+'s)');
+        // 記錄重生時間供下次掃描使用
+        tgt._skipReason='respawn>'+(secondsLeft/60).toFixed(1)+'min';
+        tgt._respawnAt=targetTime.getTime();
+        window.__wbCronQuick.done[tgt.id]=true;
+        window.__wbCronQuick.ignoredRespawn=(window.__wbCronQuick.ignoredRespawn||0)+1;
+        var stEl=document.getElementById('__gmp_boss_script_status');
+        if(stEl)stEl.textContent='⏭S3 跳過 '+tgt.name+' ('+(secondsLeft/60).toFixed(0)+'min) '+(idx+1)+'/'+window.__wbCronQuick.targets.length;
+        as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},200);
+        return;
+      }
+      // <=5分鐘，等到時間到（每秒檢查一次，最長等 secondsLeft 秒）
+      console.log('[WB-CronQuick][S3] '+tgt.name+' respawn in '+secondsLeft+'s, waiting...');
+      var stEl2=document.getElementById('__gmp_boss_script_status');
+      if(stEl2)stEl2.textContent='⏳S3 等重生 '+tgt.name+' '+secondsLeft+'s';
+      __wbCronQuickScript3WaitRespawn(tgt,idx,secondsLeft+2000);
+      return;
+    }
+    // 已死但無重生時間 → 可能剛死，等一下再試
+    console.log('[WB-CronQuick][S3] '+tgt.name+' dead, no respawn time, skip');
+    window.__wbCronQuick.done[tgt.id]=true;
+    as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},300);
+    return;
+  }
+  // 存活 → 正常進入
+  console.log('[WB-CronQuick][S3] '+tgt.name+' alive ('+subText+'), entering');
   try{card.scrollIntoView({block:'center',behavior:'instant'});}catch(e){}
   try{card.click();}catch(e){}
-  // 走 S3 專用輪詢（等進場→攻擊→HP=0→br-lobby→離開→下位）
   tgt._pollStart=Date.now();
   tgt._pollCount=0;
   __wbCronQuickScript3Poll(tgt,idx);
@@ -718,6 +759,38 @@ function __wbCronQuickScript3Poll(tgt,idx){
   var stEl2=document.getElementById('__gmp_boss_script_status');
   if(stEl2)stEl2.textContent='⏳S3 '+tgt.name+' '+Math.floor(elapsed/1000)+'s';
   as.timer=setTimeout(function(){__wbCronQuickScript3Poll(tgt,idx);},500);
+}
+// S3 等待重生倒數（每秒檢查一次直到重生或逾時）
+function __wbCronQuickScript3WaitRespawn(tgt,idx,timeoutMs){
+  var as=window.__wbBossAutoScript;
+  var startWait=Date.now();
+  function poll(){
+    if(!as||!as.running){__wbCronQuickReset();return;}
+    var elapsed=Date.now()-startWait;
+    var subEl=document.querySelector('.wb-sub[data-boss="'+tgt.id+'"]');
+    var subText=subEl?subEl.textContent.trim():'';
+    var isAlive=subText.indexOf('\u5B58\u6D3B')!==-1||subText.indexOf('\u6230\u9B25\u4E2D')!==-1||subText.indexOf('HP')!==-1||subText.indexOf('\u5728\u5834')!==-1||subText==='';
+    if(isAlive){
+      console.log('[WB-CronQuick][S3] '+tgt.name+' respawned! entering now (waited '+Math.floor(elapsed/1000)+'s)');
+      var card=document.querySelector('.wb-card[data-boss="'+tgt.id+'"]');
+      if(card){try{card.scrollIntoView({block:'center',behavior:'instant'});}catch(e){}try{card.click();}catch(e){}}
+      tgt._pollStart=Date.now();
+      tgt._pollCount=0;
+      __wbCronQuickScript3Poll(tgt,idx);
+      return;
+    }
+    if(elapsed>=timeoutMs){
+      console.log('[WB-CronQuick][S3] '+tgt.name+' respawn wait timeout, skip');
+      window.__wbCronQuick.done[tgt.id]=true;
+      as.timer=setTimeout(function(){__wbCronQuickProcess(idx+1);},300);
+      return;
+    }
+    var remaining=Math.ceil((timeoutMs-elapsed)/1000);
+    var stEl=document.getElementById('__gmp_boss_script_status');
+    if(stEl)stEl.textContent='⏳S3 等重生 '+tgt.name+' '+remaining+'s';
+    as.timer=setTimeout(poll,1000);
+  }
+  poll();
 }
 // S3 擊敗處理：點 br-lobby → toLobby + selectChar[0] → 回大廳 → 跳下位
 function __wbCronQuickScript3Defeat(tgt,idx){
