@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v4.29';
+var ver='v4.30';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -546,6 +546,7 @@ var ZONES={
   ],
   wild:[
     {id:'twilight_mt',name:'黃昏山脈',sub:'建議 Lv.55'},
+    {id:'oblivion_island',name:'遺忘之島',sub:'建議 Lv.50'},
     {id:'training',name:'新兵修練場',sub:'建議 Lv.3'},
     {id:'silver_knight',name:'銀騎士地區',sub:'建議 Lv.10'},
     {id:'talking_island',name:'說話之島周邊',sub:'建議 Lv.6'},
@@ -1098,7 +1099,7 @@ function __gmBuildPanel(){
       '<div id="__gmp_name" style="font-weight:bold;color:#ffd700;font-size:14px;">Loading...</div>'+
       '<div id="__gmp_info" style="font-size:11px;color:#aaa;">Lv.?</div>'+
     '</div>'+
-    '<div style="margin-bottom:5px;">'+
+    '<div id="__gmp_hpmp_section" style="margin-bottom:5px;">'+
       '<div style="display:flex;justify-content:space-between;"><span style="color:#e94560;">HP</span><span id="__gmp_hp_text" style="color:#e94560;">--/--</span></div>'+
       '<div style="background:#3a1a1a;border-radius:4px;height:14px;"><div id="__gmp_hp_bar" style="width:0%;background:#e94560;height:100%;border-radius:4px;"></div></div>'+
     '</div>'+
@@ -3825,30 +3826,160 @@ function __gmBuildPanel(){
   document.addEventListener('mouseup',function(){drag=false});
 
   // === Status update ===
-  function upd(){
-    var d=window.lastState;
-    if(!d||!d.char)return;
+  // ====== GolineSocket Protobuf 解碼（linh5web.win 專用）======
+  window.__gmGolineDecode=function(bytes){
+    var p=0,b,field,wire,val,shift,len;
+    while(p<bytes.length){
+      b=bytes[p]; field=(b>>3); wire=(b&7); p++;
+      if(wire===0){
+        val=0; shift=0;
+        while(p<bytes.length){
+          val|=(bytes[p]&0x7F)<<shift;
+          if(!(bytes[p]&0x80)){ p++; break; }
+          shift+=7; p++;
+        }
+        if(field===4) window.__gmLastCharHp=val;
+        if(field===5) window.__gmLastCharMaxHp=val;
+        if(field===6) window.__gmLastCharMp=val;
+        if(field===7) window.__gmLastCharMaxMp=val;
+      } else if(wire===2){
+        len=0; shift=0;
+        while(p<bytes.length){
+          len|=(bytes[p]&0x7F)<<shift;
+          if(!(bytes[p]&0x80)){ p++; break; }
+          shift+=7; p++;
+        }
+        if(field===6){
+          var sub=bytes.slice(p,p+len);
+          var sp=0,sb,sf,sw,sv,sl,sshift;
+          while(sp<sub.length){
+            sb=sub[sp]; sf=(sb>>3); sw=(sb&7); sp++;
+            if(sw===0){
+              sv=0; sshift=0;
+              while(sp<sub.length){
+                sv|=(sub[sp]&0x7F)<<sshift;
+                if(!(sub[sp]&0x80)){ sp++; break; }
+                sshift+=7; sp++;
+              }
+              if(sf===4) window.__gmLastCharHp=sv;
+              if(sf===5) window.__gmLastCharMaxHp=sv;
+              if(sf===6) window.__gmLastCharMp=sv;
+              if(sf===7) window.__gmLastCharMaxMp=sv;
+            } else {
+              if(sw===2){sl=0;sshift=0;while(sp<sub.length){sl|=(sub[sp]&0x7F)<<sshift;if(!(sub[sp]&0x80)){sp++;break;}sshift+=7;sp++;}sp+=sl;}
+              else if(sw===5){sp+=4;}
+              else if(sw===1){sp+=8;}
+            }
+          }
+        }
+        p+=len;
+      } else if(wire===5){p+=4;}
+      else if(wire===1){p+=8;}
+      else break;
+    }
+  };
+
+  window.__gmGolineHookInstalled=false;
+  window.__gmInstallGolineHook=function(){
+    if(window.__gmGolineHookInstalled||!window.GolineSocket)return;
+    window.__gmGolineHookInstalled=true;
     try{
-      var c=d.char;
-      if(!c)return;
+      var inst=new GolineSocket();
+      var Proto=Object.getPrototypeOf(inst);
+      var origHandle=Proto.handle.bind(inst);
+      Proto.handle=function(data,flags){
+        var bytes=data instanceof Uint8Array?data:new Uint8Array(data);
+        window.__gmGolineDecode(bytes.slice(0,Math.min(200,bytes.length)));
+        return origHandle(data,flags);
+      };
+      console.log('[GM] GolineSocket handle hook installed');
+    }catch(e){console.warn('[GM] Goline hook failed:',e.message);}
+  };
+  setTimeout(function(){
+    if(window.GolineSocket) window.__gmInstallGolineHook();
+    else setTimeout(window.__gmInstallGolineHook,1000);
+  },500);
+
+  // 讀取遊戲 DOM HP/MP（主要）+ GolineSocket Protobuf（備援）
+  function upd(){
+    try{
+      var hpTxt=document.getElementById('p-hp-txt');
+      var mpTxt=document.getElementById('p-mp-txt');
+      var charNameEl=document.getElementById('p-name');
+      var zoneNameEl=document.getElementById('zone-name');
+
+      var hp=0,maxHp=0,mp=0,maxMp=0;
+      if(hpTxt){
+        var m=hpTxt.textContent.match(/(\d+)\/(\d+)/);
+        if(m){hp=parseInt(m[1]);maxHp=parseInt(m[2]);}
+      }
+      if(mpTxt){
+        var m2=mpTxt.textContent.match(/(\d+)\/(\d+)/);
+        if(m2){mp=parseInt(m2[1]);maxMp=parseInt(m2[2]);}
+      }
+      // 備援：GolineSocket Protobuf
+      if(hp===0&&window.__gmLastCharHp){
+        hp=window.__gmLastCharHp||0;
+        maxHp=window.__gmLastCharMaxHp||0;
+        mp=window.__gmLastCharMp||0;
+        maxMp=window.__gmLastCharMaxMp||0;
+      }
+
       if(document.getElementById('__gmp_name')){
-        document.getElementById('__gmp_name').textContent=c.name||'?';
-        document.getElementById('__gmp_info').textContent='Lv.'+(c.level||'?')+' | '+(d.zoneName||'');
-        document.getElementById('__gmp_hp_text').textContent=(c.hp||0)+'/'+(c.maxHp||0);
-        document.getElementById('__gmp_hp_bar').style.width=Math.round((c.hp||0)/(c.maxHp||1)*100)+'%';
-        document.getElementById('__gmp_mp_text').textContent=(c.mp||0)+'/'+(c.maxMp||0);
-        document.getElementById('__gmp_mp_bar').style.width=Math.round((c.mp||0)/(c.maxMp||1)*100)+'%';
-        document.getElementById('__gmp_exp_text').textContent=Math.round((c.exp||0)/(c.expToNext||1)*100)+'%';
-        document.getElementById('__gmp_exp_bar').style.width=Math.round((c.exp||0)/(c.expToNext||1)*100)+'%';
-        document.getElementById('__gmp_gold').textContent=(c.gold||0).toLocaleString();
+        if(charNameEl) document.getElementById('__gmp_name').textContent=charNameEl.textContent||'?';
+        var zoneText=(zoneNameEl&&zoneNameEl.style.display!=='none')?zoneNameEl.textContent:'';
+        document.getElementById('__gmp_info').textContent=zoneText;
+        document.getElementById('__gmp_hp_text').textContent=maxHp?hp+'/'+maxHp:'--/--';
+        document.getElementById('__gmp_hp_bar').style.width=maxHp?Math.round(hp/maxHp*100)+'%':'0%';
+        document.getElementById('__gmp_mp_text').textContent=maxMp?mp+'/'+maxMp:'--/--';
+        document.getElementById('__gmp_mp_bar').style.width=maxMp?Math.round(mp/maxMp*100)+'%':'0%';
+        document.getElementById('__gmp_exp_text').textContent='--%';
+        document.getElementById('__gmp_exp_bar').style.width='0%';
+        document.getElementById('__gmp_gold').textContent='--';
         document.getElementById('__gmp_online').textContent=window.__gmOnlineCount?(window.__gmOnlineCount+'人'):'--';
         var h='';
-        if(d.monsters)d.monsters.forEach(function(m,i){if(m){var pct=Math.round(m.hp/m.maxHp*100);var col=pct>50?'#4ade80':pct>25?'#fbbf24':'#e94560';h+='<div>['+i+'] '+(m.n||'?')+' <span style="color:'+col+';">'+(m.hp||0)+'/'+(m.maxHp||0)+'</span></div>'}});
+        document.querySelectorAll('.mslot').forEach(function(s,i){
+          var mobHp=s.querySelector('.mhp');
+          if(mobHp){ h+='<div>['+i+'] <span style="color:#e94560;">'+(mobHp.textContent||'')+'</span></div>'; }
+        });
         document.getElementById('__gmp_mobs').innerHTML=h||'<span style="color:#888;">none</span>';
       }
     }catch(e){}
   }
   setInterval(upd,500);
+
+  // === 刪除/恢復 自訂 HP/MP 區塊 toggle ===
+  window.__gmHpmpVisible=true;
+  window.__gmToggleHpmp=function(force){
+    var section=document.getElementById('__gmp_hpmp_section');
+    var btn=document.getElementById('__gmp_hpmp_toggle_btn');
+    var isVisible=section&&section.style.display!=='none'&&section.parentElement;
+    var next=force!==undefined?force:!isVisible;
+    if(!section)return;
+    if(next){
+      section.style.display='block';
+      if(btn){btn.textContent='隱藏自訂HP/MP';btn.style.color='#e94560';}
+      window.__gmHpmpVisible=true;
+    } else {
+      section.remove();
+      if(btn){btn.textContent='顯示自訂HP/MP';btn.style.color='#4ade80';}
+      window.__gmHpmpVisible=false;
+    }
+  };
+  // 新增 toggle 按鈕
+  var panelEl=document.getElementById('__gmp_content');
+  if(panelEl){
+    var infoDiv=document.getElementById('__gmp_info');
+    if(infoDiv&&infoDiv.parentElement){
+      var toggleBtn=document.createElement('button');
+      toggleBtn.id='__gmp_hpmp_toggle_btn';
+      toggleBtn.textContent='隱藏自訂HP/MP';
+      toggleBtn.style.cssText='width:100%;margin-top:4px;padding:4px;background:#2a1a1a;border:1px solid #e94560;color:#e94560;border-radius:4px;cursor:pointer;font-size:10px;';
+      toggleBtn.onclick=function(){window.__gmToggleHpmp();};
+      infoDiv.parentElement.insertBefore(toggleBtn,infoDiv.nextSibling);
+    }
+  }
+
   upd();
 
   // === Load saved settings ===
