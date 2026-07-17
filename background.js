@@ -75,7 +75,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
       gameTabId = sender.tab.id;
       console.log('[GM Background] Game tab registered:', gameTabId);
     }
-    sendResponse({registered: true});
+    sendResponse({registered: true, tabId: gameTabId});
     return true;
 
   } else if (request.action === 'getGameTabId') {

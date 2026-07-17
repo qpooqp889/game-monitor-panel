@@ -88,9 +88,31 @@ var __gmPendingInjections = [];
 // 向 background 註冊自己並取得自己的 tabId
 __gmSafeSendMessage({action:'registerGameTab'}, function(resp) {
   if (resp && resp.registered) {
+    // 立即從回應中取得 tabId（最可靠，不依賴背景緩存）
+    if (resp.tabId) {
+      __gmGameTabId = resp.tabId;
+      console.log('[GM Content] Game tab registered, tabId:', __gmGameTabId);
+    }
     console.log('[GM Content] Game tab registered');
   }
 });
+
+// 取得遊戲分頁 ID（加強版：附帶重試）
+function __gmGetGameTabIdWithRetry(callback, retries) {
+  if (retries === undefined) retries = 5;
+  __gmSafeSendMessage({action: 'getGameTabId'}, function(info) {
+    if (info && info.tabId) {
+      __gmGameTabId = info.tabId;
+      callback(__gmGameTabId);
+    } else if (retries > 0) {
+      console.log('[GM Content] Game tabId not ready, retrying... (' + retries + ' left)');
+      setTimeout(function() { __gmGetGameTabIdWithRetry(callback, retries - 1); }, 400);
+    } else {
+      console.error('[GM Content] Cannot determine game tabId after multiple retries.');
+      callback(null);
+    }
+  });
+}
 
 // Storage 請求序號（用於配對回應）
 var __gmStorageSeq = 0;
@@ -192,14 +214,10 @@ window.addEventListener('message', function(e) {
     if (__gmGameTabId) {
       doInject(__gmGameTabId);
     } else {
-      // 還不知道 tabId：向 background 查詢，等回應後再注射
-      __gmSafeSendMessage({action: 'getGameTabId'}, function(info) {
-        if (info && info.tabId) {
-          __gmGameTabId = info.tabId;
-          doInject(__gmGameTabId);
-        } else {
-          console.error('[GM Content] Cannot determine game tabId — game tab may not be registered yet. Retry later.');
-        }
+      // 還不知道 tabId：向 background 查詢（加強版：附帶重試）
+      __gmGetGameTabIdWithRetry(function(tabId) {
+        if (tabId) doInject(tabId);
+        // 不再需要 retry 後手動錯誤訊息，__gmGetGameTabIdWithRetry 內部已處理
       });
     }
   }
