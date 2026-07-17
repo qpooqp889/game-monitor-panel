@@ -1182,11 +1182,10 @@ function __gmBuildPanel(){
 '</div>'+    // === Socket 封包即時 Log（摺疊區塊） ===
     '<div id="__gmp_packet_log_section" style="margin-bottom:4px;">'+
       '<div id="__gmp_packet_log_toggle" style="display:flex;justify-content:space-between;align-items:center;padding:3px 8px;background:rgba(0,150,255,0.08);border-radius:4px;cursor:pointer;user-select:none;font-size:10px;color:#64b5f6;">'+
-        '<span>&#x1F4E1; Socket&#x5c01;&#x5305; <span id="__gmp_packet_log_count" style="color:#888;">(0)</span></span>'+
+        '<span>&#x1F4E1; Socket&#x5c01;&#x5305; <span id="__gmp_packet_log_count" style="color:#888;">(0)</span><span id="__gmp_packet_log_arrow" style="font-size:10px;margin-left:4px;">&#x25B6;</span></span>'+
         '<div style="display:flex;gap:8px;align-items:center;">'+
           '<label style="cursor:pointer;font-size:9px;color:#888;"><input type="checkbox" id="__gmp_pkt_send_chk" checked style="width:11px;height:11px;vertical-align:middle;margin-right:2px;">&#x50B3;&#x9001;</label>'+
           '<label style="cursor:pointer;font-size:9px;color:#888;"><input type="checkbox" id="__gmp_pkt_recv_chk" checked style="width:11px;height:11px;vertical-align:middle;margin-right:2px;">&#x63A5;&#x6536;</label>'+
-          '<span id="__gmp_packet_log_arrow" style="font-size:10px;">&#x25B6;</span>'+
         '</div>'+
       '</div>'+
       '<div id="__gmp_packet_log_body" style="display:none;max-height:250px;overflow-y:auto;padding:4px 6px;background:rgba(0,0,0,0.3);border-radius:0 0 4px 4px;font-family:Consolas,monospace;">'+
