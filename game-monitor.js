@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v4.31';
+var ver='v4.32';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -641,18 +641,19 @@ var ZONE_NAME_LOOKUP=buildZoneNameLookup();
 
 function sendZone(zoneId){
   try {
+    // GolineSocket (Protobuf) — 檢查是否有 raw 方法
+    if(window.__wbSocket && typeof window.__wbSocket.raw==='function'){
+      window.__wbSocket.emit('setZone', zoneId);
+      console.log('[GM] Teleport (GolineSocket):', zoneId);
+      return;
+    }
+    // Socket.IO (JSON) — connected 屬性
     if(window.__wbSocket && window.__wbSocket.connected){
       window.__wbSocket.emit('setZone', zoneId);
       console.log('[GM] Teleport (SIO):', zoneId);
       return;
     }
-    // Fallback: use raw WebSocket if SIO not available
-    if(window.__ws && window.__ws.readyState===WebSocket.OPEN){
-      window.__ws.send('42["setZone", "'+zoneId+'"]');
-      console.log('[GM] Teleport (WS):', zoneId);
-      return;
-    }
-    console.log('[GM] Cannot teleport: socket not open (readyState='+(window.__ws?window.__ws.readyState:'null')+')');
+    console.warn('[GM] Cannot teleport: no active socket (GolineSocket.ready='+(window.__wbSocket&&typeof window.__wbSocket.raw)+', SIO.connected='+(window.__wbSocket&&window.__wbSocket.connected)+')');
   } catch(e) {
     console.log('[GM] Teleport error:', e.message);
   }
@@ -660,17 +661,12 @@ function sendZone(zoneId){
 
 function sendCmd(cmd){
   try {
-    if(window.__wbSocket && window.__wbSocket.connected){
+    if(window.__wbSocket && typeof window.__wbSocket.emit==='function'){
       window.__wbSocket.emit(cmd);
-      console.log('[GM] Cmd (SIO):', cmd);
+      console.log('[GM] Cmd:', cmd);
       return;
     }
-    if(window.__ws && window.__ws.readyState===WebSocket.OPEN){
-      window.__ws.send('42["'+cmd+'"]');
-      console.log('[GM] Cmd (WS):', cmd);
-      return;
-    }
-    console.log('[GM] Cannot send cmd: socket not open');
+    console.warn('[GM] Cannot send cmd: no active socket');
   } catch(e) {
     console.log('[GM] Cmd error:', e.message);
   }
@@ -4090,19 +4086,55 @@ function __gmBuildPanel(){
   };
 
   window.__gmGolineHookInstalled=false;
+  // 追蹤所有 GolineSocket 實例（用於 sendZone 等場景）
+  window.__gmGolineInstances=[];
   window.__gmInstallGolineHook=function(){
     if(window.__gmGolineHookInstalled||!window.GolineSocket)return;
     window.__gmGolineHookInstalled=true;
     try{
-      var inst=new GolineSocket();
-      var Proto=Object.getPrototypeOf(inst);
-      var origHandle=Proto.handle.bind(inst);
+      var GSC=window.GolineSocket;
+      // ---- 鉤 GolineSocket 構造函數：捕獲所有實例（包括 extension 加載前已創建的）----
+      var OrigGS=GSC;
+      var _this=this;
+      window.GolineSocket=function(base){
+        var inst=new OrigGS(base);
+        window.__gmGolineInstances.push(inst);
+        // 第一個就是 GO1 shard → 設為 __wbSocket
+        if(window.__gmGolineInstances.length===1){
+          window.__wbSocket=inst;
+          console.log('[GM] GolineSocket instance 0 captured as __wbSocket (constructor hook)');
+        }
+        return inst;
+      };
+      window.GolineSocket.prototype=GSC.prototype;
+      window.GolineSocket.constructor=GSC.constructor;
+
+      // ---- 鉤 prototype.emit：捕獲發送時的實例（包含 extension 加載前已創建的）----
+      var Proto=GSC.prototype;
+      var origEmit=Proto.emit;
+      Proto.emit=function(ev,...a){
+        if(!window.__wbSocket){
+          window.__wbSocket=this;
+          console.log('[GM] GolineSocket captured as __wbSocket (emit hook)');
+        }
+        if(typeof window.__gmAddPacketLog==='function'){
+          window.__gmAddPacketLog('SEND','GOLINE→',ev,JSON.stringify(a).slice(0,200));
+        }
+        return origEmit.apply(this,arguments);
+      };
+
+      // ---- 接收端鉤子 ----
+      var origHandle=Proto.handle;
       Proto.handle=function(data,flags){
         var bytes=data instanceof Uint8Array?data:new Uint8Array(data);
         window.__gmGolineDecode(bytes.slice(0,Math.min(200,bytes.length)));
-        return origHandle(data,flags);
+        return origHandle.call(this,data,flags);
       };
-      console.log('[GM] GolineSocket handle hook installed');
+
+      // ---- 遍歷已創建的實例（游戲可能在 extension 加載前已創建）----
+      // GolineSocket 用 'this' 而非 prototype 儲存 handlers，所以需要包裝每個實例
+      // 透過 WebSocket send hook 捕獲：當檢測到 Protobuf 流量時說明有已創建的 GolineSocket 在使用
+      console.log('[GM] GolineSocket constructor hooked (existing + future instances)');
     }catch(e){console.warn('[GM] Goline hook failed:',e.message);}
   };
   setTimeout(function(){
