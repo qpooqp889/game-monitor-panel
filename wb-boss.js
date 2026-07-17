@@ -1,4 +1,4 @@
-﻿/* wb-boss.js v3.29 - BOSS Auto Script */
+/* wb-boss.js v3.29 - BOSS Auto Script */
 
 // ====== Debug Logger (觸發條件: 偵測到重生 < 30s) ======
 // 儲存至 chrome.storage.local key: __gmp_debug_log
