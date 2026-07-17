@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v4.33';
+var ver='v4.34';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -641,19 +641,22 @@ var ZONE_NAME_LOOKUP=buildZoneNameLookup();
 
 function sendZone(zoneId){
   try {
-    // GolineSocket (Protobuf) — 檢查是否有 raw 方法
-    if(window.__wbSocket && typeof window.__wbSocket.raw==='function'){
+    // GolineSocket (Protobuf)
+    if(window.__wbSocket && typeof window.__wbSocket.emit==='function'){
       window.__wbSocket.emit('setZone', zoneId);
-      console.log('[GM] Teleport (GolineSocket):', zoneId);
+      console.log('[GM] Teleport:', zoneId, '(socket type:', (window.__wbSocket.raw?'GolineSocket':'Socket.IO')+')');
       return;
     }
-    // Socket.IO (JSON) — connected 屬性
-    if(window.__wbSocket && window.__wbSocket.connected){
-      window.__wbSocket.emit('setZone', zoneId);
-      console.log('[GM] Teleport (SIO):', zoneId);
-      return;
+    // WebSocket raw fallback（直接發 Protobuf）
+    if(window.__gmGameWS&&window.__gmGameWS.readyState===WebSocket.OPEN){
+      var pkg=window.__gmBuildSetZonePkg(zoneId);
+      if(pkg){
+        window.__gmGameWS.send(pkg);
+        console.log('[GM] Teleport (WS raw):', zoneId);
+        return;
+      }
     }
-    console.warn('[GM] Cannot teleport: no active socket (GolineSocket.ready='+(window.__wbSocket&&typeof window.__wbSocket.raw)+', SIO.connected='+(window.__wbSocket&&window.__wbSocket.connected)+')');
+    console.warn('[GM] Cannot teleport: no active socket. __wbSocket='+(!!window.__wbSocket)+', __gmGameWS='+(!!window.__gmGameWS));
   } catch(e) {
     console.log('[GM] Teleport error:', e.message);
   }
@@ -4138,6 +4141,43 @@ function __gmBuildPanel(){
     if(window.GolineSocket) window.__gmInstallGolineHook();
     else setTimeout(window.__gmInstallGolineHook,1000);
   },500);
+
+  // ---- WebSocket 層捕獲：當 GolineSocket/Socket.IO 都沒捕到時的最後防線 ----
+  (function __gmInstallWSHook(){
+    if(window.__gmWSHookInstalled)return;
+    window.__gmWSHookInstalled=true;
+    var OrigWS=window.WebSocket;
+    if(!OrigWS)return;
+    window.WebSocket=function(url,protocols){
+      var ws=new OrigWS(url,protocols);
+      // 捕獲第一個 wss:// 連線 → 假設是遊戲 socket
+      if(!window.__gmGameWS){
+        window.__gmGameWS=ws;
+        console.log('[GM] WebSocket captured as __gmGameWS:',url);
+        // 包裝 ws.send，捕獲 GolineSocket 發出的 Protobuf binary
+        var origSend=ws.send.bind(ws);
+        ws.send=function(data){
+          // 嘗試捕獲 ws → GolineSocket 實例（雙向連結）
+          if(window.__gmGolineInstances.length>0&&!window.__wbSocket){
+            window.__wbSocket=window.__gmGolineInstances[0];
+            console.log('[GM] Linked __wbSocket via GolineInstances[0]');
+          }
+          // 若有 GolineSocket 實例正在用這個 ws，確保它是 __wbSocket
+          if(window.__gmGolineInstances.length>0){
+            var gs=window.__gmGolineInstances[0];
+            if(gs.ws===ws||gs._ws===ws){
+              window.__wbSocket=gs;
+              window.__gmGameWS=ws;
+            }
+          }
+          return origSend(data);
+        };
+      }
+      return ws;
+    };
+    window.WebSocket.prototype=OrigWS.prototype;
+    console.log('[GM] WebSocket constructor hooked');
+  })();
 
   // 讀取遊戲 DOM HP/MP（主要）+ GolineSocket Protobuf（備援）
   function upd(){
