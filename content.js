@@ -99,17 +99,21 @@ __gmSafeSendMessage({action:'registerGameTab'}, function(resp) {
 
 // 取得遊戲分頁 ID（加強版：附帶重試）
 function __gmGetGameTabIdWithRetry(callback, retries) {
-  if (retries === undefined) retries = 5;
+  if (retries === undefined) retries = 12; // 12 × 600ms = 7.2s
   __gmSafeSendMessage({action: 'getGameTabId'}, function(info) {
     if (info && info.tabId) {
       __gmGameTabId = info.tabId;
       callback(__gmGameTabId);
     } else if (retries > 0) {
-      console.log('[GM Content] Game tabId not ready, retrying... (' + retries + ' left)');
-      setTimeout(function() { __gmGetGameTabIdWithRetry(callback, retries - 1); }, 400);
+      setTimeout(function() { __gmGetGameTabIdWithRetry(callback, retries - 1); }, 600);
     } else {
-      console.error('[GM Content] Cannot determine game tabId after multiple retries.');
-      callback(null);
+      // 最後防線：使用 registerGameTab 快取的值（遊戲 tab 的 content script 啟動時會正確設定）
+      if (__gmGameTabId) {
+        callback(__gmGameTabId);
+      } else {
+        console.error('[GM Content] Cannot determine game tabId after multiple retries.');
+        callback(null);
+      }
     }
   });
 }

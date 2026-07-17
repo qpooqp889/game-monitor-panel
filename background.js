@@ -71,16 +71,34 @@ function doWindowAction(sender, gameTabId, sendResponse, targetState) {
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   if (request.action === 'registerGameTab') {
     // 來自 content script：註冊遊戲分頁 ID
+    // 只有遊戲分頁才能設定 gameTabId，防止被非遊戲 tab 覆蓋
     if (sender.tab && sender.tab.id) {
-      gameTabId = sender.tab.id;
-      console.log('[GM Background] Game tab registered:', gameTabId);
+      if (!gameTabId || (sender.tab.url && /linh5web/i.test(sender.tab.url))) {
+        gameTabId = sender.tab.id;
+        console.log('[GM Background] Game tab registered:', gameTabId, sender.tab.url || '');
+      }
     }
-    sendResponse({registered: true, tabId: gameTabId});
+    sendResponse({registered: true, tabId: gameTabId || null});
     return true;
 
   } else if (request.action === 'getGameTabId') {
-    // 回應 content script 的查詢
-    sendResponse({tabId: gameTabId});
+    // 即時查詢遊戲分頁（每次都重新找，不依賴快取）
+    // 查所有分頁（不限制 URL — 沒有 "tabs" 權限時 tab.url 為 undefined，
+    // 但我們的 gameTabId 快取會被 onUpdated / registerGameTab 正確設定）
+    chrome.tabs.query({}, function(tabs) {
+      var found = gameTabId; // 優先用快取
+      for (var i = 0; i < tabs.length; i++) {
+        var tab = tabs[i];
+        // 有 tabs 權限才檢查 URL；沒有時信賴快取
+        if (tab.url && /linh5web/i.test(tab.url)) {
+          found = tab.id;
+          gameTabId = found; // 更新快取
+          break;
+        }
+      }
+      console.log('[GM Background] getGameTabId -> found:', found, 'cached:', gameTabId);
+      sendResponse({tabId: found});
+    });
     return true;
 
   } else if (request.action === 'startMonitoring') {
