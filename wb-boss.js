@@ -592,6 +592,8 @@ function __wbCronQuickScript1Poll(tgt,idx){
     console.log('[WB-CronQuick][S1] '+tgt.name+' in combat! mode='+mode+' hp='+hp+'/'+(boss.maxHp||0));
     window.__wbCronQuick.currentTarget=tgt;
     window.__wbCronQuick.phase='combat';
+    // 進入戰鬥 → 立 即發 attack
+    __wbSend('atk');
     if(window.__wbBossAuto&&!window.__wbBossAuto.running)__wbBossAutoStart();
     __wbDebugStart(tgt.name,'cron-s1');
     __wbCronQuickCombatPoll(tgt,idx);
@@ -2540,9 +2542,9 @@ function __wbGacha(){if(!window.__wbSocket)return;try{window.__wbSocket.emit('wb
 
 // ---- 舊版相容包裝（向後兼容） ----
 
-// 發送 bossAction 指令到遊戲伺服器（舊名，內部改呼叫 __wbBossAction）
-// @param {string} action - 動作名稱（如 'stop', 'pot', 'heal', 'barrier'）
-function __wbSend(action){if(!window.__wbSocket||!window.__wbSocket.emit){setTimeout(function(){if(window.__wbSocket)window.__wbBossAction(action);},200);return;}try{window.__wbBossAction(action);}catch(e){}}
+// 發送指令到遊戲伺服器
+// 'atk' → emit('attack')，其他 → emit('bossAction', action)
+function __wbSend(action){if(!window.__wbSocket||!window.__wbSocket.emit){setTimeout(function(){if(window.__wbSocket&&window.__wbSocket.emit){if(action==='atk'){window.__wbSocket.emit('attack');console.log('[WB][retry] → attack');}else{window.__wbSocket.emit('bossAction',action);console.log('[WB][retry] → bossAction:',action);}}},200);return;}try{if(action==='atk'){window.__wbSocket.emit('attack');console.log('[WB] → attack');}else{window.__wbBossAction(action);}}catch(e){}}
 
 // 發送使用藥水指令（⚠ GolineSocket 無 usePotion，須透過 setBossSet 設定自動喝藥）
 // @param {string} type - 藥水類型（預設 'potion_heal'）
