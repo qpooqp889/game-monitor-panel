@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v4.30';
+var ver='v4.31';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -44,6 +44,7 @@ window.lastState=null;  // 初始化全域 lastState
           // Socket 封包即時 log
           window.__gmPacketLog=window.__gmPacketLog||[];
           window.__gmPacketLog.push({t:Date.now(),dir:'SEND',evt:ev,args:JSON.stringify(args).slice(0,300)});
+          if(typeof window.__gmAddPacketLog==='function')window.__gmAddPacketLog('SEND','SIO→',ev,JSON.stringify(args).slice(0,300));
           if(window.__gmPacketLog.length>500)window.__gmPacketLog.shift();
         }
         return _origPkt&&_origPkt.call(this,packet);
@@ -62,6 +63,7 @@ window.lastState=null;  // 初始化全域 lastState
           // Socket 封包即時 log
           window.__gmPacketLog=window.__gmPacketLog||[];
           window.__gmPacketLog.push({t:Date.now(),dir:'RECV',evt:evtName,args:payload});
+          if(typeof window.__gmAddPacketLog==='function')window.__gmAddPacketLog('RECV','SIO←',evtName,payload);
           if(window.__gmPacketLog.length>500)window.__gmPacketLog.shift();
           // 解析 state 事件並更新 window.lastState
           if(evtName==='state'&&p.data[1]){
@@ -3825,7 +3827,216 @@ function __gmBuildPanel(){
   document.addEventListener('mouseup',function(){drag=false});
 
   // === Status update ===
-  // ====== GolineSocket Protobuf 解碼（linh5web.win 專用）======
+  // ====== 統一封包日誌介面 ======
+  // 舊 Socket.IO 鉤子 → __gmAddPacketLog(dir, label, evt, args)
+  // 新 WebSocket 鉤子 → __gmAddPacketLog(dir, label, preview, rawData)
+  window.__gmAddPacketLog=function(dir, label, evt, args){
+    try{
+      var raw = (args !== undefined) ? args : evt;
+      window.__gmPacketLog=window.__gmPacketLog||[];
+      window.__gmPacketLog.push({
+        t:Date.now(),
+        dir:dir,
+        evt:(label||'')+(evt||'?'),
+        args:typeof raw==='string'?raw.slice(0,300):JSON.stringify(raw).slice(0,300)
+      });
+      if(window.__gmPacketLog.length>500)window.__gmPacketLog.shift();
+    }catch(e){}
+  };
+
+  // ====== WebSocket 封包監聽（通用雙協議支援）======
+  // 協議判斷：URL 含 /ws → GolineSocket(Protobuf)；否則 → Socket.IO(JSON)
+  // GolineSocket ServerMsg field map (id=124):
+  //   case→msg.field 對照：1=authResult,2=charList,3=enterGame,4=fx,5=state,
+  //   6=chat,7=mail,8=party,9=pledge,10=bossFrame,11=wbGachaResult,12=bossKill...
+  (function(){
+    var _origWS = window.WebSocket;
+    if(!_origWS || window.__gmWSHookInstalled) return;
+    window.__gmWSHookInstalled = true;
+
+    // ---- 通用 Protobuf 解碼（只取前 N bytes 的 key fields）----
+    function _decodeProtobufFields(bytes, maxBytes) {
+      var p = 0, result = {}, b, field, wire, val, shift, len;
+      maxBytes = maxBytes || 300;
+      var limit = Math.min(bytes.length, maxBytes);
+      while(p < limit) {
+        b = bytes[p]; field = (b >> 3); wire = (b & 7); p++;
+        if(wire === 0) { // varint
+          val = 0; shift = 0;
+          while(p < bytes.length && shift < 63) {
+            val |= (bytes[p] & 0x7F) << shift;
+            if(!(bytes[p] & 0x80)) { p++; break; }
+            shift += 7; p++;
+          }
+          // 記錄感興趣的 field
+          if(field === 1) result._case = val; // msg.case
+          else if(field === 4) result.hp = val;
+          else if(field === 5) result.maxHp = val;
+          else if(field === 6) result.mp = val;
+          else if(field === 7) result.maxMp = val;
+          else if(field === 8) result.gold = val;
+          else if(field === 9) result.level = val;
+          else if(field === 10) result.exp = val;
+        } else if(wire === 2) { // length-delimited
+          len = 0; shift = 0;
+          while(p < bytes.length && shift < 63) {
+            len |= (bytes[p] & 0x7F) << shift;
+            if(!(bytes[p] & 0x80)) { p++; break; }
+            shift += 7; p++;
+          }
+          if(field === 2) result.chars = '[charList len=' + len + ']';
+          else if(field === 4) { result.fx = '[fx len=' + len + ']'; p += len; }
+          else if(field === 5) { result.state = '[state len=' + len + ']'; p += len; }
+          else if(field === 6) { result.chat = '[chat len=' + len + ']'; p += len; }
+          else if(field === 8) { result.party = '[party len=' + len + ']'; p += len; }
+          else if(field === 9) { result.pledge = '[pledge len=' + len + ']'; p += len; }
+          else if(field === 10) { result.bossFrame = '[bossFrame len=' + len + ']'; p += len; }
+          else if(field === 11) { result.wbGacha = '[wbGacha len=' + len + ']'; p += len; }
+          else if(field === 12) { result.bossKill = '[bossKill len=' + len + ']'; p += len; }
+          else if(field === 3) { result.enterGame = '[enterGame]'; p += len; }
+          else if(field === 14) { result.market = '[market len=' + len + ']'; p += len; }
+          else if(field === 15) { result.mail = '[mail len=' + len + ']'; p += len; }
+          else p += len;
+        } else if(wire === 5) { p += 4; } // fixed32
+        else if(wire === 1) { p += 8; } // fixed64
+        else break;
+      }
+      return result;
+    }
+
+    // ---- GolineSocket ServerMsg case → 名稱 ----
+    var _serverMsgNames = {
+      1:'authResult',2:'charList',3:'enterGame',4:'fx',5:'state',
+      6:'chat',7:'mail',8:'party',9:'pledge',10:'bossFrame',
+      11:'wbGachaResult',12:'bossKill',13:'arena',14:'market',
+      15:'marketDelta',16:'mail',17:'party',18:'pledge',
+      19:'wbGachaResult',20:'boss',21:'wbGachaInfo',22:'diceView',
+      23:'itemRarity',24:'queued',25:'admitted',26:'clientVer',
+      27:'idleKick',28:'idleAfk',29:'pledgeState',30:'onlineCount',
+      31:'serverLevel',32:'poolFull',33:'refineResult'
+    };
+
+    // ---- Socket.IO 訊息解析 ----
+    function _parseSocketIO(data) {
+      if(typeof data !== 'string') return null;
+      // Socket.IO protocol: messages start with <packet type><namespace><data>
+      // packet type 0 = CONNECT, 2 = EVENT, 3 = ACK, 4 = ERROR, 42 = EVENT (with namespace)
+      var m = data.match(/^(\d+)(.*)$/);
+      if(!m) return { raw: data };
+      var type = parseInt(m[1]);
+      var rest = m[2];
+      // Extract JSON payload
+      var jsonMatch = rest.match(/^(\[[\s\S]*)$/);
+      if(jsonMatch) {
+        try { return JSON.parse(jsonMatch[1]); } catch(e) {}
+      }
+      return { type: type, raw: rest };
+    }
+
+    // ---- 安裝鉤子 ----
+    var _origOpen = _origWS.prototype.open;
+    var _origSend = _origWS.prototype.send;
+    var _origAddEL = _origWS.prototype.addEventListener;
+    var _origRemoveEL = _origWS.prototype.removeEventListener;
+    var _origClose = _origWS.prototype.close;
+
+    _origWS.prototype.open = function(url, ...args) {
+      this.__gmURL = url;
+      this.__gmIsGoline = !!(url && url.indexOf('/ws') !== -1);
+      return _origOpen.call(this, url, ...args);
+    };
+
+    _origWS.prototype.send = function(data) {
+      // 發送攔截
+      try {
+        var label = this.__gmIsGoline ? 'WS→GOLINE' : 'WS→SOCKETIO';
+        var preview = '';
+        if(this.__gmIsGoline && (data instanceof ArrayBuffer || data instanceof Uint8Array)) {
+          var bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
+          // Protobuf: 嘗試解前 8 bytes 找 msg.case (field 1)
+          var pf = _decodeProtobufFields(bytes, 8);
+          // 嘗試取 ClientMsg case (field 1 = case)
+          preview = pf._case ? 'case=' + pf._case : 'len=' + bytes.length;
+          // 更新 HP/MP 備援（GolineSocket 外層是 ServerMsg）
+          if(pf.hp) window.__gmLastCharHp = pf.hp;
+          if(pf.maxHp) window.__gmLastCharMaxHp = pf.maxHp;
+          if(pf.mp) window.__gmLastCharMp = pf.mp;
+          if(pf.maxMp) window.__gmLastCharMaxMp = pf.maxMp;
+        } else if(!this.__gmIsGoline && typeof data === 'string') {
+          var p = _parseSocketIO(data);
+          preview = JSON.stringify(p).substring(0, 80);
+        } else {
+          preview = typeof data === 'string' ? data.substring(0, 60) : '[binary len=' + (data ? data.byteLength || data.length : 0) + ']';
+        }
+        if(typeof window.__gmAddPacketLog === 'function') {
+          window.__gmAddPacketLog('send', label, preview, data);
+        }
+      } catch(e) {}
+      return _origSend.call(this, data);
+    };
+
+    // 包裝 addEventListener 以便注入 onmessage 鉤子
+    _origWS.prototype.addEventListener = function(type, listener, options) {
+      if(type === 'message') {
+        var _this = this;
+        var wrapped = function(event) {
+          try {
+            var label = _this.__gmIsGoline ? 'WS←GOLINE' : 'WS←SOCKETIO';
+            var preview = '';
+            var rawData = event.data;
+            if(_this.__gmIsGoline && (rawData instanceof ArrayBuffer || rawData instanceof Uint8Array)) {
+              var bytes = rawData instanceof Uint8Array ? rawData : new Uint8Array(rawData);
+              var pf = _decodeProtobufFields(bytes, 20);
+              var msgCase = pf._case || '';
+              var caseName = _serverMsgNames[msgCase] || ('case' + msgCase);
+              preview = caseName;
+              if(pf.hp) { window.__gmLastCharHp = pf.hp; preview += ' hp=' + pf.hp; }
+              if(pf.maxHp) window.__gmLastCharMaxHp = pf.maxHp;
+              if(pf.mp) { window.__gmLastCharMp = pf.mp; preview += ' mp=' + pf.mp; }
+              if(pf.maxMp) window.__gmLastCharMaxMp = pf.maxMp;
+              if(pf.gold) preview += ' gold=' + pf.gold;
+              if(pf.level) preview += ' lv=' + pf.level;
+              if(pf.exp !== undefined) preview += ' exp=' + pf.exp;
+              // 特殊：state 幀標記
+              if(msgCase === 5) preview += ' [STATE]';
+              // 特殊：bossFrame 標記
+              if(msgCase === 10) preview += ' [BOSS_FRAME]';
+            } else if(!_this.__gmIsGoline && typeof rawData === 'string') {
+              var p = _parseSocketIO(rawData);
+              preview = JSON.stringify(p).substring(0, 80);
+            } else if(typeof rawData === 'string') {
+              preview = rawData.substring(0, 80);
+            } else {
+              preview = '[binary len=' + (rawData ? rawData.byteLength || rawData.length : 0) + ']';
+            }
+            if(typeof window.__gmAddPacketLog === 'function') {
+              window.__gmAddPacketLog('recv', label, preview, rawData);
+            }
+          } catch(e) {}
+          return listener.call(_this, event);
+        };
+        this.__gmWrappedListeners = this.__gmWrappedListeners || [];
+        this.__gmWrappedListeners.push({ wrapped: wrapped, original: listener });
+        return _origAddEL.call(this, type, wrapped, options);
+      }
+      return _origAddEL.call(this, type, listener, options);
+    };
+
+    _origWS.prototype.removeEventListener = function(type, listener, options) {
+      if(type === 'message' && this.__gmWrappedListeners) {
+        var found = this.__gmWrappedListeners.find(function(w) { return w.original === listener; });
+        if(found) {
+          this.__gmWrappedListeners = this.__gmWrappedListeners.filter(function(w) { return w !== found; });
+          return _origRemoveEL.call(this, type, found.wrapped, options);
+        }
+      }
+      return _origRemoveEL.call(this, type, listener, options);
+    };
+
+    console.log('[GM] WebSocket hook installed (GolineSocket Protobuf + Socket.IO JSON)');
+  })();
+
+  // ====== GolineSocket 接收端解碼（HP/MP 備援更新）======
   window.__gmGolineDecode=function(bytes){
     var p=0,b,field,wire,val,shift,len;
     while(p<bytes.length){
