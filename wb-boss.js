@@ -1,4 +1,4 @@
-﻿/* wb-boss.js v3.28 - BOSS Auto Script */
+﻿/* wb-boss.js v3.29 - BOSS Auto Script */
 
 // ====== Debug Logger (觸發條件: 偵測到重生 < 30s) ======
 // 儲存至 chrome.storage.local key: __gmp_debug_log
@@ -544,10 +544,12 @@ function __wbCronQuickScript1(tgt,idx){
   if(!as||!as.running)return;
   console.log('[WB-CronQuick][S1] joinBoss: '+tgt.name+' ('+tgt.id+')');
   // 發送 joinBoss
-  if(window.__wbEmit){
-    window.__wbEmit('joinBoss',[tgt.id]);
+  if(window.__wbJoinBoss){
+    window.__wbJoinBoss(tgt.id);
+  }else if(window.__wbEmit){
+    window.__wbEmit('joinBoss',tgt.id);
   }else if(window.__wbSocket&&window.__wbSocket.emit){
-    window.__wbSocket.emit('joinBoss',[tgt.id]);
+    window.__wbSocket.emit('joinBoss',tgt.id);
   }else{
     console.log('[WB-CronQuick][S1] No socket, skipping '+tgt.name);
     window.__wbCronQuick.done[tgt.id]=true;
@@ -604,8 +606,9 @@ function __wbCronQuickScript1Poll(tgt,idx){
   }
   // 每10次(5s)補發一次 joinBoss
   if(tgt._pollCount%10===0){
-    if(window.__wbEmit)window.__wbEmit('joinBoss',[tgt.id]);
-    else if(window.__wbSocket&&window.__wbSocket.emit)window.__wbSocket.emit('joinBoss',[tgt.id]);
+    if(window.__wbJoinBoss)window.__wbJoinBoss(tgt.id);
+    else if(window.__wbEmit)window.__wbEmit('joinBoss',tgt.id);
+    else if(window.__wbSocket&&window.__wbSocket.emit)window.__wbSocket.emit('joinBoss',tgt.id);
   }
   var stEl=document.getElementById('__gmp_boss_script_status');
   if(stEl)stEl.textContent='🔍S1 '+tgt.name+' '+Math.floor(elapsed/1000)+'s';
@@ -1449,8 +1452,9 @@ function __wbBossAutoScriptTryEnter(target,idx,list,card){
   if(retry===0){
     // 第一次嘗試：發送 joinBoss 封包
     var sent=false;
-    if(window.__wbEmit){window.__wbEmit('joinBoss',[target.id]);sent=true;}
-    else if(window.__wbSocket&&window.__wbSocket.emit){window.__wbSocket.emit('joinBoss',[target.id]);sent=true;}
+    if(window.__wbJoinBoss){window.__wbJoinBoss(target.id);sent=true;}
+    else if(window.__wbEmit){window.__wbEmit('joinBoss',target.id);sent=true;}
+    else if(window.__wbSocket&&window.__wbSocket.emit){window.__wbSocket.emit('joinBoss',target.id);sent=true;}
     if(sent)console.log('[WB-AutoScript] Sent joinBoss packet for '+target.name);
     else console.warn('[WB-AutoScript] No socket for joinBoss, card='+!!card);
   }
@@ -1478,8 +1482,9 @@ function __wbBossAutoScriptTryEnter(target,idx,list,card){
     window.__wbBossAutoScript.phase='entering_retry';
     window.__wbBossAutoScript.timer=setTimeout(function(){
       // 重發 joinBoss 封包
-      if(window.__wbEmit){window.__wbEmit('joinBoss',[target.id]);console.log('[WB-AutoScript] Retry joinBoss '+target.name+' (attempt '+(retry+2)+')');}
-      else if(window.__wbSocket&&window.__wbSocket.emit){window.__wbSocket.emit('joinBoss',[target.id]);console.log('[WB-AutoScript] Retry joinBoss '+target.name+' (attempt '+(retry+2)+')');}
+      if(window.__wbJoinBoss){window.__wbJoinBoss(target.id);console.log('[WB-AutoScript] Retry joinBoss '+target.name+' (attempt '+(retry+2)+')');}
+      else if(window.__wbEmit){window.__wbEmit('joinBoss',target.id);console.log('[WB-AutoScript] Retry joinBoss '+target.name+' (attempt '+(retry+2)+')');}
+      else if(window.__wbSocket&&window.__wbSocket.emit){window.__wbSocket.emit('joinBoss',target.id);console.log('[WB-AutoScript] Retry joinBoss '+target.name+' (attempt '+(retry+2)+')');}
       __wbBossAutoScriptTryEnter(target,idx,list,card);
     },3000);
   } else {
@@ -1526,8 +1531,9 @@ function __wbBossAutoScriptTryEnterSpam(target,idx,list,card){
 
   // 狂發 joinBoss 封包
   var sent=false;
-  if(window.__wbEmit){window.__wbEmit('joinBoss',[target.id]);sent=true;}
-  else if(window.__wbSocket&&window.__wbSocket.emit){window.__wbSocket.emit('joinBoss',[target.id]);sent=true;}
+  if(window.__wbJoinBoss){window.__wbJoinBoss(target.id);sent=true;}
+  else if(window.__wbEmit){window.__wbEmit('joinBoss',target.id);sent=true;}
+  else if(window.__wbSocket&&window.__wbSocket.emit){window.__wbSocket.emit('joinBoss',target.id);sent=true;}
   var spamCount=(window.__wbBossAutoScript.spamCount||0)+1;
   window.__wbBossAutoScript.spamCount=spamCount;
   var statusEl=document.getElementById('__gmp_boss_script_status');
@@ -2494,24 +2500,58 @@ window.lastState=null;  // 初始化全域 lastState
 
   // === Function Definitions ===
 
-// ====== WebSocket 發送函式 ======
+// ====== GolineSocket 事件映射（v4.32）======
+// GolineSocket 將事件轉為 Protobuf，key = case name, value = 參數物件
+//
+//  攻擊/停止：  attack → atkStart,  stop → stopFight
+//  地圖：       toLobby → toLobby,  setZone → setZone
+//  世界王：     joinBoss → enterBoss,  bossAction → bossAction
+//              setBossSet → setBossSet,  wbGacha → wbGacha
+//
+// ⚠ usePotion / castSkill 無 GolineSocket 對應，需透過 setBossSet 或自動喝藥設定
 
-// 發送 bossAction 指令到遊戲伺服器
-// @param {string} action - 動作名稱（如 'stop', 'atk', 'pot', 'heal', 'barrier'）
-function __wbSend(action){if(!window.__wbSocket||!window.__wbSocket.emit){setTimeout(function(){if(window.__wbSocket)window.__wbSocket.emit('bossAction',action);},200);return;}try{window.__wbSocket.emit('bossAction',action);console.log('[WB] bossAction:',action);}catch(e){}}
+// ---- 核心戰鬥指令 ----
 
-// 發送使用藥水指令
+// 開始攻擊（attack → atkStart，無參數）
+function __wbAttack(){if(!window.__wbSocket)return;try{window.__wbSocket.emit('attack');console.log('[WB] → atkStart');}catch(e){console.warn('[WB] attack failed:',e);}}
+
+// 停止攻擊（stop → stopFight，無參數）
+function __wbStop(){if(!window.__wbSocket)return;try{window.__wbSocket.emit('stop');console.log('[WB] → stopFight');}catch(e){console.warn('[WB] stop failed:',e);}}
+
+// 回大廳（toLobby → toLobby，無參數）
+function __wbToLobby(){if(!window.__wbSocket)return;try{window.__wbSocket.emit('toLobby');console.log('[WB] → toLobby');}catch(e){console.warn('[WB] toLobby failed:',e);}}
+
+// ---- 世界王指令 ----
+
+// 進入世界王戰鬥（joinBoss → enterBoss）
+// @param {string} bossId
+function __wbJoinBoss(bossId){if(!window.__wbSocket)return;try{window.__wbSocket.emit('joinBoss',bossId);console.log('[WB] → enterBoss:',bossId);}catch(e){console.warn('[WB] joinBoss failed:',e);}}
+
+// BOSS 動作（bossAction → bossAction）
+// @param {string} action - 'stop'|'pot'|'heal'|'barrier'
+function __wbBossAction(action){if(!window.__wbSocket)return;try{window.__wbSocket.emit('bossAction',action);console.log('[WB] → bossAction:',action);}catch(e){console.warn('[WB] bossAction failed:',e);}}
+
+// 設定 BOSS 自動戰鬥套裝（setBossSet → setBossSet）
+// @param {object} s - { potType, atkSkill, healSkill, convertSkill }
+function __wbSetBossSet(s){if(!window.__wbSocket||!window.__wbSocket.emit)return;try{window.__wbSocket.emit('setBossSet',s);console.log('[WB] → setBossSet');}catch(e){console.warn('[WB] setBossSet failed:',e);}}
+
+// 世界王抽卡
+function __wbGacha(){if(!window.__wbSocket)return;try{window.__wbSocket.emit('wbGacha');console.log('[WB] → wbGacha');}catch(e){console.warn('[WB] wbGacha failed:',e);}}
+
+// ---- 舊版相容包裝（向後兼容） ----
+
+// 發送 bossAction 指令到遊戲伺服器（舊名，內部改呼叫 __wbBossAction）
+// @param {string} action - 動作名稱（如 'stop', 'pot', 'heal', 'barrier'）
+function __wbSend(action){if(!window.__wbSocket||!window.__wbSocket.emit){setTimeout(function(){if(window.__wbSocket)window.__wbBossAction(action);},200);return;}try{window.__wbBossAction(action);}catch(e){}}
+
+// 發送使用藥水指令（⚠ GolineSocket 無 usePotion，須透過 setBossSet 設定自動喝藥）
 // @param {string} type - 藥水類型（預設 'potion_heal'）
-function __wbSendPotion(type){if(!window.__wbSocket)return;try{window.__wbSocket.emit('usePotion',{type:type||'potion_heal'});}catch(e){}}
+function __wbSendPotion(type){if(!window.__wbSocket)return;console.warn('[WB] usePotion not supported in GolineSocket — set auto-potion via setBossSet instead');try{window.__wbSocket.emit('usePotion',{type:type||'potion_heal'});}catch(e){}}
 
-// 施放技能
+// 施放技能（⚠ GolineSocket 無 castSkill，戰鬥中技能由 setBossSet atkSkill 欄位指定）
 // @param {string} id     - 技能 id
 // @param {string} target - 目標（可選）
-function __wbCastSkill(id,target){if(!window.__wbSocket)return;try{var p={id:id};if(target)p.target=target;window.__wbSocket.emit('castSkill',p);}catch(e){}}
-
-// 設定 BOSS 套裝
-// @param {*} s - 套裝設定資料
-function __wbSetBossSet(s){if(!window.__wbSocket)return;try{window.__wbSocket.emit('setBossSet',s);}catch(e){}}
+function __wbCastSkill(id,target){if(!window.__wbSocket)return;console.warn('[WB] castSkill not supported in GolineSocket — set skill via setBossSet atkSkill instead');try{var p={id:id};if(target)p.target=target;window.__wbSocket.emit('castSkill',p);}catch(e){}}
 
 // 通用 WebSocket 發送函式
 // @param {string} evt  - 事件名稱
@@ -3112,7 +3152,7 @@ setTimeout(function(){
 
   // ====== Export __wb* functions to window (for inline onclick/closure fallback) ======
   // 將所有內部函式匯出到 window 全域，供 HTML inline onclick 和其他模組使用
-  window.__wbSend=__wbSend;window.__wbSendPotion=__wbSendPotion;window.__wbCastSkill=__wbCastSkill;
+  window.__wbSend=__wbSend;window.__wbSendPotion=__wbSendPotion;window.__wbCastSkill=__wbCastSkill;window.__wbSetBossSet=__wbSetBossSet;window.__wbEmit=__wbEmit;window.__wbAttack=__wbAttack;window.__wbStop=__wbStop;window.__wbToLobby=__wbToLobby;window.__wbJoinBoss=__wbJoinBoss;window.__wbBossAction=__wbBossAction;window.__wbGacha=__wbGacha;
   window.__wbSetBossSet=__wbSetBossSet;window.__wbEmit=__wbEmit;
   window.__wbSubscribeWorldBoss=__wbSubscribeWorldBoss;window.__wbQueryWorldBoss=__wbQueryWorldBoss;
   window.__wbStartWorldBossTimer=__wbStartWorldBossTimer;window.__wbStopWorldBossTimer=__wbStopWorldBossTimer;

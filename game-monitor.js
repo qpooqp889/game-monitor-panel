@@ -1,5 +1,5 @@
 ﻿(function(){
-var ver='v4.32';
+var ver='v4.33';
 if(window.__gmInjected){
   console.log('[GM] Already injected ('+ver+')');
   var el=document.getElementById('__gmp_ver');
@@ -659,11 +659,16 @@ function sendZone(zoneId){
   }
 }
 
-function sendCmd(cmd){
+function sendCmd(cmd,arg){
   try {
     if(window.__wbSocket && typeof window.__wbSocket.emit==='function'){
-      window.__wbSocket.emit(cmd);
-      console.log('[GM] Cmd:', cmd);
+      if(arg!==undefined){
+        window.__wbSocket.emit(cmd,arg);
+        console.log('[GM] Cmd:', cmd, arg);
+      }else{
+        window.__wbSocket.emit(cmd);
+        console.log('[GM] Cmd:', cmd);
+      }
       return;
     }
     console.warn('[GM] Cannot send cmd: no active socket');
@@ -844,11 +849,7 @@ function startFarming(){
             console.log('[GM] HP low, sent toLobby');
             status.textContent='HP不足，回大廳...';
           } else {
-            if(window.__wbSocket && window.__wbSocket.connected){
-              window.__wbSocket.emit('selectChar', window.__gmFarming.charSlot||0);
-            } else if(window.__ws && window.__ws.readyState===WebSocket.OPEN){
-              window.__ws.send('42["selectChar",'+(window.__gmFarming.charSlot||0)+']');
-            }
+            sendCmd('selectChar', window.__gmFarming.charSlot||0);
             console.log('[GM] HP low, sent selectChar');
             status.textContent='HP不足，重新載入角色...';
           }
@@ -864,11 +865,7 @@ function startFarming(){
             console.log('[GM] MP low, sent toLobby');
             status.textContent='MP不足，回大廳...';
           } else {
-            if(window.__wbSocket && window.__wbSocket.connected){
-              window.__wbSocket.emit('selectChar', window.__gmFarming.charSlot||0);
-            } else if(window.__ws && window.__ws.readyState===WebSocket.OPEN){
-              window.__ws.send('42["selectChar",'+(window.__gmFarming.charSlot||0)+']');
-            }
+            sendCmd('selectChar', window.__gmFarming.charSlot||0);
             console.log('[GM] MP low, sent selectChar');
             status.textContent='MP不足，重新載入角色...';
           }
